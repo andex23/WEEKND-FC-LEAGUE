@@ -22,9 +22,9 @@ export function Navbar() {
             <Link href="/standings" className="text-sm text-gray-700 hover:text-gray-900">Standings</Link>
             <Link href="/rules" className="text-sm text-gray-700 hover:text-gray-900">Rules</Link>
             {!loading && (
-              <Link href={user ? "/dashboard" : "/register"}>
+              <Link href={user ? "/dashboard" : "/auth/login"}>
                 <Button className="bg-primary hover:bg-primary/90 text-white">
-                  {user ? "Dashboard" : "Register"}
+                  {user ? "Dashboard" : "Log in"}
                 </Button>
               </Link>
             )}

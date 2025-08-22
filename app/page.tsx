@@ -21,6 +21,35 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
+
+        <section className="section-pad">
+          <div className="text-center mb-8">
+            <h2 className="text-[20px] md:text-[24px] font-bold text-gray-900">How it works</h2>
+            <p className="text-sm text-gray-600">Three simple steps to get started</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="border rounded-md p-5 text-center">
+              <div className="text-2xl mb-2">⚽</div>
+              <div className="font-semibold mb-1">Register</div>
+              <div className="text-sm text-gray-600">Pick your club and console</div>
+            </div>
+            <div className="border rounded-md p-5 text-center">
+              <div className="text-2xl mb-2">🎮</div>
+              <div className="font-semibold mb-1">Play</div>
+              <div className="text-sm text-gray-600">Weekend fixtures, round-robin format</div>
+            </div>
+            <div className="border rounded-md p-5 text-center">
+              <div className="text-2xl mb-2">🏆</div>
+              <div className="font-semibold mb-1">Climb</div>
+              <div className="text-sm text-gray-600">Report scores and climb the table</div>
+            </div>
+          </div>
+          <div className="text-center mt-8">
+            <Link href={user ? "/dashboard" : "/register"} className="text-sm font-semibold text-primary hover:underline">
+              {user ? "Go to your dashboard" : "Create your player →"}
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   )
