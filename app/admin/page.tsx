@@ -243,6 +243,15 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Setup Wizard CTA */}
+                <div className="border rounded-md p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Tournament Setup Wizard</div>
+                    <div className="text-xs text-gray-600">Configure basics, rules, and scheduling, then publish.</div>
+                  </div>
+                  <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Open Wizard</Button>
+                </div>
+
                 <div className="flex gap-3 flex-wrap">
                   <Button className="bg-primary hover:bg-primary/90" onClick={generateAllFixtures} disabled={approvedPlayers.length < 2}>
                     Generate Fixtures
