@@ -3,14 +3,14 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { fixtureId, homeScore, awayScore } = body
+    const { fixtureId, homeScore, awayScore, events, screenshot } = body
 
     // TODO: Validate user is involved in this fixture
     // TODO: Validate both players have confirmed the result
     // TODO: Update fixture in database
     // TODO: Recalculate standings
 
-    console.log("Result submitted:", { fixtureId, homeScore, awayScore })
+    console.log("Result submitted:", { fixtureId, homeScore, awayScore, events, hasScreenshot: Boolean(screenshot) })
 
     return NextResponse.json(
       {
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
           homeScore,
           awayScore,
           status: "PLAYED",
+          events,
         },
       },
       { status: 200 },

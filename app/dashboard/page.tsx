@@ -1,17 +1,14 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Bell, Trophy, Calendar, BarChart3, User, X, Check } from "lucide-react"
 import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
 
 export default function PlayerDashboard() {
-  const [player, setPlayer] = useState(null)
-  const [dashboardData, setDashboardData] = useState(null)
-  const [notifications, setNotifications] = useState([])
+  const [player, setPlayer] = useState<any>(null)
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -39,7 +36,6 @@ export default function PlayerDashboard() {
         standing: standingData.standing,
         stats: statsData.stats,
         nextFixtures: fixturesData.fixtures || [],
-        recentResults: fixturesData.recentResults || [],
         leagueTable: standingData.leagueTable || [],
       })
       setNotifications(notificationsData.notifications || [])
@@ -51,21 +47,14 @@ export default function PlayerDashboard() {
     }
   }
 
-  const markAsRead = (id) => {
-    setNotifications((prev) => prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif)))
-  }
-
-  const dismissNotification = (id) => {
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id))
+  const markAsRead = (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
+        <div className="text-gray-600">Loading dashboard...</div>
       </div>
     )
   }
@@ -84,255 +73,104 @@ export default function PlayerDashboard() {
   if (!player || !dashboardData) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">No player data available</p>
-        </div>
+        <div className="text-gray-600">No player data available</div>
       </div>
     )
   }
 
+  const standing = dashboardData.standing
+  const nextMatch = dashboardData.nextFixtures[0]
+
   return (
     <div className="min-h-screen bg-white">
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-                <Trophy className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">Weeknd FC</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500">
-                  {notifications.filter((n) => !n.read).length}
-                </Badge>
-              </Button>
-              <Button variant="ghost" size="sm">
-                <User className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Section 1: Overview */}
-        <div className="space-y-6">
-          {/* Welcome Card */}
-          <Card className="shadow-sm">
-            <CardContent className="p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome, {player.name}</h2>
-              <p className="text-gray-600">Ready to dominate the pitch this weekend?</p>
-            </CardContent>
-          </Card>
-
-          {/* Mini Stats Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="shadow-sm">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">#{dashboardData.standing?.position || "N/A"}</div>
-                <div className="text-sm text-gray-600">League Position</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">{dashboardData.standing?.points || 0}</div>
-                <div className="text-sm text-gray-600">Points</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {dashboardData.standing?.wins || 0}–{dashboardData.standing?.draws || 0}–
-                  {dashboardData.standing?.losses || 0}
-                </div>
-                <div className="text-sm text-gray-600">Record (W–D–L)</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {dashboardData.standing
-                    ? `+${dashboardData.standing.goals_for - dashboardData.standing.goals_against}`
-                    : "0"}
-                </div>
-                <div className="text-sm text-gray-600">Goal Difference</div>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="container-5xl section-pad space-y-8">
+        {/* Welcome strip */}
+        <div className="flex items-center justify-between">
+          <div className="text-gray-900 font-semibold">Hi, {player.name} — Matchday {nextMatch?.matchday ?? "-"}</div>
         </div>
 
-        {/* Section 2: Next Match */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Next Match
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dashboardData.nextFixtures[0] ? (
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <div className="space-y-1">
-                      <div className="text-lg font-semibold">{dashboardData.nextFixtures[0].opponent_name}</div>
-                      <div className="text-sm text-gray-600">
-                        Playing as {dashboardData.nextFixtures[0].opponent_team}
-                      </div>
-                    </div>
-                    <Badge variant="outline">Matchday {dashboardData.nextFixtures[0].matchday}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={dashboardData.nextFixtures[0].status === "SCHEDULED" ? "secondary" : "default"}
-                      className="text-xs"
-                    >
-                      {dashboardData.nextFixtures[0].status}
-                    </Badge>
-                    <span className="text-sm text-gray-600">{dashboardData.nextFixtures[0].match_date}</span>
-                  </div>
-                </div>
-                <Button className="bg-purple-600 hover:bg-purple-700">Report Result</Button>
+        {/* Quick stat pills */}
+        <div className="flex flex-wrap gap-2 text-sm">
+          <span className="px-3 py-1 border rounded-md bg-white tabular-nums">#{standing?.position ?? "-"} Pos</span>
+          <span className="px-3 py-1 border rounded-md bg-white tabular-nums">{standing?.points ?? 0} Pts</span>
+          <span className="px-3 py-1 border rounded-md bg-white tabular-nums">
+            {standing ? `${standing.wins ?? 0}–${standing.draws ?? 0}–${standing.losses ?? 0}` : "-"} Record
+          </span>
+          <span className="px-3 py-1 border rounded-md bg-white tabular-nums">
+            {standing ? `${(standing.goals_for - standing.goals_against) > 0 ? "+" : ""}${standing.goals_for - standing.goals_against}` : "-"} GD
+          </span>
+        </div>
+
+        {/* Next match card */}
+        <div className="border rounded-md p-4">
+          <div className="flex items-center justify-between">
+            {nextMatch ? (
+              <div className="space-y-1">
+                <div className="font-medium text-gray-900">{nextMatch.opponent_name}</div>
+                <div className="text-sm text-gray-600">Matchday {nextMatch.matchday}</div>
+                <div className="text-xs text-gray-500">{nextMatch.match_date}</div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No upcoming matches</p>
-              </div>
+              <div className="text-gray-600">No upcoming match</div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Section 3: My Stats */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              My Stats
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center space-y-2">
-                <div className="text-3xl">⚽</div>
-                <div className="text-2xl font-bold">{dashboardData.stats?.goals || 0}</div>
-                <div className="text-sm text-gray-600">Goals</div>
-                {dashboardData.stats?.is_top_scorer && <Badge className="bg-yellow-500 text-xs">Leader</Badge>}
-              </div>
-              <div className="text-center space-y-2">
-                <div className="text-3xl">🎯</div>
-                <div className="text-2xl font-bold">{dashboardData.stats?.assists || 0}</div>
-                <div className="text-sm text-gray-600">Assists</div>
-              </div>
-              <div className="text-center space-y-2">
-                <div className="text-3xl">🟨</div>
-                <div className="text-2xl font-bold">{dashboardData.stats?.yellow_cards || 0}</div>
-                <div className="text-sm text-gray-600">Yellows</div>
-              </div>
-              <div className="text-center space-y-2">
-                <div className="text-3xl">🟥</div>
-                <div className="text-2xl font-bold">{dashboardData.stats?.red_cards || 0}</div>
-                <div className="text-sm text-gray-600">Reds</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 4: League Table (Compact) */}
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              League Table
-            </CardTitle>
-            <Button variant="ghost" size="sm" className="text-purple-600">
-              View Full Table →
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {dashboardData.leagueTable.slice(0, 6).map((row) => (
-                <div
-                  key={row.position}
-                  className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${
-                    row.isCurrentPlayer ? "bg-purple-50 border border-purple-200" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <span className="font-medium w-6">{row.position}</span>
-                    <span className="flex-1">{row.name}</span>
-                    <span className="text-gray-600 text-xs">{row.team}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span>{row.points} pts</span>
-                    <span className="text-gray-500">
-                      {row.goals_for - row.goals_against > 0 ? "+" : ""}
-                      {row.goals_for - row.goals_against}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 5: Notifications */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
-              {notifications.filter((n) => !n.read).length > 0 && (
-                <Badge className="bg-red-500 text-xs">{notifications.filter((n) => !n.read).length}</Badge>
+            <div>
+              {nextMatch && (
+                <Button className="bg-primary hover:bg-primary/90">Report score</Button>
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact table preview + Notifications */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div className="mb-2 text-sm font-semibold text-gray-900">Table (Top 5)</div>
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-3 py-2">Pos</th>
+                    <th className="text-left px-3 py-2">Player</th>
+                    <th className="text-right px-3 py-2">Pts</th>
+                    <th className="text-right px-3 py-2">GD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(dashboardData.leagueTable || []).slice(0, 5).map((row: any) => (
+                    <tr key={row.position} className={`border-t ${row.isCurrentPlayer ? "bg-purple-50" : ""}`}>
+                      <td className="px-3 py-2 tabular-nums">{row.position}</td>
+                      <td className="px-3 py-2">{row.name}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{row.points}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {(row.goals_for - row.goals_against) > 0 ? "+" : ""}
+                        {row.goals_for - row.goals_against}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-sm font-semibold text-gray-900">Notifications</div>
             <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 rounded-lg border text-sm transition-colors ${
-                    !notification.read ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"
-                  }`}
-                >
+              {notifications.map((n) => (
+                <div key={n.id} className={`p-3 border rounded-md text-sm ${n.read ? "bg-gray-50" : "bg-blue-50 border-blue-200"}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="flex-1">{notification.message}</p>
-                    <div className="flex items-center gap-1">
-                      {!notification.read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => markAsRead(notification.id)}
-                          className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => dismissNotification(notification.id)}
-                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="h-3 w-3" />
+                    <p className="flex-1">{n.message}</p>
+                    {!n.read && (
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => markAsRead(n.id)}>
+                        Mark read
                       </Button>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
-              {notifications.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No notifications</p>
-                </div>
-              )}
+              {notifications.length === 0 && <div className="text-sm text-gray-500">No notifications</div>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

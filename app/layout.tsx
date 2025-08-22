@@ -1,21 +1,13 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Montserrat, Open_Sans } from "next/font/google"
+import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 
-const montserrat = Montserrat({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-montserrat",
-  weight: ["400", "600", "700", "900"],
-})
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-open-sans",
-  weight: ["400", "500", "600"],
+  variable: "--font-inter",
 })
 
 export const metadata: Metadata = {
@@ -30,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${montserrat.variable} ${openSans.variable}`}>
-      <body className="font-body">
+    <html lang="en" className={`${inter.variable}`}>
+      <body className="font-sans antialiased">
         <Navbar />
         <main>{children}</main>
       </body>
