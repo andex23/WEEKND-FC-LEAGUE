@@ -6,7 +6,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-white">
       <div className="container-5xl">
         <section className="section-pad section-pad-lg text-center">
-          <h1 className="text-[36px] md:text-[44px] font-extrabold text-gray-900 mb-3">Weeknd FC League</h1>
+          <h1 className="text-[36px] md:text-[44px] font-extrabold text-gray-900 mb-3">Weekend FC League</h1>
           <p className="text-[16px] md:text-[20px] text-gray-600 mb-6">Compete every weekend. Report results. Climb the table.</p>
 
           <div className="flex flex-wrap justify-center gap-2 mb-8">

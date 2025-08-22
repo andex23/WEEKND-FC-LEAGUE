@@ -14,7 +14,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-14">
           <div className="flex items-center gap-3">
             <SiteLogo />
-            <Link href="/" className="font-semibold text-gray-900">Weeknd FC</Link>
+            <Link href="/" className="font-semibold text-gray-900">Weekend FC</Link>
           </div>
 
           <div className="flex items-center gap-3">

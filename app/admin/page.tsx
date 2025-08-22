@@ -29,27 +29,26 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [playersRes, standingsRes, fixturesRes, settingsRes, statsRes] = await Promise.all([
+      const [playersRes, standingsRes, fixturesRes, statusRes, statsRes] = await Promise.all([
         fetch("/api/admin/players"),
         fetch("/api/standings"),
         fetch("/api/fixtures"),
-        fetch("/api/league/settings"),
+        fetch("/api/league/status"),
         fetch("/api/player-stats"),
       ])
 
       const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
       const fixturesData = await fixturesRes.json()
-      const settingsData = await settingsRes.json()
+      const statusData = await statusRes.json()
       const statsData = await statsRes.json()
 
       setPlayers(playersData.players || [])
       setStandings(standingsData.standings || [])
       setFixtures(fixturesData.fixtures || [])
-      setLeagueSettings(settingsData.settings || {})
+      setLeagueSettings(statusData || {})
       setPlayerStats(statsData || null)
 
-      // Optional: fetch results queue if backend exists
       try {
         const rq = await fetch("/api/admin/results")
         if (rq.ok) {
@@ -155,7 +154,7 @@ export default function AdminDashboard() {
       <div className="container-5xl section-pad">
         <div className="mb-6">
           <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Admin</h1>
-          <p className="text-sm text-gray-500">Manage the Weeknd FC League</p>
+          <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
         </div>
 
         <div className="flex gap-8">
@@ -246,7 +245,7 @@ export default function AdminDashboard() {
                               <div className="text-xs text-gray-600">{fx.homeTeam} vs {fx.awayTeam}</div>
                             </div>
                             <div className="md:col-span-3 text-sm text-gray-600">
-                              {fx.date} {fx.time}
+                              {fx.date || fx.scheduledDate} {fx.time || ""}
                             </div>
                             <div className="md:col-span-2 flex items-center gap-2">
                               <Input placeholder="H" defaultValue={fx.homeScore ?? ""} className="w-16" />
@@ -394,11 +393,11 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label>Season Start</Label>
-                    <Input type="date" defaultValue={leagueSettings?.start_date} />
+                    <Input type="date" defaultValue={leagueSettings?.startDate} />
                   </div>
                   <div className="space-y-2">
                     <Label>Season End</Label>
-                    <Input type="date" defaultValue={leagueSettings?.end_date} />
+                    <Input type="date" defaultValue={leagueSettings?.endDate} />
                   </div>
                   <div className="space-y-2">
                     <Label>Rounds</Label>
@@ -406,7 +405,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label>Matchdays per Weekend</Label>
-                    <Input type="number" defaultValue={leagueSettings?.matchdays_per_weekend || 1} min={1} max={3} />
+                    <Input type="number" defaultValue={leagueSettings?.matchdaysPerWeekend || 1} min={1} max={3} />
                   </div>
                 </div>
                 <div className="flex justify-end">
