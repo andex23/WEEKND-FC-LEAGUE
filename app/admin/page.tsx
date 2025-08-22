@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function AdminDashboard() {
-  const [section, setSection] = useState<"registrations" | "fixtures" | "results" | "stats" | "settings">(
-    "registrations",
+  const [section, setSection] = useState<"overview" | "registrations" | "fixtures" | "results" | "stats" | "messaging" | "settings">(
+    "overview",
   )
 
   const [players, setPlayers] = useState<any[]>([])
@@ -103,6 +103,14 @@ export default function AdminDashboard() {
     }
   }
 
+  const bulkApproveAll = async () => {
+    for (const p of pendingRegistrations) {
+      // fire-and-forget per-row approver
+      // eslint-disable-next-line no-await-in-loop
+      await approvePlayer(p.id)
+    }
+  }
+
   const generateAllFixtures = async () => {
     try {
       const response = await fetch("/api/admin/generate-fixtures", {
@@ -129,6 +137,9 @@ export default function AdminDashboard() {
     })
     return map
   }, [fixtures])
+
+  const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
+  const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
 
   if (loading) {
     return (
@@ -162,10 +173,12 @@ export default function AdminDashboard() {
           <aside className="w-56 shrink-0">
             <nav className="space-y-1">
               {[
+                { key: "overview", label: "Overview" },
                 { key: "registrations", label: "Registrations" },
                 { key: "fixtures", label: "Fixtures" },
-                { key: "results", label: "Results" },
+                { key: "results", label: "Reports" },
                 { key: "stats", label: "Stats" },
+                { key: "messaging", label: "Messaging" },
                 { key: "settings", label: "Settings" },
               ].map((item) => (
                 <button
@@ -183,39 +196,84 @@ export default function AdminDashboard() {
 
           {/* Content */}
           <section className="flex-1">
+            {section === "overview" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Registered Players</div>
+                    <div className="text-2xl font-bold tabular-nums">{players.length}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Fixtures Created</div>
+                    <div className="text-2xl font-bold tabular-nums">{fixtures.length}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Matches Played</div>
+                    <div className="text-2xl font-bold tabular-nums">{matchesPlayed}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Pending Approval</div>
+                    <div className="text-2xl font-bold tabular-nums">{matchesPendingApproval}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">League Status</div>
+                    <div className="text-sm font-semibold">{leagueSettings?.status || "DRAFT"}</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button className="bg-primary hover:bg-primary/90" onClick={generateAllFixtures} disabled={approvedPlayers.length < 2}>
+                    Generate Fixtures
+                  </Button>
+                  <Button variant="outline" onClick={bulkApproveAll} disabled={pendingRegistrations.length === 0}>
+                    Approve All Registrations
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {section === "registrations" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">Registrations</h2>
-                  <Badge className="bg-purple-100 text-purple-800">
-                    {pendingRegistrations.length} pending
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-purple-100 text-purple-800">{pendingRegistrations.length} pending</Badge>
+                    <Button size="sm" variant="outline" onClick={bulkApproveAll} disabled={pendingRegistrations.length === 0}>
+                      Approve All
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="border rounded-md divide-y">
-                  {pendingRegistrations.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-500">No pending registrations</div>
-                  ) : (
-                    pendingRegistrations.map((player) => (
-                      <div key={player.id} className="p-4 flex items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="font-medium">{player.name}</div>
-                          <div className="text-sm text-gray-600">
-                            {player.psn_name} • {player.console} • {player.preferred_club}
-                          </div>
-                          <div className="text-xs text-gray-500">{player.location}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approvePlayer(player.id)}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => rejectPlayer(player.id)}>
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-3 py-2">Player</th>
+                        <th className="text-left px-3 py-2">Console</th>
+                        <th className="text-left px-3 py-2">Preferred Team</th>
+                        <th className="text-left px-3 py-2">Registered</th>
+                        <th className="text-left px-3 py-2">Status</th>
+                        <th className="text-right px-3 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {players.map((p) => (
+                        <tr key={p.id} className="border-t">
+                          <td className="px-3 py-2">{p.name}</td>
+                          <td className="px-3 py-2">{p.console}</td>
+                          <td className="px-3 py-2">{p.preferred_club}</td>
+                          <td className="px-3 py-2 text-gray-500">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</td>
+                          <td className="px-3 py-2">{p.status || "pending"}</td>
+                          <td className="px-3 py-2 text-right">
+                            <div className="inline-flex gap-2">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approvePlayer(p.id)}>Approve</Button>
+                              <Button size="sm" variant="outline" onClick={() => rejectPlayer(p.id)}>Reject</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
@@ -253,25 +311,25 @@ export default function AdminDashboard() {
                               <Input placeholder="A" defaultValue={fx.awayScore ?? ""} className="w-16" />
                             </div>
                             <div className="md:col-span-2">
-                              <Select defaultValue={fx.status ?? "scheduled"}>
+                              <Select defaultValue={(fx.status || "scheduled").toLowerCase()}>
                                 <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="scheduled">Scheduled</SelectItem>
-                                  <SelectItem value="completed">Completed</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  <SelectItem value="played">Played</SelectItem>
+                                  <SelectItem value="forfeit">Forfeit</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             <div className="md:col-span-1">
-                              <Select defaultValue={"sat"}>
+                              <Select defaultValue={"weekend-1"}>
                                 <SelectTrigger className="h-9">
                                   <SelectValue placeholder="Weekend" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="sat">Saturday</SelectItem>
-                                  <SelectItem value="sun">Sunday</SelectItem>
+                                  <SelectItem value="weekend-1">Week 1</SelectItem>
+                                  <SelectItem value="weekend-2">Week 2</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -287,7 +345,8 @@ export default function AdminDashboard() {
             {section === "results" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Results Queue</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Result Reports</h2>
+                  <Button variant="outline" disabled={resultsQueue.length === 0}>Approve All Reports</Button>
                 </div>
 
                 {resultsQueue.length === 0 ? (
@@ -295,18 +354,21 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {resultsQueue.map((r) => (
-                      <div key={r.id} className="p-4 border rounded-md flex items-center justify-between gap-4">
-                        <div className="space-y-1">
+                      <div key={r.id} className="p-4 border rounded-md">
+                        <div className="flex items-center justify-between">
                           <div className="font-medium">{r.homePlayer} {r.homeScore} - {r.awayScore} {r.awayPlayer}</div>
-                          <div className="text-xs text-gray-600">Submitted by {r.submittedBy}</div>
+                          <div>
+                            <span className="px-2 py-0.5 text-xs rounded border bg-amber-50 border-amber-200 text-amber-800">{r.status || "Pending"}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {r.screenshot && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={r.screenshot} alt="screenshot" className="h-10 w-16 object-cover rounded border" />
-                          )}
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">Approve</Button>
-                          <Button size="sm" variant="outline">Override</Button>
+                        <div className="text-xs text-gray-600 mb-3">Submitted by {r.submittedBy}</div>
+                        <div className="flex items-center gap-3 justify-between">
+                          <div className="text-sm text-gray-600">Reason: {r.reason || "Awaiting opponent confirmation"}</div>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700">Approve</Button>
+                            <Button size="sm" variant="outline">Override</Button>
+                            <Button size="sm" variant="outline">Flag/Dispute</Button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -374,10 +436,51 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {section === "messaging" && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold text-gray-900">Messaging / Announcements</h2>
+                <div className="border rounded-md p-4">
+                  <Label className="text-sm">Global broadcast</Label>
+                  <Input placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2" />
+                  <div className="flex justify-end mt-3">
+                    <Button className="bg-primary hover:bg-primary/90">Send Broadcast</Button>
+                  </div>
+                </div>
+                <div className="border rounded-md p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-sm">Player</Label>
+                      <Select>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Choose player" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {players.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm">Message</Label>
+                      <Input placeholder="Direct message (for disputes/clarifications)" className="mt-2" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <Button className="bg-primary hover:bg-primary/90">Send Message</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {section === "settings" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>League Name</Label>
+                    <Input type="text" defaultValue={leagueSettings?.name || "Weekend FC League"} />
+                  </div>
                   <div className="space-y-2">
                     <Label>League Status</Label>
                     <Select defaultValue={leagueSettings?.status || "DRAFT"}>
@@ -392,20 +495,20 @@ export default function AdminDashboard() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Season Start</Label>
-                    <Input type="date" defaultValue={leagueSettings?.startDate} />
+                    <Label>Allow late reports</Label>
+                    <Select defaultValue="no">
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Season End</Label>
-                    <Input type="date" defaultValue={leagueSettings?.endDate} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Rounds</Label>
-                    <Input type="number" defaultValue={leagueSettings?.rounds || 2} min={1} max={4} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Matchdays per Weekend</Label>
-                    <Input type="number" defaultValue={leagueSettings?.matchdaysPerWeekend || 1} min={1} max={3} />
+                    <Label>Self-report deadline (hours)</Label>
+                    <Input type="number" defaultValue={24} min={1} max={72} />
                   </div>
                 </div>
                 <div className="flex justify-end">
