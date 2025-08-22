@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
+import { FixturesTab } from "@/components/admin/fixtures-tab"
+import { StandingsTab } from "@/components/admin/standings-tab"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -210,7 +212,6 @@ export default function AdminDashboard() {
             </nav>
           </aside>
 
-          {/* Content */}
           <section className="flex-1">
             {section === "overview" && (
               <div className="space-y-6">
@@ -237,7 +238,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Setup Wizard CTA */}
                 <div className="border rounded-md p-4 flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Tournament Setup Wizard</div>
@@ -245,18 +245,12 @@ export default function AdminDashboard() {
                   </div>
                   <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Open Wizard</Button>
                 </div>
+              </div>
+            )}
 
-                <div className="flex gap-3 flex-wrap">
-                  <Button className="bg-primary hover:bg-primary/90" onClick={generateAllFixtures} disabled={approvedPlayers.length < 2}>
-                    Generate Fixtures
-                  </Button>
-                  <Button variant="outline" onClick={bulkApproveAll} disabled={pendingRegistrations.length === 0}>
-                    Approve All Registrations
-                  </Button>
-                  <Button variant="outline" onClick={approveAllReports} disabled={matchesPendingApproval === 0}>
-                    Approve All Reports
-                  </Button>
-                </div>
+            {section === "fixtures" && (
+              <div className="space-y-6">
+                <FixturesTab />
               </div>
             )}
 
@@ -306,70 +300,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {section === "fixtures" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Fixtures</h2>
-                  <Button className="bg-primary hover:bg-primary/90" onClick={generateAllFixtures} disabled={approvedPlayers.length < 2}>
-                    Generate Fixtures
-                  </Button>
-                </div>
-
-                <div className="space-y-6">
-                  {Object.entries(groupedFixtures).length === 0 && (
-                    <div className="p-4 border rounded-md text-sm text-gray-500">No fixtures yet. Admin will generate the schedule soon.</div>
-                  )}
-
-                  {Object.entries(groupedFixtures).map(([matchday, items]) => (
-                    <div key={matchday} className="border rounded-md">
-                      <div className="px-4 py-2 border-b bg-gray-50 text-sm font-medium">{matchday}</div>
-                      <div className="divide-y">
-                        {items.map((fx) => (
-                          <div key={fx.id} className="px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                            <div className="md:col-span-4">
-                              <div className="font-medium">{fx.homePlayer} vs {fx.awayPlayer}</div>
-                              <div className="text-xs text-gray-600">{fx.homeTeam} vs {fx.awayTeam}</div>
-                            </div>
-                            <div className="md:col-span-3 text-sm text-gray-600">
-                              {fx.date || fx.scheduledDate} {fx.time || ""}
-                            </div>
-                            <div className="md:col-span-2 flex items-center gap-2">
-                              <Input placeholder="H" defaultValue={fx.homeScore ?? ""} className="w-16" />
-                              <span className="text-gray-500">-</span>
-                              <Input placeholder="A" defaultValue={fx.awayScore ?? ""} className="w-16" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <Select defaultValue={(fx.status || "scheduled").toLowerCase()}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                                  <SelectItem value="played">Played</SelectItem>
-                                  <SelectItem value="forfeit">Forfeit</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="md:col-span-1">
-                              <Select defaultValue={"weekend-1"}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue placeholder="Weekend" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="weekend-1">Week 1</SelectItem>
-                                  <SelectItem value="weekend-2">Week 2</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {section === "results" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -407,60 +337,7 @@ export default function AdminDashboard() {
 
             {section === "stats" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Leaderboards</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Top Scorers</h3>
-                    <div className="border rounded-md divide-y">
-                      {playerStats?.topScorers?.slice(0, 10).map((s: any) => (
-                        <div key={`${s.rank}-${s.name}`} className="px-3 py-2 text-sm flex items-center justify-between">
-                          <span className="tabular-nums w-6 text-gray-500">{s.rank}</span>
-                          <span className="flex-1 px-2">{s.name}</span>
-                          <span className="tabular-nums font-semibold">{s.goals}</span>
-                        </div>
-                      ))}
-                      {!playerStats?.topScorers?.length && (
-                        <div className="px-3 py-3 text-sm text-gray-500">No data</div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Top Assists</h3>
-                    <div className="border rounded-md divide-y">
-                      {playerStats?.topAssists?.slice(0, 10).map((a: any, idx: number) => (
-                        <div key={`${idx}-${a.name}`} className="px-3 py-2 text-sm flex items-center justify-between">
-                          <span className="tabular-nums w-6 text-gray-500">{a.rank}</span>
-                          <span className="flex-1 px-2">{a.name}</span>
-                          <span className="tabular-nums font-semibold">{a.assists}</span>
-                        </div>
-                      ))}
-                      {!playerStats?.topAssists?.length && (
-                        <div className="px-3 py-3 text-sm text-gray-500">No data</div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Discipline</h3>
-                    <div className="border rounded-md divide-y">
-                      {playerStats?.discipline?.slice(0, 10).map((d: any, idx: number) => (
-                        <div key={`${idx}-${d.name}`} className="px-3 py-2 text-sm flex items-center justify-between">
-                          <span className="flex-1">{d.name}</span>
-                          <div className="flex items-center gap-2 tabular-nums">
-                            {d.yellow_cards > 0 && (
-                              <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs font-medium">{d.yellow_cards} 🟨</span>
-                            )}
-                            {d.red_cards > 0 && (
-                              <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-medium">{d.red_cards} 🟥</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {!playerStats?.discipline?.length && (
-                        <div className="px-3 py-3 text-sm text-gray-500">No data</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <StandingsTab />
               </div>
             )}
 
