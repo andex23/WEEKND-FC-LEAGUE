@@ -33,21 +33,21 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [playersRes, standingsRes, fixturesRes, statusRes, statsRes] = await Promise.all([
-        fetch("/api/admin/players"),
+      const [regsRes, standingsRes, fixturesRes, statusRes, statsRes] = await Promise.all([
+        fetch("/api/admin/registrations"),
         fetch("/api/standings"),
         fetch("/api/fixtures"),
         fetch("/api/league/status"),
         fetch("/api/player-stats"),
       ])
 
-      const playersData = await playersRes.json()
+      const regsData = await regsRes.json()
       const standingsData = await standingsRes.json()
       const fixturesData = await fixturesRes.json()
       const statusData = await statusRes.json()
       const statsData = await statsRes.json()
 
-      setPlayers(playersData.players || [])
+      setPlayers(regsData.registrations || [])
       setStandings(standingsData.standings || [])
       setFixtures(fixturesData.fixtures || [])
       setLeagueSettings(statusData || {})
@@ -73,11 +73,11 @@ export default function AdminDashboard() {
   }
 
   const pendingRegistrations = useMemo(
-    () => players.filter((p) => p.status === "pending"),
+    () => players.filter((p) => (p.status || "pending").toLowerCase() === "pending"),
     [players],
   )
   const approvedPlayers = useMemo(
-    () => players.filter((p) => p.status === "approved"),
+    () => players.filter((p) => (p.status || "pending").toLowerCase() === "approved"),
     [players],
   )
 
@@ -280,14 +280,14 @@ export default function AdminDashboard() {
                       {players.map((p) => (
                         <tr key={p.id} className="border-t">
                           <td className="px-3 py-2">{p.name}</td>
-                          <td className="px-3 py-2">{p.console}</td>
-                          <td className="px-3 py-2">{p.preferred_club}</td>
+                          <td className="px-3 py-2">{p.console || "—"}</td>
+                          <td className="px-3 py-2">{p.preferred_team || p.preferred_club || "—"}</td>
                           <td className="px-3 py-2 text-gray-500">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</td>
                           <td className="px-3 py-2">{p.status || "pending"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await fetch("/api/admin/approve-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ playerId: p.id, action: "approve" }) }); fetchAllData() }}>Approve</Button>
-                              <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/approve-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ playerId: p.id, action: "reject" }) }); fetchAllData() }}>Reject</Button>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await fetch("/api/admin/approve-registration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: p.id, action: "approve" }) }); fetchAllData() }}>Approve</Button>
+                              <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/approve-registration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: p.id, action: "reject" }) }); fetchAllData() }}>Reject</Button>
                             </div>
                           </td>
                         </tr>

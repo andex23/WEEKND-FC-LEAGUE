@@ -44,22 +44,26 @@ export default function TournamentSetupPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [cfgRes, playersRes] = await Promise.all([
+        const [cfgRes, regsRes] = await Promise.all([
           fetch("/api/tournament/config"),
-          fetch("/api/admin/players"),
+          fetch("/api/admin/registrations"),
         ])
         if (cfgRes.ok) {
           const data = await cfgRes.json()
           if (data?.config) setConfig((prev: any) => ({ ...prev, ...data.config }))
         }
-        if (playersRes.ok) {
-          const p = await playersRes.json()
-          const players = p?.players || []
-          const approved = players.filter((x: any) => (x.status || "approved").toLowerCase() === "approved")
-          const pending = players.filter((x: any) => (x.status || "approved").toLowerCase() !== "approved")
+        if (regsRes.ok) {
+          const p = await regsRes.json()
+          const regs = p?.registrations || []
+          const approved = regs.filter((x: any) => (x.status || "pending").toLowerCase() === "approved")
+          const pending = regs.filter((x: any) => (x.status || "pending").toLowerCase() !== "approved")
           setApprovedCount(approved.length)
           setPendingCount(pending.length)
-          setConfig((prev: any) => ({ ...prev, players: { approved, pending } }))
+          setConfig((prev: any) => ({
+            ...prev,
+            players: { approved, pending },
+            registration: { ...prev.registration, maxPlayers: approved.length },
+          }))
         }
       } catch {}
     })()
@@ -191,7 +195,8 @@ export default function TournamentSetupPage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="text-sm">Max players</label>
-                <Input type="number" value={config.registration.maxPlayers} onChange={(e) => setConfig({ ...config, registration: { ...config.registration, maxPlayers: Number(e.target.value || 0) } })} />
+                <Input type="number" value={approvedCount ?? config.registration.maxPlayers} readOnly className="opacity-80" />
+                <p className="text-xs text-gray-500 mt-1">Auto-set from approved players</p>
               </div>
               <div>
                 <label className="text-sm">Consoles allowed</label>
