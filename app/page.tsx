@@ -16,7 +16,7 @@ export default function HomePage() {
           </div>
 
           <div>
-            <Link href={user ? "/dashboard" : "/auth/signup"} className="inline-block">
+            <Link href={user ? "/dashboard" : "/register"} className="inline-block">
               <span className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-white text-sm font-semibold hover:bg-primary/90">{user ? "Go to Dashboard" : "Register"}</span>
             </Link>
           </div>
