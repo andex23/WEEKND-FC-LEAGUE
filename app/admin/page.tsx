@@ -6,19 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 export default function AdminDashboard() {
-  const search = useSearchParams()
   const router = useRouter()
-  const tabParam = search?.get("tab")
   const [section, setSection] = useState<"overview" | "registrations" | "fixtures" | "results" | "stats" | "messaging" | "settings" | "setup">(
-    (tabParam as any) || "overview",
+    "overview",
   )
-
-  useEffect(() => {
-    if (tabParam && tabParam !== section) setSection(tabParam as any)
-  }, [tabParam])
 
   const [players, setPlayers] = useState<any[]>([])
   const [standings, setStandings] = useState<any[]>([])
@@ -205,7 +199,7 @@ export default function AdminDashboard() {
               ].map((item) => (
                 <button
                   key={item.key}
-                  onClick={() => router.push(item.key === "setup" ? "/admin/setup" : `/admin?tab=${item.key}`)}
+                  onClick={() => (item.key === "setup" ? goSetup() : setSection(item.key as any))}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm ${
                     section === item.key ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
                   }`}
