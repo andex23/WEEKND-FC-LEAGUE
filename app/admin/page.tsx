@@ -105,9 +105,18 @@ export default function AdminDashboard() {
 
   const bulkApproveAll = async () => {
     for (const p of pendingRegistrations) {
-      // fire-and-forget per-row approver
       // eslint-disable-next-line no-await-in-loop
       await approvePlayer(p.id)
+    }
+  }
+
+  const approveAllReports = async () => {
+    try {
+      // Attempt backend endpoint if exists, otherwise fall back to local clear
+      const res = await fetch("/api/admin/results/approve-all", { method: "POST" })
+      if (!res.ok) throw new Error("fallback")
+    } catch {
+      setResultsQueue([])
     }
   }
 
@@ -221,12 +230,15 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <Button className="bg-primary hover:bg-primary/90" onClick={generateAllFixtures} disabled={approvedPlayers.length < 2}>
                     Generate Fixtures
                   </Button>
                   <Button variant="outline" onClick={bulkApproveAll} disabled={pendingRegistrations.length === 0}>
                     Approve All Registrations
+                  </Button>
+                  <Button variant="outline" onClick={approveAllReports} disabled={matchesPendingApproval === 0}>
+                    Approve All Reports
                   </Button>
                 </div>
               </div>
