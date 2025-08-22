@@ -13,6 +13,7 @@ export function StandingsTab() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [onlyOverridden, setOnlyOverridden] = useState(false)
+  const [reason, setReason] = useState("")
   const [data, setData] = useState<{ standings: Row[]; leaders: { scorers: Row[]; assists: Row[]; discipline: Row[] } }>({ standings: [], leaders: { scorers: [], assists: [], discipline: [] } })
 
   const fetchAll = async () => {
@@ -42,12 +43,14 @@ export function StandingsTab() {
   }
 
   const overrideCell = async (table: string, id: string, field: string, value: string) => {
-    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "override", table, id, field, value }) })
+    const payload: any = { action: "override", table, id, field, value, reason }
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
     if (res.ok) fetchAll()
   }
 
   const recompute = async () => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) }); fetchAll() }
   const resetOverrides = async () => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reset_overrides" }) }); fetchAll() }
+  const resetRow = async (table: string, id: string) => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reset_row", table, id }) }); fetchAll() }
   const exportCsv = async () => { const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }) }); const txt = await res.text(); const url = URL.createObjectURL(new Blob([txt],{type:"text/csv"})); const a=document.createElement("a"); a.href=url;a.download="league-table.csv";a.click();URL.revokeObjectURL(url) }
 
   const Table = ({ rows, table }: { rows: Row[]; table: string }) => (
@@ -60,6 +63,7 @@ export function StandingsTab() {
             {rows[0]?._cols?.map((c) => (
               <th key={c} className="text-right px-3 py-2">{c}</th>
             ))}
+            <th className="text-right px-3 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -75,6 +79,9 @@ export function StandingsTab() {
                   </div>
                 </td>
               ))}
+              <td className="px-3 py-2 text-right">
+                <Button size="sm" variant="outline" onClick={() => resetRow(table, r.id)}>Reset</Button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -97,6 +104,7 @@ export function StandingsTab() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle>Stats Command Center</CardTitle>
             <div className="flex items-center gap-2">
+              <Input placeholder="Override reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} className="w-64" />
               <Button onClick={recompute}>Recompute</Button>
               <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
               <Button variant="outline" onClick={resetOverrides}>Reset All Overrides</Button>

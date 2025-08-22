@@ -52,8 +52,7 @@ function ResultModal({ fixture, onApprove }: { fixture: FixtureRow; onApprove: (
   const submit = async () => {
     if (!canSubmit) return
     try {
-      await fetch("/api/result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fixtureId: fixture.id, homeScore: Number(home), awayScore: Number(away) }) })
-      await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) })
+      await fetch("/api/admin/approve-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fixtureId: fixture.id, homeScore: Number(home), awayScore: Number(away) }) })
     } catch {}
     onApprove(Number(home), Number(away))
     setOpen(false)
