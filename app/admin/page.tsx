@@ -260,9 +260,7 @@ export default function AdminDashboard() {
                   <h2 className="text-lg font-semibold text-gray-900">Registrations</h2>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-purple-100 text-purple-800">{pendingRegistrations.length} pending</Badge>
-                    <Button size="sm" variant="outline" onClick={bulkApproveAll} disabled={pendingRegistrations.length === 0}>
-                      Approve All
-                    </Button>
+                    <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/seed-demo-players", { method: "POST" }); fetchAllData() }}>Seed 8 Demo Players</Button>
                   </div>
                 </div>
 
@@ -288,8 +286,8 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{p.status || "pending"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => approvePlayer(p.id)}>Approve</Button>
-                              <Button size="sm" variant="outline" onClick={() => rejectPlayer(p.id)}>Reject</Button>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await fetch("/api/admin/approve-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ playerId: p.id, action: "approve" }) }); fetchAllData() }}>Approve</Button>
+                              <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/approve-player", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ playerId: p.id, action: "reject" }) }); fetchAllData() }}>Reject</Button>
                             </div>
                           </td>
                         </tr>
