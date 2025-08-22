@@ -145,9 +145,13 @@ export default function StandingsPage() {
                   >
                     <td className="font-medium">
                       <div className="flex items-center gap-2">
-                        {index + 1 === 1 && <span className="text-lg">🥇</span>}
-                        {index + 1 === 2 && <span className="text-lg">🥈</span>}
-                        {index + 1 === 3 && <span className="text-lg">🥉</span>}
+                        {index + 1 === 1 ? (
+                          <span className="text-lg">🥇</span>
+                        ) : index + 1 === 2 ? (
+                          <span className="text-lg">🥈</span>
+                        ) : index + 1 === 3 ? (
+                          <span className="text-lg">🥉</span>
+                        ) : null}
                         {index + 1}
                       </div>
                     </td>
@@ -257,16 +261,16 @@ export default function StandingsPage() {
                         <div className="text-sm text-gray-500">{player.team}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {player.yellow_cards > 0 && (
+                        {player.yellow_cards > 0 ? (
                           <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
                             {player.yellow_cards} 🟨
                           </span>
-                        )}
-                        {player.red_cards > 0 && (
+                        ) : null}
+                        {player.red_cards > 0 ? (
                           <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
                             {player.red_cards} 🟥
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   ))

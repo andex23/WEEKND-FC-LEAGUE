@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useTransition } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Trophy, Play } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { signIn } from "@/lib/actions"
 
 function SubmitButton() {
@@ -35,7 +35,7 @@ function SubmitButton() {
 export default function LoginForm() {
   const router = useRouter()
   const [state, formAction] = useActionState(signIn, null)
-  const [isDemoLoading, setIsDemoLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     if (state?.success) {
@@ -43,18 +43,11 @@ export default function LoginForm() {
     }
   }, [state, router])
 
-  const handleDemoLogin = async () => {
-    setIsDemoLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append("username", "striker_sam")
-      formData.append("password", "Demo123!")
-      await formAction(formData)
-    } catch (error) {
-      console.error("Demo login failed:", error)
-    } finally {
-      setIsDemoLoading(false)
-    }
+  const handleDemoLogin = () => {
+    startTransition(async () => {
+      // For demo purposes, bypass authentication and go directly to dashboard
+      router.push("/dashboard")
+    })
   }
 
   return (
@@ -70,11 +63,11 @@ export default function LoginForm() {
         <div className="mb-6">
           <Button
             onClick={handleDemoLogin}
-            disabled={isDemoLoading}
+            disabled={isPending}
             variant="outline"
             className="w-full h-12 border-accent/20 hover:bg-accent/5 bg-transparent"
           >
-            {isDemoLoading ? (
+            {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Loading demo...

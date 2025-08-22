@@ -3,56 +3,15 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { User, Settings, Table, LogOut } from "lucide-react"
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
-import { signOut } from "@/lib/actions"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function Navbar() {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-
-      if (session?.user) {
-        // Check if user is admin
-        const { data: player } = await supabase.from("players").select("role").eq("user_id", session.user.id).single()
-
-        setIsAdmin(player?.role === "ADMIN")
-      }
-
-      setLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
-
-      if (session?.user) {
-        const { data: player } = await supabase.from("players").select("role").eq("user_id", session.user.id).single()
-
-        setIsAdmin(player?.role === "ADMIN")
-      } else {
-        setIsAdmin(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const user = null // Demo: no user authentication
+  const isAdmin = true // Demo: always show admin access
+  const loading = false
 
   const handleSignOut = async () => {
-    await signOut()
+    // Demo: no actual sign out functionality
+    console.log("Demo sign out")
   }
 
   return (
@@ -106,11 +65,25 @@ export function Navbar() {
                     </form>
                   </>
                 ) : (
-                  <Link href="/auth/login">
-                    <Button variant="default" size="sm" className="bg-gray-900 hover:bg-gray-800">
-                      Login
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/dashboard">
+                      <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                        <User className="h-4 w-4 mr-2" />
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Link href="/admin">
+                      <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Admin
+                      </Button>
+                    </Link>
+                    <Link href="/auth/login">
+                      <Button variant="default" size="sm" className="bg-gray-900 hover:bg-gray-800">
+                        Login
+                      </Button>
+                    </Link>
+                  </>
                 )}
               </>
             )}

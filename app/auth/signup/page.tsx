@@ -1,9 +1,9 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import SignUpForm from "@/components/auth/signup-form"
 
 export default async function SignUpPage() {
-  const supabase = createServerClient()
+  const supabase = await createClient()
 
   if (supabase) {
     const {

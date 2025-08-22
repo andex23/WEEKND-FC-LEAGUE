@@ -1,6 +1,6 @@
 "use server"
 
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 export async function signIn(prevState: any, formData: FormData) {
@@ -15,24 +15,25 @@ export async function signIn(prevState: any, formData: FormData) {
     return { error: "Username and password are required" }
   }
 
-  const supabase = createServerClient()
-  if (!supabase) {
-    return { error: "Authentication service unavailable" }
-  }
+  const supabase = await createClient()
 
   try {
+    // Look up player by username to get their generated email
     const { data: player, error: playerError } = await supabase
       .from("players")
-      .select("email")
-      .eq("name", username.toString())
+      .select("id")
+      .eq("username", username.toString())
       .single()
 
     if (playerError || !player) {
       return { error: "Invalid username or password" }
     }
 
+    // Generate the same email format used during signup
+    const generatedEmail = `${username.toString().toLowerCase()}@weekndfc.local`
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: player.email,
+      email: generatedEmail,
       password: password.toString(),
     })
 
@@ -53,36 +54,44 @@ export async function signUp(prevState: any, formData: FormData) {
   }
 
   const username = formData.get("username")
+  const name = formData.get("name")
+  const psnId = formData.get("psnId")
+  const location = formData.get("location")
+  const console = formData.get("console")
+  const preferredClub = formData.get("preferredClub")
   const password = formData.get("password")
 
-  if (!username || !password) {
-    return { error: "Username and password are required" }
+  if (!username || !name || !psnId || !location || !console || !preferredClub || !password) {
+    return { error: "All fields are required" }
   }
 
-  const supabase = createServerClient()
-  if (!supabase) {
-    return { error: "Authentication service unavailable" }
-  }
+  const supabase = await createClient()
 
   try {
+    // Check if username is already taken
     const { data: existingPlayer } = await supabase
       .from("players")
       .select("id")
-      .eq("name", username.toString())
+      .eq("username", username.toString())
       .single()
 
     if (existingPlayer) {
       return { error: "Username already taken" }
     }
 
-    const generatedEmail = `${username.toString().toLowerCase()}@eafc-league.local`
+    const generatedEmail = `${username.toString().toLowerCase()}@weekndfc.local`
 
+    // Create auth user
     const { data: authData, error } = await supabase.auth.signUp({
       email: generatedEmail,
       password: password.toString(),
       options: {
+        emailRedirectTo:
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+          `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard`,
         data: {
           username: username.toString(),
+          name: name.toString(),
         },
       },
     })
@@ -92,12 +101,15 @@ export async function signUp(prevState: any, formData: FormData) {
     }
 
     if (authData.user) {
+      // Create player profile
       const { error: playerError } = await supabase.from("players").insert({
         id: authData.user.id,
-        name: username.toString(),
-        email: generatedEmail,
-        console: "PS5", // Default console
-        preferred_club: "Arsenal", // Default club
+        username: username.toString(),
+        name: name.toString(),
+        psn_id: psnId.toString(),
+        location: location.toString(),
+        console: console.toString() as "PS5" | "XBOX" | "PC",
+        preferred_club: preferredClub.toString(),
       })
 
       if (playerError) {
@@ -106,7 +118,7 @@ export async function signUp(prevState: any, formData: FormData) {
       }
     }
 
-    return { success: "Account created successfully! You can now sign in." }
+    return { success: "Registration successful! You can now sign in." }
   } catch (error) {
     console.error("Sign up error:", error)
     return { error: "An unexpected error occurred. Please try again." }
@@ -114,9 +126,7 @@ export async function signUp(prevState: any, formData: FormData) {
 }
 
 export async function signOut() {
-  const supabase = createServerClient()
-  if (supabase) {
-    await supabase.auth.signOut()
-  }
+  const supabase = await createClient()
+  await supabase.auth.signOut()
   redirect("/auth/login")
 }

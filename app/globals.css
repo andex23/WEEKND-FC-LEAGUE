@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "tw-animate-css";
+/* Removed problematic tw-animate-css import causing slide-out-to- utility errors */
 
 @custom-variant dark (&:is(.dark *));
 

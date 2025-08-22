@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const supabase = createServerClient()
+    const supabase = await createClient()
 
     // Check if views exist by trying to query them, return empty arrays if they don't exist
     let topScorers = []
