@@ -6,11 +6,19 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useSearchParams, useRouter } from "next/navigation"
 
 export default function AdminDashboard() {
-  const [section, setSection] = useState<"overview" | "registrations" | "fixtures" | "results" | "stats" | "messaging" | "settings">(
-    "overview",
+  const search = useSearchParams()
+  const router = useRouter()
+  const tabParam = search?.get("tab")
+  const [section, setSection] = useState<"overview" | "registrations" | "fixtures" | "results" | "stats" | "messaging" | "settings" | "setup">(
+    (tabParam as any) || "overview",
   )
+
+  useEffect(() => {
+    if (tabParam && tabParam !== section) setSection(tabParam as any)
+  }, [tabParam])
 
   const [players, setPlayers] = useState<any[]>([])
   const [standings, setStandings] = useState<any[]>([])
@@ -150,6 +158,8 @@ export default function AdminDashboard() {
   const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
   const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
 
+  const goSetup = () => router.push("/admin/setup")
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -172,13 +182,15 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-white">
       <div className="container-5xl section-pad">
-        <div className="mb-6">
-          <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Admin</h1>
-          <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Admin</h1>
+            <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
+          </div>
+          <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Tournament Setup</Button>
         </div>
 
         <div className="flex gap-8">
-          {/* Sidebar */}
           <aside className="w-56 shrink-0">
             <nav className="space-y-1">
               {[
@@ -189,10 +201,11 @@ export default function AdminDashboard() {
                 { key: "stats", label: "Stats" },
                 { key: "messaging", label: "Messaging" },
                 { key: "settings", label: "Settings" },
+                { key: "setup", label: "Setup" },
               ].map((item) => (
                 <button
                   key={item.key}
-                  onClick={() => setSection(item.key as any)}
+                  onClick={() => router.push(item.key === "setup" ? "/admin/setup" : `/admin?tab=${item.key}`)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm ${
                     section === item.key ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
                   }`}
