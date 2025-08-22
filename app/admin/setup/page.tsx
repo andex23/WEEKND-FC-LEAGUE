@@ -28,7 +28,7 @@ export default function TournamentSetupPage() {
   const [publishing, setPublishing] = useState(false)
   const [approvedCount, setApprovedCount] = useState<number | null>(null)
   const [config, setConfig] = useState<any>({
-    basics: { name: "Weekend FC League", season: "2025", is_active: false },
+    basics: { name: "Weekend FC League", season: "2025", is_active: false, status: "DRAFT" },
     registration: { allowLateReports: false, selfReportDeadlineHours: 24 },
     match: { rounds: 2, halvesMinutes: 6, format: "round_robin" },
     tiebreakers: ["points", "goal_difference", "goals_for"],
@@ -75,17 +75,27 @@ export default function TournamentSetupPage() {
   const publish = async () => {
     setPublishing(true)
     try {
+      // Set active + status locally and persist config
+      const updated = {
+        ...config,
+        basics: { ...config.basics, is_active: true, status: "ACTIVE" },
+      }
+      await fetch("/api/tournament/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: updated }),
+      })
       // Persist config (and set active)
       await fetch("/api/tournament/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config, setActive: true }),
+        body: JSON.stringify({ config: updated, setActive: true }),
       })
       // Auto-generate fixtures using approved registrations and selected rounds
       await fetch("/api/admin/generate-fixtures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rounds: Number(config.match.rounds) || 2 }),
+        body: JSON.stringify({ rounds: Number(updated.match.rounds) || 2 }),
       })
       router.push("/admin?tab=fixtures")
     } finally {

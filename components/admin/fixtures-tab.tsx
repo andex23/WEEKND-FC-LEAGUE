@@ -46,7 +46,7 @@ const initialMock: FixtureRow[] = [
 
 export function FixturesTab() {
   const [loading, setLoading] = useState(false)
-  const [fixtures, setFixtures] = useState<FixtureRow[]>(initialMock)
+  const [fixtures, setFixtures] = useState<FixtureRow[]>([])
   const [filterMatchday, setFilterMatchday] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterLabel, setFilterLabel] = useState<string>("all")
@@ -54,19 +54,52 @@ export function FixturesTab() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selectedMatchdays, setSelectedMatchdays] = useState<Set<number>>(new Set())
 
+  const [tournamentActive, setTournamentActive] = useState(false)
+  const [tournamentStatus, setTournamentStatus] = useState<"DRAFT" | "ACTIVE" | "COMPLETE">("DRAFT")
+  const [teamsEdited, setTeamsEdited] = useState(false)
+
   // Manual add dialog state
   const [openAdd, setOpenAdd] = useState(false)
   const [addForm, setAddForm] = useState({ matchday: 1, homePlayer: "", awayPlayer: "", weekendLabel: "", note: "" })
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    // In real app, fetch fixtures from Supabase here
+    ;(async () => {
+      try {
+        const cfg = await fetch("/api/tournament/config").then((r) => r.json())
+        const isActive = Boolean(cfg?.config?.basics?.is_active)
+        setTournamentActive(isActive)
+        setTournamentStatus((cfg?.config?.basics?.status as any) || "DRAFT")
+        setTeamsEdited(Boolean(cfg?.config?.teamsEdited))
+
+        if (isActive) {
+          // In real app, fetch fixtures from Supabase for the active tournament
+          const res = await fetch("/api/fixtures")
+          const data = await res.json()
+          const rows: FixtureRow[] = (data.fixtures || []).map((f: any) => ({
+            id: f.id,
+            matchday: f.matchday,
+            homePlayer: f.homePlayer || f.home_team || "Home",
+            awayPlayer: f.awayPlayer || f.away_team || "Away",
+            homeScore: f.homeScore ?? null,
+            awayScore: f.awayScore ?? null,
+            status: (f.status || "SCHEDULED") as FixtureStatus,
+            weekendLabel: f.weekendLabel || "",
+            note: f.note || "",
+            is_locked: Boolean(f.is_locked),
+          }))
+          setFixtures(rows)
+        } else {
+          setFixtures([])
+        }
+      } catch {
+        setTournamentActive(false)
+        setFixtures([])
+      }
+    })()
   }, [])
 
-  const matchdays = useMemo(() => {
-    const m = Array.from(new Set(fixtures.map((f) => f.matchday))).sort((a, b) => a - b)
-    return m
-  }, [fixtures])
+  const matchdays = useMemo(() => Array.from(new Set(fixtures.map((f) => f.matchday))).sort((a, b) => a - b), [fixtures])
 
   const grouped = useMemo(() => {
     let list = fixtures
@@ -75,11 +108,7 @@ export function FixturesTab() {
     if (filterLabel !== "all") list = list.filter((f) => (f.weekendLabel || "").toLowerCase() === filterLabel.toLowerCase())
     if (search.trim()) {
       const s = search.toLowerCase()
-      list = list.filter((f) =>
-        [f.homePlayer, f.awayPlayer, f.homeTeam, f.awayTeam, f.weekendLabel, f.note].some((v) =>
-          (v || "").toLowerCase().includes(s),
-        ),
-      )
+      list = list.filter((f) => [f.homePlayer, f.awayPlayer, f.homeTeam, f.awayTeam, f.weekendLabel, f.note].some((v) => (v || "").toLowerCase().includes(s)))
     }
     const map = new Map<number, FixtureRow[]>()
     for (const f of list) {
@@ -106,10 +135,12 @@ export function FixturesTab() {
     return map
   }, [fixtures])
 
-  // Actions
+  const readOnly = tournamentStatus === "COMPLETE"
+
+  const goSetup = () => (window.location.href = "/admin/setup")
   const generate = async (rounds: 1 | 2) => {
+    setLoading(true)
     try {
-      setLoading(true)
       const res = await fetch("/api/admin/generate-fixtures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,7 +148,6 @@ export function FixturesTab() {
       })
       if (res.ok) {
         const data = await res.json()
-        // Expecting { fixtures } with matchday numbers
         const built: FixtureRow[] = (data.fixtures || []).map((x: any) => ({
           id: newId(),
           matchday: x.matchday,
@@ -161,25 +191,13 @@ export function FixturesTab() {
     setOpenAdd(false)
   }
 
-  const saveFixture = (id: string) => {
-    setFixtures((prev) => prev.map((f) => (f.id === id ? { ...f, edited_at: new Date().toISOString() } : f)))
+  const saveFixture = (id: string) => !readOnly && setFixtures((prev) => prev.map((f) => (f.id === id ? { ...f, edited_at: new Date().toISOString() } : f)))
+  const swapTeams = (id: string) => !readOnly && setFixtures((prev) => prev.map((f) => (f.id === id ? { ...f, homePlayer: f.awayPlayer, awayPlayer: f.homePlayer, homeTeam: f.awayTeam, awayTeam: f.homeTeam } : f)))
+  const toggleLock = (id: string) => !readOnly && setFixtures((prev) => prev.map((f) => (f.id === id ? { ...f, is_locked: !f.is_locked } : f)))
+  const removeFixture = (id: string, status: FixtureStatus) => {
+    if (readOnly || status === "PLAYED") return
+    setFixtures((prev) => prev.filter((f) => f.id !== id))
   }
-
-  const swapTeams = (id: string) => {
-    setFixtures((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? { ...f, homePlayer: f.awayPlayer, awayPlayer: f.homePlayer, homeTeam: f.awayTeam, awayTeam: f.homeTeam }
-          : f,
-      ),
-    )
-  }
-
-  const toggleLock = (id: string) => {
-    setFixtures((prev) => prev.map((f) => (f.id === id ? { ...f, is_locked: !f.is_locked } : f)))
-  }
-
-  const removeFixture = (id: string) => setFixtures((prev) => prev.filter((f) => f.id !== id))
 
   const applyWeekendLabel = (label: string) => {
     if (selected.size === 0) return
@@ -294,28 +312,51 @@ export function FixturesTab() {
     })
   }
 
+  // Empty states
+  if (!tournamentActive) {
+    return (
+      <div className="border rounded-md p-8 text-center text-gray-600">
+        <div className="mb-2 text-lg font-semibold">No tournaments yet</div>
+        <div className="mb-4 text-sm">Create a tournament to begin scheduling fixtures.</div>
+        <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Create Tournament</Button>
+      </div>
+    )
+  }
+
+  if (fixtures.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="border rounded-md p-8 text-center text-gray-600">
+          <div className="mb-2 text-lg font-semibold">No fixtures yet</div>
+          <div className="mb-4 text-sm">Generate fixtures or adjust tournament settings.</div>
+          <div className="flex items-center justify-center gap-2">
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => generate(2)}>Generate Fixtures</Button>
+            <Button variant="outline" onClick={goSetup}>Open Tournament Setup</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const matchdaysList = useMemo(() => Array.from(new Set(fixtures.map((f) => f.weekendLabel || "")).values()).filter(Boolean) as string[], [fixtures])
+
   return (
     <div className="space-y-6">
-      {/* Header tools */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <CardTitle>Fixtures</CardTitle>
-              <CardDescription>Generate schedules or manage manually</CardDescription>
+              <CardDescription>Manage generated fixtures</CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button className="bg-primary hover:bg-primary/90" onClick={() => generate(1)}>
-                <Wand2 className="h-4 w-4 mr-2" /> Generate (Single Round)
-              </Button>
-              <Button className="bg-primary hover:bg-primary/90" onClick={() => generate(2)}>
-                <RefreshCw className="h-4 w-4 mr-2" /> Generate (Double Round)
+              <Button variant="outline" onClick={goSetup}>Tournament Setup</Button>
+              <Button className="bg-primary hover:bg-primary/90" onClick={() => generate(2)} disabled={readOnly}>
+                <RefreshCw className="h-4 w-4 mr-2" /> Generate Fixtures
               </Button>
               <Dialog open={openAdd} onOpenChange={setOpenAdd}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Plus className="h-4 w-4 mr-2" /> Add Fixture
-                  </Button>
+                  <Button variant="outline" disabled={readOnly}><Plus className="h-4 w-4 mr-2" /> Add Fixture</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
@@ -325,22 +366,17 @@ export function FixturesTab() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="text-sm">Matchday</label>
-                      <Input
-                        type="number"
-                        value={addForm.matchday}
-                        onChange={(e) => setAddForm({ ...addForm, matchday: Number(e.target.value || 1) })}
-                        className="mt-1"
-                      />
+                      <Input type="number" value={addForm.matchday} onChange={(e) => setAddForm({ ...addForm, matchday: Number(e.target.value || 1) })} className="mt-1" />
                     </div>
                     <div>
                       <label className="text-sm">Weekend label</label>
                       <Input value={addForm.weekendLabel} onChange={(e) => setAddForm({ ...addForm, weekendLabel: e.target.value })} className="mt-1" />
                     </div>
-                    <div className="md:col-span-1">
+                    <div>
                       <label className="text-sm">Home (player / team)</label>
                       <Input value={addForm.homePlayer} onChange={(e) => setAddForm({ ...addForm, homePlayer: e.target.value })} className="mt-1" />
                     </div>
-                    <div className="md:col-span-1">
+                    <div>
                       <label className="text-sm">Away (player / team)</label>
                       <Input value={addForm.awayPlayer} onChange={(e) => setAddForm({ ...addForm, awayPlayer: e.target.value })} className="mt-1" />
                     </div>
@@ -350,25 +386,21 @@ export function FixturesTab() {
                     </div>
                   </div>
                   <div className="flex justify-end gap-2 mt-4">
-                    <Button onClick={addFixture} className="bg-primary hover:bg-primary/90">Add</Button>
+                    <Button onClick={() => { if (!readOnly) { setFixtures((prev) => [...prev, { id: newId(), matchday: addForm.matchday, homePlayer: addForm.homePlayer, awayPlayer: addForm.awayPlayer, homeScore: null, awayScore: null, status: "SCHEDULED", weekendLabel: addForm.weekendLabel || undefined, note: addForm.note || undefined, is_locked: false }]); setOpenAdd(false) } }} className="bg-primary hover:bg-primary/90" disabled={readOnly}>Add</Button>
                   </div>
                 </DialogContent>
               </Dialog>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => applyWeekendLabel(prompt("Weekend label", "Week 1") || "")}>Apply Label</Button>
-                <Button variant="outline" onClick={bulkSwap}><ArrowLeftRight className="h-4 w-4 mr-2" /> Swap</Button>
-                <Button variant="outline" onClick={bulkDelete}><Trash2 className="h-4 w-4 mr-2" /> Delete</Button>
-                <Button variant="outline" onClick={regenerateSelectedMatchdays}>Regenerate Selected</Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <input ref={fileInputRef} type="file" accept=".csv" hidden onChange={(e) => e.target.files && importCsv(e.target.files[0])} />
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-2" /> Import CSV</Button>
-                <Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-2" /> Export CSV</Button>
-              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {teamsEdited && (
+            <div className="border rounded-md p-3 mb-4 text-sm flex items-center justify-between">
+              <div>Teams have been edited since generation. Regenerate to refresh schedule (played fixtures stay intact).</div>
+              <Button variant="outline" onClick={() => generate(2)} disabled={readOnly}>Regenerate</Button>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 flex-wrap mb-4">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search team/player" value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
@@ -376,7 +408,7 @@ export function FixturesTab() {
               <SelectTrigger className="w-40"><SelectValue placeholder="Matchday" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Matchdays</SelectItem>
-                {matchdays.map((md) => (
+                {Array.from(new Set(fixtures.map((f) => f.matchday))).sort((a, b) => a - b).map((md) => (
                   <SelectItem key={md} value={String(md)}>Matchday {md}</SelectItem>
                 ))}
               </SelectContent>
@@ -401,97 +433,55 @@ export function FixturesTab() {
             </Select>
           </div>
 
-          {loading ? (
-            <div className="p-12 text-center text-gray-500">Generating fixtures...</div>
-          ) : grouped.length === 0 ? (
-            <div className="p-12 text-center text-gray-500 border rounded-md">No fixtures. Generate or add fixtures to get started.</div>
-          ) : (
-            <div className="space-y-6">
-              {grouped.map(([md, rows]) => (
-                <div key={md} className="border rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDropOnMatchday(e, md)}>
-                  <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">Matchday {md}</Badge>
-                      <label className="flex items-center gap-2 text-xs text-gray-600">
-                        <input type="checkbox" checked={selectedMatchdays.has(md)} onChange={() => toggleSelectMatchday(md)} /> Select MD
-                      </label>
-                    </div>
-                    <div className="text-xs text-gray-500">{rows.length} fixtures</div>
+          <div className="space-y-6">
+            {grouped.map(([md, rows]) => (
+              <div key={md} className="border rounded-md">
+                <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline">Matchday {md}</Badge>
                   </div>
+                  <div className="text-xs text-gray-500">{rows.length} fixtures</div>
+                </div>
 
-                  <div className="divide-y">
-                    {rows.map((f) => (
-                      <div key={f.id} className="px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" draggable onDragStart={(e) => onDragStart(e, f.id)}>
-                        <div className="md:col-span-1">
-                          <label className="flex items-center gap-2 text-xs text-gray-600">
-                            <input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleSelect(f.id)} />
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${statusClass(f.status)}`}>{f.status}</span>
-                          </label>
-                        </div>
-                        <div className="md:col-span-3">
-                          <div className="font-medium">{f.homePlayer}</div>
-                          {f.homeTeam && <div className="text-xs text-gray-500">{f.homeTeam}</div>}
-                        </div>
-                        <div className="md:col-span-2">
-                          <div className="flex items-center justify-center gap-2 tabular-nums">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="20"
-                              className="w-16 text-right"
-                              value={f.homeScore ?? ""}
-                              onChange={(e) =>
-                                setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, homeScore: e.target.value === "" ? null : Number(e.target.value) } : x)))
-                              }
-                              disabled={f.is_locked && f.status !== "PLAYED"}
-                            />
-                            <span>-</span>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="20"
-                              className="w-16 text-right"
-                              value={f.awayScore ?? ""}
-                              onChange={(e) =>
-                                setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, awayScore: e.target.value === "" ? null : Number(e.target.value) } : x)))
-                              }
-                              disabled={f.is_locked && f.status !== "PLAYED"}
-                            />
-                          </div>
-                        </div>
-                        <div className="md:col-span-3">
-                          <div className="font-medium">{f.awayPlayer}</div>
-                          {f.awayTeam && <div className="text-xs text-gray-500">{f.awayTeam}</div>}
-                        </div>
-                        <div className="md:col-span-1">
-                          <Input
-                            placeholder="Weekend"
-                            value={f.weekendLabel || ""}
-                            onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, weekendLabel: e.target.value } : x)))}
-                          />
-                        </div>
-                        <div className="md:col-span-2 flex items-center justify-end gap-2">
-                          <Input
-                            placeholder="Note"
-                            value={f.note || ""}
-                            onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, note: e.target.value } : x)))}
-                          />
-                        </div>
-                        <div className="md:col-span-2 flex items-center justify-end gap-2">
-                          <Button size="sm" onClick={() => saveFixture(f.id)}><Save className="h-4 w-4 mr-1" /> Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => swapTeams(f.id)}><ArrowLeftRight className="h-4 w-4 mr-1" /> Swap</Button>
-                          <Button size="sm" variant="outline" onClick={() => toggleLock(f.id)}>
-                            {f.is_locked ? (<><Unlock className="h-4 w-4 mr-1" /> Unlock</>) : (<><Lock className="h-4 w-4 mr-1" /> Lock</>)}
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => removeFixture(f.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                <div className="divide-y">
+                  {rows.map((f) => (
+                    <div key={f.id} className="px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                      <div className="md:col-span-1">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${statusClass(f.status)}`}>{f.status}</span>
+                      </div>
+                      <div className="md:col-span-3">
+                        <div className="font-medium">{f.homePlayer}</div>
+                        {f.homeTeam && <div className="text-xs text-gray-500">{f.homeTeam}</div>}
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="flex items-center justify-center gap-2 tabular-nums">
+                          <Input type="number" min="0" max="20" className="w-16 text-right" value={f.homeScore ?? ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, homeScore: e.target.value === "" ? null : Number(e.target.value) } : x)))} disabled={(f.is_locked && f.status !== "PLAYED") || readOnly} />
+                          <span>-</span>
+                          <Input type="number" min="0" max="20" className="w-16 text-right" value={f.awayScore ?? ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, awayScore: e.target.value === "" ? null : Number(e.target.value) } : x)))} disabled={(f.is_locked && f.status !== "PLAYED") || readOnly} />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="md:col-span-3">
+                        <div className="font-medium">{f.awayPlayer}</div>
+                        {f.awayTeam && <div className="text-xs text-gray-500">{f.awayTeam}</div>}
+                      </div>
+                      <div className="md:col-span-1">
+                        <Input placeholder="Weekend" value={f.weekendLabel || ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, weekendLabel: e.target.value } : x)))} disabled={readOnly} />
+                      </div>
+                      <div className="md:col-span-2 flex items-center justify-end gap-2">
+                        <Input placeholder="Note" value={f.note || ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, note: e.target.value } : x)))} disabled={readOnly} />
+                      </div>
+                      <div className="md:col-span-2 flex items-center justify-end gap-2">
+                        <Button size="sm" onClick={() => saveFixture(f.id)} disabled={readOnly}><Save className="h-4 w-4 mr-1" /> Save</Button>
+                        <Button size="sm" variant="outline" onClick={() => swapTeams(f.id)} disabled={readOnly}><ArrowLeftRight className="h-4 w-4 mr-1" /> Swap</Button>
+                        <Button size="sm" variant="outline" onClick={() => toggleLock(f.id)} disabled={readOnly}>{f.is_locked ? (<><Unlock className="h-4 w-4 mr-1" /> Unlock</>) : (<><Lock className="h-4 w-4 mr-1" /> Lock</>)}</Button>
+                        <Button size="sm" variant="outline" onClick={() => removeFixture(f.id, f.status)} disabled={readOnly || f.status === "PLAYED"}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
