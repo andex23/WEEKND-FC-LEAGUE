@@ -95,9 +95,12 @@ export default function TournamentSetupPage() {
 
   const NextPrev = (
     <div className="flex items-center justify-between">
-      <Button variant="outline" onClick={() => setCurrent((s) => steps[Math.max(0, steps.indexOf(s) - 1)])} disabled={steps.indexOf(current) === 0}>
-        Back
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
+        <Button variant="outline" onClick={() => setCurrent((s) => steps[Math.max(0, steps.indexOf(s) - 1)])} disabled={steps.indexOf(current) === 0}>
+          Back
+        </Button>
+      </div>
       <div className="flex items-center gap-2">
         <Button variant="outline" onClick={saveDraft} disabled={saving}>{saving ? "Saving..." : "Save Draft"}</Button>
         {steps.indexOf(current) < steps.length - 1 ? (
@@ -112,9 +115,12 @@ export default function TournamentSetupPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="container-5xl section-pad space-y-6">
-        <div>
-          <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Tournament Setup</h1>
-          <p className="text-sm text-gray-600">Configure and publish your tournament</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Tournament Setup</h1>
+            <p className="text-sm text-gray-600">Configure and publish your tournament</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -255,9 +261,26 @@ export default function TournamentSetupPage() {
             )}
 
             {current === "Review" && (
-              <div className="text-sm text-gray-700 space-y-2">
-                <pre className="bg-gray-50 p-3 rounded border overflow-auto text-xs">{JSON.stringify(config, null, 2)}</pre>
-                <p>On publish, fixtures will be generated using approved registrations and these settings.</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">League</div>
+                    <div className="font-semibold">{config.basics.name} — {config.basics.season}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Players</div>
+                    <div className="font-semibold tabular-nums">{approvedCount ?? "—"}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Format</div>
+                    <div className="font-semibold">{Number(config.match.rounds) === 2 ? "Round-robin (home & away)" : "Round-robin (single)"}</div>
+                  </div>
+                  <div className="border rounded-md p-4">
+                    <div className="text-xs text-gray-600">Scheduling</div>
+                    <div className="font-semibold">{config.scheduling.pacing} • {config.scheduling.byes} BYE • {config.scheduling.labelTemplate}</div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">On publish, fixtures will be generated using approved registrations and these settings. You can edit fixtures afterward in the Admin → Fixtures tab.</p>
               </div>
             )}
 
