@@ -1,106 +1,137 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trophy } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-interface Standing {
-  id: string
-  name: string
-  team: string
-  console: string
-  played: number
-  won: number
-  drawn: number
-  lost: number
-  goals_for: number
-  goals_against: number
-  goal_difference: number
-  points: number
-}
+interface Row { id: string; name: string; team: string; [k: string]: any }
 
 export function StandingsTab() {
-  const [standings, setStandings] = useState<Standing[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [onlyOverridden, setOnlyOverridden] = useState(false)
+  const [data, setData] = useState<{ standings: Row[]; leaders: { scorers: Row[]; assists: Row[]; discipline: Row[] } }>({ standings: [], leaders: { scorers: [], assists: [], discipline: [] } })
 
-  useEffect(() => {
-    fetchStandings()
-  }, [])
-
-  const fetchStandings = async () => {
+  const fetchAll = async () => {
+    setLoading(true)
     try {
-      const response = await fetch("/api/standings")
-      if (response.ok) {
-        const data = await response.json()
-        setStandings(data.standings || [])
-      }
-    } catch (error) {
-      console.error("Error fetching standings:", error)
+      const res = await fetch("/api/admin/stats")
+      if (!res.ok) throw new Error("Failed to load stats")
+      setData(await res.json())
+      setError(null)
+    } catch (e: any) {
+      setError(e.message)
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading) {
-    return <div className="flex justify-center p-8">Loading standings...</div>
+  useEffect(() => { fetchAll() }, [])
+
+  const filtered = (rows: Row[], cols: string[]) => {
+    let r = rows
+    if (search.trim()) {
+      const s = search.toLowerCase()
+      r = r.filter((x) => x.name.toLowerCase().includes(s) || x.team.toLowerCase().includes(s))
+    }
+    if (onlyOverridden) r = r.filter((x) => Object.values(x.overridden || {}).some(Boolean))
+    return r.map((x) => ({ ...x, _cols: cols }))
   }
+
+  const overrideCell = async (table: string, id: string, field: string, value: string) => {
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "override", table, id, field, value }) })
+    if (res.ok) fetchAll()
+  }
+
+  const recompute = async () => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) }); fetchAll() }
+  const resetOverrides = async () => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reset_overrides" }) }); fetchAll() }
+  const exportCsv = async () => { const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }) }); const txt = await res.text(); const url = URL.createObjectURL(new Blob([txt],{type:"text/csv"})); const a=document.createElement("a"); a.href=url;a.download="league-table.csv";a.click();URL.revokeObjectURL(url) }
+
+  const Table = ({ rows, table }: { rows: Row[]; table: string }) => (
+    <div className="overflow-x-auto border rounded-md">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left px-3 py-2">Player</th>
+            <th className="text-left px-3 py-2">Team</th>
+            {rows[0]?._cols?.map((c) => (
+              <th key={c} className="text-right px-3 py-2">{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} className="border-t">
+              <td className="px-3 py-2">{r.name}</td>
+              <td className="px-3 py-2">{r.team}</td>
+              {r._cols?.map((c) => (
+                <td key={c} className="px-3 py-2 text-right tabular-nums">
+                  <div className="flex items-center justify-end gap-2">
+                    <Input defaultValue={r[c] ?? 0} type="number" className="w-20 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
+                    {r.overridden?.[c] && <span className="px-2 py-0.5 rounded text-xs border bg-yellow-50 border-yellow-200 text-yellow-800">overridden</span>}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
+  if (loading) return <div className="p-8 text-center text-gray-600">Loading stats…</div>
+  if (error) return <div className="p-8 text-center text-red-600">{error}</div>
+
+  const standingsCols = ["P","W","D","L","GF","GA","GD","Pts"]
+  const scorersCols = ["G"]
+  const assistsCols = ["A"]
+  const disciplineCols = ["YC","RC"]
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            League Standings
-          </CardTitle>
-          <CardDescription>Live table calculated from match results</CardDescription>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle>Stats Command Center</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button onClick={recompute}>Recompute</Button>
+              <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
+              <Button variant="outline" onClick={resetOverrides}>Reset All Overrides</Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">Pos</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead className="text-center">P</TableHead>
-                <TableHead className="text-center">W</TableHead>
-                <TableHead className="text-center">D</TableHead>
-                <TableHead className="text-center">L</TableHead>
-                <TableHead className="text-center">GF</TableHead>
-                <TableHead className="text-center">GA</TableHead>
-                <TableHead className="text-center">GD</TableHead>
-                <TableHead className="text-center">Pts</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {standings.map((standing, index) => (
-                <TableRow key={standing.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {index + 1 === 1 && <Trophy className="h-4 w-4 text-yellow-500" />}
-                      {index + 1}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{standing.name}</TableCell>
-                  <TableCell>{standing.team}</TableCell>
-                  <TableCell className="text-center">{standing.played}</TableCell>
-                  <TableCell className="text-center">{standing.won}</TableCell>
-                  <TableCell className="text-center">{standing.drawn}</TableCell>
-                  <TableCell className="text-center">{standing.lost}</TableCell>
-                  <TableCell className="text-center">{standing.goals_for}</TableCell>
-                  <TableCell className="text-center">{standing.goals_against}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={standing.goal_difference >= 0 ? "text-green-600" : "text-red-600"}>
-                      {standing.goal_difference > 0 ? "+" : ""}
-                      {standing.goal_difference}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center font-bold">{standing.points}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input placeholder="Search player/team" value={search} onChange={(e) => setSearch(e.target.value)} className="w-60" />
+            <label className="text-sm text-gray-600 flex items-center gap-2">
+              <input type="checkbox" checked={onlyOverridden} onChange={(e) => setOnlyOverridden(e.target.checked)} /> Show only overridden
+            </label>
+          </div>
+
+          <Tabs defaultValue="table">
+            <TabsList className="grid grid-cols-4 w-full">
+              <TabsTrigger value="table">League Table</TabsTrigger>
+              <TabsTrigger value="scorers">Top Scorers</TabsTrigger>
+              <TabsTrigger value="assists">Top Assists</TabsTrigger>
+              <TabsTrigger value="discipline">Discipline</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="table" className="mt-4">
+              <Table rows={filtered(data.standings, standingsCols)} table="standings" />
+            </TabsContent>
+            <TabsContent value="scorers" className="mt-4">
+              <Table rows={filtered(data.leaders.scorers, scorersCols)} table="scorers" />
+            </TabsContent>
+            <TabsContent value="assists" className="mt-4">
+              <Table rows={filtered(data.leaders.assists, assistsCols)} table="assists" />
+            </TabsContent>
+            <TabsContent value="discipline" className="mt-4">
+              <Table rows={filtered(data.leaders.discipline, disciplineCols)} table="discipline" />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
