@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { SiteLogo } from "@/components/site-logo"
 
 export function Navbar() {
   const user = null // Demo: no user authentication
@@ -12,10 +13,8 @@ export function Navbar() {
       <div className="container-5xl">
         <div className="flex justify-between items-center h-14">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="bg-gray-900 text-white px-2 py-1 rounded font-bold text-sm">WFC</div>
-              <span className="font-semibold text-gray-900">Weeknd FC</span>
-            </Link>
+            <SiteLogo />
+            <Link href="/" className="font-semibold text-gray-900">Weeknd FC</Link>
           </div>
 
           <div className="flex items-center gap-3">

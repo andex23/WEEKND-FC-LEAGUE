@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Trophy, Play } from "lucide-react"
+import { Loader2, Trophy, Play, Shield } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -19,7 +19,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       className="w-full bg-accent hover:bg-accent/90 text-white py-6 text-lg font-medium rounded-lg h-[60px]"
-    >
+   >
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -45,8 +45,15 @@ export default function LoginForm() {
 
   const handleDemoLogin = () => {
     startTransition(async () => {
-      // For demo purposes, bypass authentication and go directly to dashboard
       router.push("/dashboard")
+    })
+  }
+
+  const handleAdminLogin = () => {
+    startTransition(async () => {
+      // Set a short-lived cookie granting ADMIN for demo/testing
+      document.cookie = `wfc_demo_role=ADMIN; path=/; max-age=1800` // 30 minutes
+      router.push("/admin")
     })
   }
 
@@ -60,7 +67,7 @@ export default function LoginForm() {
         <CardDescription>Sign in to your Weeknd FC League account</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-6">
+        <div className="mb-4 grid grid-cols-1 gap-2">
           <Button
             onClick={handleDemoLogin}
             disabled={isPending}
@@ -79,7 +86,10 @@ export default function LoginForm() {
               </>
             )}
           </Button>
-          <p className="text-xs text-muted-foreground text-center mt-2">Quick preview with sample data</p>
+          <Button onClick={handleAdminLogin} disabled={isPending} className="w-full h-12 bg-primary hover:bg-primary/90">
+            <Shield className="mr-2 h-4 w-4" /> Log in as Admin (test)
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">Admin test button grants temporary access</p>
         </div>
 
         <div className="relative mb-6">
@@ -113,13 +123,10 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <SubmitButton />
+        <SubmitButton />
 
           <div className="text-center text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-accent hover:underline font-medium">
-              Sign up
-            </Link>
+            Don't have an account? <Link href="/auth/signup" className="text-accent hover:underline font-medium">Sign up</Link>
           </div>
         </form>
       </CardContent>
