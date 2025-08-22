@@ -402,23 +402,23 @@ export function FixturesTab() {
           )}
 
           <div className="flex items-center gap-2 flex-wrap mb-4">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+              <Filter className="h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search team/player" value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
-            <Select value={filterMatchday} onValueChange={setFilterMatchday}>
+              <Select value={filterMatchday} onValueChange={setFilterMatchday}>
               <SelectTrigger className="w-40"><SelectValue placeholder="Matchday" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Matchdays</SelectItem>
+                <SelectContent>
+                  <SelectItem value="all">All Matchdays</SelectItem>
                 {Array.from(new Set(fixtures.map((f) => f.matchday))).sort((a, b) => a - b).map((md) => (
                   <SelectItem key={md} value={String(md)}>Matchday {md}</SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                <SelectItem value="PLAYED">Played</SelectItem>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="PLAYED">Played</SelectItem>
                 <SelectItem value="FORFEIT">Forfeit</SelectItem>
               </SelectContent>
             </Select>
@@ -429,9 +429,9 @@ export function FixturesTab() {
                 {Array.from(new Set(fixtures.map((f) => f.weekendLabel).filter(Boolean) as string[])).map((l) => (
                   <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+                </SelectContent>
+              </Select>
+            </div>
 
           <div className="space-y-6">
             {grouped.map(([md, rows]) => (
@@ -448,15 +448,15 @@ export function FixturesTab() {
                     <div key={f.id} className="px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                       <div className="md:col-span-1">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${statusClass(f.status)}`}>{f.status}</span>
-                      </div>
+          </div>
                       <div className="md:col-span-3">
                         <div className="font-medium">{f.homePlayer}</div>
                         {f.homeTeam && <div className="text-xs text-gray-500">{f.homeTeam}</div>}
-                      </div>
+                    </div>
                       <div className="md:col-span-2">
                         <div className="flex items-center justify-center gap-2 tabular-nums">
                           <Input type="number" min="0" max="20" className="w-16 text-right" value={f.homeScore ?? ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, homeScore: e.target.value === "" ? null : Number(e.target.value) } : x)))} disabled={(f.is_locked && f.status !== "PLAYED") || readOnly} />
-                          <span>-</span>
+                      <span>-</span>
                           <Input type="number" min="0" max="20" className="w-16 text-right" value={f.awayScore ?? ""} onChange={(e) => setFixtures((prev) => prev.map((x) => (x.id === f.id ? { ...x, awayScore: e.target.value === "" ? null : Number(e.target.value) } : x)))} disabled={(f.is_locked && f.status !== "PLAYED") || readOnly} />
                         </div>
                       </div>
@@ -479,7 +479,7 @@ export function FixturesTab() {
                     </div>
                   ))}
                 </div>
-              </div>
+                    </div>
             ))}
           </div>
         </CardContent>
