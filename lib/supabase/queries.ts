@@ -55,6 +55,19 @@ export async function createPlayer(playerData: {
   return data
 }
 
+// New: approved registrations (fallback to all players if no status column)
+export async function getApprovedRegistrations() {
+  const client = await createClient()
+  try {
+    // Try filtering by status if present
+    const byStatus = await client.from("players").select("*").eq("status", "approved")
+    if (!byStatus.error) return byStatus.data || []
+  } catch {}
+  // Fallback: return all players
+  const { data } = await client.from("players").select("*")
+  return data || []
+}
+
 // Fixture queries
 export async function getFixtures() {
   const supabase = await createClient()
@@ -63,9 +76,9 @@ export async function getFixtures() {
   const { data, error } = await supabase
     .from("fixtures")
     .select(`
-      *,
-      home_player:players!fixtures_home_player_id_fkey(name, assigned_club),
-      away_player:players!fixtures_away_player_id_fkey(name, assigned_club)
+      id, matchday, home_score, away_score, status, played_at,
+      home_player:players!fixtures_home_player_id_fkey(id, name, assigned_club),
+      away_player:players!fixtures_away_player_id_fkey(id, name, assigned_club)
     `)
     .order("matchday", { ascending: true })
 
@@ -164,6 +177,17 @@ export async function updateFixtureResult(fixtureId: string, homeScore: number, 
   return data
 }
 
+// New: bulk insert fixtures
+export async function insertFixturesBulk(fixtures: Array<{ id?: string; matchday: number; home_player_id: string; away_player_id: string; home_club: string; away_club: string; status?: string }>) {
+  const client = await createClient()
+  const { data, error } = await client.from("fixtures").insert(fixtures).select()
+  if (error) {
+    console.error("Error inserting fixtures:", error)
+    throw error
+  }
+  return data
+}
+
 // Standings queries
 export async function getStandings() {
   const supabase = await createClient()
@@ -240,55 +264,6 @@ export async function getPlayerStats(playerId: string) {
   }
 }
 
-export async function getPlayerRecentResults(playerId: string, limit = 5) {
-  const supabase = await createClient()
-  if (!supabase) return []
-
-  const { data, error } = await supabase
-    .from("fixtures")
-    .select(`
-      *,
-      home_player:players!fixtures_home_player_id_fkey(name, assigned_club),
-      away_player:players!fixtures_away_player_id_fkey(name, assigned_club)
-    `)
-    .or(`home_player_id.eq.${playerId},away_player_id.eq.${playerId}`)
-    .eq("status", "PLAYED")
-    .order("played_at", { ascending: false })
-    .limit(limit)
-
-  if (error) {
-    console.error("Error fetching player recent results:", error)
-    return []
-  }
-
-  // Transform data to include result from player's perspective
-  return (data || []).map((fixture) => {
-    const isHome = fixture.home_player_id === playerId
-    const playerScore = isHome ? fixture.home_score : fixture.away_score
-    const opponentScore = isHome ? fixture.away_score : fixture.home_score
-
-    let result: "W" | "D" | "L"
-    if (playerScore > opponentScore) {
-      result = "W"
-    } else if (playerScore === opponentScore) {
-      result = "D"
-    } else {
-      result = "L"
-    }
-
-    return {
-      id: fixture.id,
-      matchday: fixture.matchday,
-      home_team: fixture.home_player?.assigned_club || "TBD",
-      away_team: fixture.away_player?.assigned_club || "TBD",
-      home_score: fixture.home_score,
-      away_score: fixture.away_score,
-      is_home: isHome,
-      result,
-    }
-  })
-}
-
 // League settings queries
 export async function getLeagueSettings() {
   const supabase = await createClient()
@@ -340,4 +315,24 @@ export async function promotePlayerToAdmin(playerId: string) {
   }
 
   return data
+}
+
+// New: Tournament config helpers (best-effort)
+export async function upsertTournamentConfig(config: any, setActive?: boolean) {
+  const client = await createClient()
+  // Try tournaments table first
+  try {
+    const { data, error } = await client
+      .from("tournaments")
+      .upsert({ id: "active", name: config?.basics?.name || "Tournament", config, status: setActive ? "ACTIVE" : "DRAFT", is_active: !!setActive }, { onConflict: "id" })
+      .select()
+      .single()
+    if (!error) return data
+  } catch (e) {
+    console.warn("tournaments table not available; falling back", e)
+  }
+  // Fallback to league_settings row
+  try {
+    await client.from("league_settings").update({ status: setActive ? "ACTIVE" : "DRAFT" }).neq("id", "")
+  } catch {}
 }

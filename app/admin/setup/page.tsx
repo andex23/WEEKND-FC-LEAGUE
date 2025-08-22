@@ -26,6 +26,7 @@ export default function TournamentSetupPage() {
   const [current, setCurrent] = useState<WizardStep>("Basics")
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [approvedCount, setApprovedCount] = useState<number | null>(null)
   const [config, setConfig] = useState<any>({
     basics: { name: "Weekend FC League", season: "2025", is_active: false },
     registration: { allowLateReports: false, selfReportDeadlineHours: 24 },
@@ -37,13 +38,22 @@ export default function TournamentSetupPage() {
   })
 
   useEffect(() => {
-    // Load existing draft if available
+    // Load existing draft and approved players count
     ;(async () => {
       try {
-        const res = await fetch("/api/tournament/config")
-        if (res.ok) {
-          const data = await res.json()
+        const [cfgRes, playersRes] = await Promise.all([
+          fetch("/api/tournament/config"),
+          fetch("/api/admin/players"),
+        ])
+        if (cfgRes.ok) {
+          const data = await cfgRes.json()
           if (data?.config) setConfig((prev: any) => ({ ...prev, ...data.config }))
+        }
+        if (playersRes.ok) {
+          const p = await playersRes.json()
+          const players = p?.players || []
+          const countApproved = players.filter((x: any) => (x.status || "approved").toLowerCase() === "approved").length || players.length
+          setApprovedCount(countApproved)
         }
       } catch {}
     })()
@@ -65,12 +75,19 @@ export default function TournamentSetupPage() {
   const publish = async () => {
     setPublishing(true)
     try {
-      const res = await fetch("/api/tournament/publish", {
+      // Persist config (and set active)
+      await fetch("/api/tournament/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config, setActive: true }),
       })
-      if (res.ok) router.push("/admin?tab=fixtures")
+      // Auto-generate fixtures using approved registrations and selected rounds
+      await fetch("/api/admin/generate-fixtures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rounds: Number(config.match.rounds) || 2 }),
+      })
+      router.push("/admin?tab=fixtures")
     } finally {
       setPublishing(false)
     }
@@ -112,14 +129,30 @@ export default function TournamentSetupPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {current === "Basics" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm">League Name</label>
-                  <Input value={config.basics.name} onChange={(e) => setConfig({ ...config, basics: { ...config.basics, name: e.target.value } })} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 border rounded-md p-4">
+                  <div className="text-sm text-gray-600 mb-2">Approved Players</div>
+                  <div className="text-3xl font-bold tabular-nums mb-4">{approvedCount ?? "—"}</div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Format</div>
+                    <Select value={String(config.match.rounds)} onValueChange={(v) => setConfig({ ...config, match: { ...config.match, rounds: Number(v) } })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Round-robin (single)</SelectItem>
+                        <SelectItem value="2">Round-robin (home & away)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm">Season</label>
-                  <Input value={config.basics.season} onChange={(e) => setConfig({ ...config, basics: { ...config.basics, season: e.target.value } })} />
+                <div className="md:col-span-2 space-y-4">
+                  <div>
+                    <label className="text-sm">League Name</label>
+                    <Input value={config.basics.name} onChange={(e) => setConfig({ ...config, basics: { ...config.basics, name: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="text-sm">Season</label>
+                    <Input value={config.basics.season} onChange={(e) => setConfig({ ...config, basics: { ...config.basics, season: e.target.value } })} />
+                  </div>
                 </div>
               </div>
             )}
@@ -151,7 +184,7 @@ export default function TournamentSetupPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">Single Round</SelectItem>
-                      <SelectItem value="2">Double Round</SelectItem>
+                      <SelectItem value="2">Double Round (Home & Away)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
