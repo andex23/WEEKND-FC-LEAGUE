@@ -21,8 +21,8 @@ export default function AdminTournamentsPage() {
     load()
     ;(async () => {
       try {
-        const regs = await fetch("/api/admin/registrations").then((r) => r.json())
-        const count = (regs.registrations || []).filter((p: any) => String(p.status || "").toLowerCase() === "approved").length
+        const res = await fetch("/api/admin/players").then((r) => r.json())
+        const count = (res.players || []).filter((p: any) => !!p.active).length
         setPlayers(count)
       } catch {}
     })()
@@ -43,22 +43,10 @@ export default function AdminTournamentsPage() {
   const openSettings = () => { router.push("/admin?section=settings") }
   const generateNow = async (t: any) => {
     const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
-    const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds }) })
+    const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds, tournamentId: t.id, season }) })
     if (!res.ok) return
     const data = await res.json()
-    // Persist each generated fixture to our fixtures store so they display under
-    for (const f of data.fixtures || []) {
-      await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        id: f.id,
-        season: season || t.season || "2024/25",
-        matchday: f.matchday,
-        homeId: f.homeId || f.home_player || f.home || f.home_reg_id || f.homePlayer || f.home_player_id || "",
-        awayId: f.awayId || f.away_player || f.away || f.away_reg_id || f.awayPlayer || f.away_player_id || "",
-        status: "SCHEDULED",
-        date: null,
-      }) })
-    }
-    // Reload list so user can click through or view under
+    // Persist each generated fixture ... now handled by API; just reload
     await load()
   }
 

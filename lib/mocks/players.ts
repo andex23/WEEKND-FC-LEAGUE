@@ -33,3 +33,4 @@ export function syncTournamentPlayers(tournamentId: string) {
   memTournamentPlayers[tournamentId] = Array.from(current)
   return memTournamentPlayers[tournamentId]
 }
+export function setTournamentPlayers(tournamentId: string, ids: string[]) { memTournamentPlayers[tournamentId] = ids }
