@@ -123,8 +123,8 @@ export function StandingsTab() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left px-3 py-2">Player</th>
-                <th className="text-left px-3 py-2">Team</th>
+                <th className="text-left px-3 py-2 w-48">Player</th>
+                <th className="text-left px-3 py-2 w-40">Team</th>
                 {pageRows[0]?._cols?.map((c) => (
                   <th key={c} className="text-right px-3 py-2">{c}</th>
                 ))}
@@ -134,16 +134,16 @@ export function StandingsTab() {
             <tbody>
               {pageRows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">
-                    <Input defaultValue={r.name} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== r.name) updateMeta(table, r.id, "name", v) }} />
+                  <td className="px-3 py-2 min-w-[12rem]">
+                    <Input className="w-48" defaultValue={r.name} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== r.name) updateMeta(table, r.id, "name", v) }} />
                   </td>
-                  <td className="px-3 py-2">
-                    <Input defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
+                  <td className="px-3 py-2 min-w-[9rem]">
+                    <Input className="w-40" defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
                   </td>
                   {r._cols?.map((c) => (
                     <td key={c} className="px-3 py-2 text-right tabular-nums">
                       <div className="flex items-center justify-end gap-2">
-                        <Input defaultValue={r[c] ?? 0} type="number" className="w-20 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
+                        <Input defaultValue={r[c] ?? 0} type="number" className="w-14 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
                         {r.overridden?.[c] && <span className="px-2 py-0.5 rounded text-xs border bg-yellow-50 border-yellow-200 text-yellow-800">overridden</span>}
                       </div>
                     </td>
