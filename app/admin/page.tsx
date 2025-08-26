@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [playerStats, setPlayerStats] = useState<any>(null)
   const [resultsQueue, setResultsQueue] = useState<any[]>([])
   const [clearing, setClearing] = useState(false)
+  const [seeding, setSeeding] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -121,7 +122,6 @@ export default function AdminDashboard() {
 
   const approveAllReports = async () => {
     try {
-      // Attempt backend endpoint if exists, otherwise fall back to local clear
       const res = await fetch("/api/admin/results/approve-all", { method: "POST" })
       if (!res.ok) throw new Error("fallback")
     } catch {
@@ -138,6 +138,17 @@ export default function AdminDashboard() {
       await fetchAllData()
     } finally {
       setClearing(false)
+    }
+  }
+
+  const seedDemoPlayers = async () => {
+    setSeeding(true)
+    try {
+      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) })
+      setSection("registrations" as any)
+      await fetchAllData()
+    } finally {
+      setSeeding(false)
     }
   }
 
@@ -293,7 +304,6 @@ export default function AdminDashboard() {
 
   const approveReport = async (id: string) => {
     try {
-      // Try a specific endpoint if available, otherwise fall back to remove from queue
       const res = await fetch("/api/admin/results/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
       if (!res.ok) throw new Error("fallback")
     } catch {
@@ -429,6 +439,7 @@ export default function AdminDashboard() {
             <p className="text-sm text-[#9E9E9E]">Manage the Weekend FC League</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={seedDemoPlayers} disabled={seeding}>{seeding ? "Seeding…" : "Seed 6 demo players"}</Button>
             <Button variant="outline" className="text-rose-300 border-rose-900 hover:bg-rose-900/20" onClick={clearAllData} disabled={clearing}>
               {clearing ? "Clearing…" : "Clear League Data"}
             </Button>
