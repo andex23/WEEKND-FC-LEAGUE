@@ -4,13 +4,12 @@ import { getMemRegistrations, setMemRegistrations, clearMemRegistrations } from 
 
 export async function GET() {
   try {
-    if (process.env.MOCK_DEMO === "1") {
-      const mem = getMemRegistrations()
-      return NextResponse.json({ registrations: mem || [], total: mem?.length || 0 })
+    const mem = getMemRegistrations()
+    if (mem && mem.length > 0) {
+      return NextResponse.json({ registrations: mem, total: mem.length })
     }
 
     const sb = await createClient()
-    if (!sb) throw new Error("Supabase not configured")
 
     const { data, error } = await sb
       .from("users")
@@ -31,7 +30,8 @@ export async function GET() {
     return NextResponse.json({ registrations: items, total: items.length })
   } catch (error) {
     console.error("Error fetching registrations:", error)
-    return NextResponse.json({ registrations: [], total: 0 })
+    const mem = getMemRegistrations()
+    return NextResponse.json({ registrations: mem || [], total: mem?.length || 0 })
   }
 }
 

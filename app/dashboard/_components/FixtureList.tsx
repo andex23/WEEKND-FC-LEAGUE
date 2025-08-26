@@ -1,32 +1,34 @@
 "use client"
 
-import { formatDateTime } from "@/lib/formatters"
 import { useState } from "react"
 
-export default function FixtureList({ fixtures = [] }: { fixtures: any[] }) {
+export default function FixtureList({ fixtures = [] as any[] }) {
   const [tab, setTab] = useState<"UPCOMING" | "COMPLETED">("UPCOMING")
-  const filtered = fixtures.filter((f) => (tab === "UPCOMING" ? f.status !== "PLAYED" : f.status === "PLAYED")).slice(0, 6)
+  const filtered = fixtures.filter((f) => (tab === "UPCOMING" ? String(f.status || "").toUpperCase() !== "PLAYED" : String(f.status || "").toUpperCase() === "PLAYED")).slice(0, 6)
   return (
-    <section aria-label="Fixtures" className="rounded-2xl p-4 border bg-[#0D0D0D] text-white">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Fixtures</h3>
-        <div className="text-xs text-[#9E9E9E]">
-          <button className={`px-2 py-0.5 rounded ${tab === "UPCOMING" ? "bg-[#00C853] text-black" : ""}`} onClick={() => setTab("UPCOMING")}>Upcoming</button>
-          <button className={`px-2 py-0.5 rounded ml-1 ${tab === "COMPLETED" ? "bg-[#00C853] text-black" : ""}`} onClick={() => setTab("COMPLETED")}>Completed</button>
-        </div>
+    <section aria-label="Fixture list" className="rounded-2xl bg-[#141414] border p-4 text-white">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-base font-semibold">Fixtures</h2>
+        <div className="text-xs text-[#9E9E9E]">{filtered.length} shown</div>
       </div>
-      <ul className="mt-2 space-y-2 text-sm">
-        {filtered.map((f) => (
-          <li key={f.id} className="flex items-center justify-between px-3 py-2 rounded border bg-[#141414]">
-            <div>
-              <div className="font-semibold">{f.opponent_name}</div>
-              <time className="text-xs text-[#9E9E9E]" dateTime={f.match_date}>{formatDateTime(f.match_date)}</time>
-            </div>
-            <div className="text-xs text-[#9E9E9E]">MD {f.matchday}</div>
-          </li>
-        ))}
-        {filtered.length === 0 && <li className="text-[#9E9E9E]">No upcoming fixtures.</li>}
-      </ul>
+      <div className="mb-2">
+        <button className={`px-2 py-0.5 rounded ${tab === "UPCOMING" ? "bg-emerald-500 text-black" : ""}`} onClick={() => setTab("UPCOMING")}>Upcoming</button>
+        <button className={`px-2 py-0.5 rounded ml-1 ${tab === "COMPLETED" ? "bg-emerald-500 text-black" : ""}`} onClick={() => setTab("COMPLETED")}>Completed</button>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="text-sm text-[#9E9E9E]">No fixtures.</div>
+      ) : (
+        <ul className="space-y-2 text-sm">
+          {filtered.map((f: any) => (
+            <li key={f.id} className="border-t first:border-t-0 border-[#1E1E1E] pt-2">
+              <div className="flex items-center justify-between">
+                <div className="truncate mr-2">MD{f.matchday} • {f.homePlayer} vs {f.awayPlayer}</div>
+                <div className="text-xs text-[#9E9E9E]">{f.scheduledDate ? new Date(f.scheduledDate).toLocaleString() : "TBD"}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

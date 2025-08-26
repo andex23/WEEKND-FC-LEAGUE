@@ -414,7 +414,7 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-rose-400 mb-4">{error}</p>
-          <Button onClick={fetchAllData} className="bg-[#00C853] text-black hover:bg-[#00C853]/90">Retry</Button>
+          <Button onClick={fetchAllData}>Retry</Button>
         </div>
       </div>
     )
@@ -570,7 +570,7 @@ export default function AdminDashboard() {
                       <div className="text-sm font-semibold">League Standings & Stats</div>
                       <div className="text-xs text-[#9E9E9E]">No league yet. Create one to see standings and leaders here.</div>
                     </div>
-                    <Button onClick={goSetup} className="bg-[#00C853] text-black hover:bg-[#00C853]/90"><Plus className="h-4 w-4 mr-2" /> Create League</Button>
+                    <Button onClick={goSetup}><Plus className="h-4 w-4 mr-2" /> Create League</Button>
                   </div>
                 )}
 
@@ -684,7 +684,7 @@ export default function AdminDashboard() {
                     {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-[#00C853] text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )
@@ -757,7 +757,7 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2 text-[#9E9E9E]">{r.reason || "Awaiting opponent confirmation"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
+                              <Button size="sm" className="" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
                             <Button size="sm" variant="outline">Override</Button>
                             <Button size="sm" variant="outline">Flag/Dispute</Button>
                           </div>
@@ -777,7 +777,7 @@ export default function AdminDashboard() {
                     {Array.from({ length: reportsPageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-[#00C853] text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )

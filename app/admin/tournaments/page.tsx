@@ -122,7 +122,7 @@ export default function AdminTournamentsPage() {
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={create}>Create</Button>
+                <Button onClick={create}>Create</Button>
               </div>
             </div>
           </div>

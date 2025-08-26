@@ -96,7 +96,7 @@ export function SettingsPage() {
       {dirty && (
         <div className="sticky top-0 z-10 border rounded-2xl p-2 bg-amber-900/20 text-amber-200 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={discard}>Discard</Button>
-          <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save(tab)} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          <Button onClick={() => save(tab)} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
         </div>
       )}
 
@@ -198,7 +198,7 @@ export function SettingsPage() {
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save("branding")}>Save</Button>
+                <Button onClick={() => save("branding")}>Save</Button>
               </div>
             </TabsContent>
 
@@ -211,7 +211,7 @@ export function SettingsPage() {
                     <Input className="mt-1 bg-transparent" value={data.integrations.discord_webhook_url || ""} onChange={(e) => update("integrations", { discord_webhook_url: e.target.value })} />
                   </div>
                   <div>
-                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={testDiscord}>Send Test Message</Button>
+                    <Button onClick={testDiscord}>Send Test Message</Button>
                   </div>
                 </div>
               </div>
@@ -229,7 +229,7 @@ export function SettingsPage() {
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save("integrations")}>Save</Button>
+                <Button onClick={() => save("integrations")}>Save</Button>
               </div>
             </TabsContent>
 

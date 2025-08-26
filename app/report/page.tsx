@@ -191,7 +191,7 @@ export default function ReportPage() {
                   </div>
 
                   <div className="flex gap-3">
-                    <button type="submit" disabled={submitting || !selectedId} className="px-4 py-2 rounded bg-[#00C853] text-black font-semibold disabled:opacity-50">
+                    <button type="submit" disabled={submitting || !selectedId} className="px-4 py-2 rounded bg-emerald-500 text-black font-semibold disabled:opacity-50">
                       {submitting ? "Submitting…" : "Submit Report"}
                     </button>
                     <a href="/dashboard" className="px-4 py-2 rounded border">Cancel</a>

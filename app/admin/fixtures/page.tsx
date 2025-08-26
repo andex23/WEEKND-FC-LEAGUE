@@ -161,7 +161,7 @@ export default function AdminFixturesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
-            <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
+            <Button onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
           </div>
         </div>
         {String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED" && (
@@ -333,7 +333,7 @@ export default function AdminFixturesPage() {
               <div className="flex items-center gap-2">
                 {editId && <Button variant="outline" onClick={duplicate}><Copy className="h-4 w-4 mr-1" /> Duplicate</Button>}
                 {editId && <Button variant="outline" onClick={del} className="text-rose-400 border-rose-900 hover:bg-rose-900/20"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
-                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={save}><Save className="h-4 w-4 mr-1" /> Save</Button>
+                <Button onClick={save}><Save className="h-4 w-4 mr-1" /> Save</Button>
               </div>
             </div>
           </DialogContent>
