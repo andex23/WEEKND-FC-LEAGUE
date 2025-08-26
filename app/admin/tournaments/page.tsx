@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRouter } from "next/navigation"
 
 export default function AdminTournamentsPage() {
+  const router = useRouter()
   const [list, setList] = useState<any[]>([])
   const [name, setName] = useState("")
   const [status, setStatus] = useState("DRAFT")
@@ -16,6 +18,13 @@ export default function AdminTournamentsPage() {
 
   const create = async () => { if (!name.trim()) return; await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season }) }); setName(""); setSeason(""); load() }
   const remove = async (id: string) => { if (!confirm("Delete tournament?")) return; await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); load() }
+  const activate = async (t: any) => {
+    // Update settings tournament + optional branding name
+    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", season: t.season || "", matchdays: ["Sat","Sun"], match_length: 8 } }) })
+    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"branding", data: { league_name: t.name } }) })
+    router.push("/admin")
+  }
+  const openSettings = () => { router.push("/admin?section=settings") }
 
   return (
     <div className="min-h-screen bg-white">
@@ -39,6 +48,8 @@ export default function AdminTournamentsPage() {
                       <div className="text-xs text-gray-600">{t.season || "—"} · {t.status}</div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
+                      <Button size="sm" variant="outline" onClick={openSettings}>Settings</Button>
                       <Button size="sm" variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={() => remove(t.id)}>Delete</Button>
                     </div>
                   </div>
