@@ -40,17 +40,17 @@ export async function GET() {
       console.log("[v0] Discipline view not found, using empty array")
     }
 
+    // Aggregate a simple personal stats fallback
+    const stats = { goals: 0, assists: 0, yellow: 0, red: 0, wins: 0, draws: 0, losses: 0 }
+
     return NextResponse.json({
       topScorers,
       topAssists,
       discipline,
+      ...stats,
     })
   } catch (error) {
     console.error("Error in player stats API:", error)
-    return NextResponse.json({
-      topScorers: [],
-      topAssists: [],
-      discipline: [],
-    })
+    return NextResponse.json({ goals: 0, assists: 0, yellow: 0, red: 0, wins: 0, draws: 0, losses: 0 })
   }
 }
