@@ -110,6 +110,12 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
     if (!memoryFixtures) memoryFixtures = []
+
+    if (id === "__all__") {
+      memoryFixtures = []
+      return NextResponse.json({ ok: true, cleared: true })
+    }
+
     memoryFixtures = memoryFixtures.filter((f) => String(f.id) !== String(id))
     return NextResponse.json({ ok: true })
   } catch (error) {
