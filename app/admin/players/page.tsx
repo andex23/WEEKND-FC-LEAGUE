@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useRouter, usePathname } from "next/navigation"
 
 const LS_KEY = "admin_players"
 
@@ -25,6 +26,8 @@ function mergePlayers(a: any[], b: any[]) {
 }
 
 export default function AdminPlayersPage() {
+  const router = useRouter()
+  const pathname = usePathname()
   const [players, setPlayers] = useState<any[]>([])
   const [q, setQ] = useState("")
   const [edit, setEdit] = useState<any | null>(null)
@@ -39,6 +42,9 @@ export default function AdminPlayersPage() {
     }
   }
   useEffect(() => { load() }, [])
+
+  const activeCount = useMemo(() => players.filter((p) => !!p.active).length, [players])
+  const canCreateTournament = activeCount >= 6 && activeCount % 2 === 0
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
@@ -90,79 +96,123 @@ export default function AdminPlayersPage() {
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-extrabold">Players</h1>
-            <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) }); const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] })); setLocalPlayers(api.players || []); load() }}>Seed 6 demo players</Button>
-            <Button variant="outline" onClick={async () => { if (!confirm("Clear all players?")) return; setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}>Clear Players</Button>
-          </div>
-        </header>
-
-        <AddForm onAdded={onAdded} />
-
-        <div className="rounded-2xl border p-4 bg-[#141414] space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Import Players</div>
-            <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
-          </div>
-          <div>
-            <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
-          </div>
-          <div>
-            <Label className="text-sm">Or paste CSV rows</Label>
-            <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const v = e.target.value.trim(); if (v) { await importFromText(v); e.target.value = "" } }} />
-          </div>
+      <div className="container-5xl section-pad">
+        <div className="mb-3">
+          <Button onClick={() => router.push("/admin")}>← Back to Admin</Button>
         </div>
+        <div className="flex gap-8">
+          <aside className="w-64 shrink-0">
+            <nav className="space-y-1">
+              {[
+                { key: "overview", label: "Overview" },
+                { key: "players", label: "Players" },
+                { key: "fixtures", label: "Fixtures" },
+                { key: "tournaments", label: "Tournaments" },
+                { key: "stats", label: "Stats" },
+                { key: "reports", label: "Reports" },
+                { key: "messaging", label: "Messaging" },
+                { key: "settings", label: "Settings" },
+              ].map((item) => {
+                const isActive = item.key === "players" || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : item.key === "players" ? router.push("/admin/players") : router.push("/admin"))}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
+                      isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
-          </div>
+          <section className="flex-1 space-y-6">
+            <header className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-extrabold">Players</h1>
+                <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
+                <Button variant="outline" onClick={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) }); const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] })); setLocalPlayers(api.players || []); load() }}>Seed 6 demo players</Button>
+                <Button variant="outline" onClick={async () => { if (!confirm("Clear all players?")) return; setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}>Clear Players</Button>
+              </div>
+            </header>
+
+            <AddForm onAdded={onAdded} />
+
+            <div className="rounded-2xl border p-4 bg-[#141414] space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">Import Players</div>
+                <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
+              </div>
+              <div>
+                <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
+              </div>
+              <div>
+                <Label className="text-sm">Or paste CSV rows</Label>
+                <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const v = e.target.value.trim(); if (v) { await importFromText(v); e.target.value = "" } }} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border p-4 bg-[#141414] flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Next steps</div>
+                <div className="text-xs text-[#9E9E9E]">Active players: {activeCount}. {activeCount < 6 ? "Need at least 6." : activeCount % 2 !== 0 ? "Even number required (no BYE)." : "Ready to create a tournament."}</div>
+              </div>
+              <Button variant="outline" onClick={() => router.push("/admin/tournaments") } disabled={!canCreateTournament}>Create Tournament</Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border">
+              <table className="w-full text-sm">
+                <thead className="text-[#9E9E9E]">
+                  <tr>
+                    <th className="text-left px-3 py-2">Name</th>
+                    <th className="text-left px-3 py-2">Gamer Tag</th>
+                    <th className="text-left px-3 py-2">Club</th>
+                    <th className="text-left px-3 py-2">Console</th>
+                    <th className="text-left px-3 py-2">Location</th>
+                    <th className="text-left px-3 py-2">Active</th>
+                    <th className="text-right px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((p) => (
+                    <tr key={p.id} className="border-t border-[#1E1E1E]">
+                      <td className="px-3 py-2">{p.name}</td>
+                      <td className="px-3 py-2">{p.gamer_tag || "—"}</td>
+                      <td className="px-3 py-2">{p.preferred_club || "—"}</td>
+                      <td className="px-3 py-2">{p.console}</td>
+                      <td className="px-3 py-2">{p.location || "—"}</td>
+                      <td className="px-3 py-2">{p.active ? "Yes" : "No"}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="inline-flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setEdit(p)}>Edit</Button>
+                          <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
+                          <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; const locals = getLocalPlayers().filter((x) => x.id !== p.id); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={7}>No players.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <EditDialog player={edit} onClose={() => setEdit(null)} onSaved={load} />
+          </section>
         </div>
-
-        <div className="overflow-x-auto rounded-2xl border">
-          <table className="w-full text-sm">
-            <thead className="text-[#9E9E9E]">
-              <tr>
-                <th className="text-left px-3 py-2">Name</th>
-                <th className="text-left px-3 py-2">Gamer Tag</th>
-                <th className="text-left px-3 py-2">Club</th>
-                <th className="text-left px-3 py-2">Console</th>
-                <th className="text-left px-3 py-2">Location</th>
-                <th className="text-left px-3 py-2">Active</th>
-                <th className="text-right px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className="border-t border-[#1E1E1E]">
-                  <td className="px-3 py-2">{p.name}</td>
-                  <td className="px-3 py-2">{p.gamer_tag || "—"}</td>
-                  <td className="px-3 py-2">{p.preferred_club || "—"}</td>
-                  <td className="px-3 py-2">{p.console}</td>
-                  <td className="px-3 py-2">{p.location || "—"}</td>
-                  <td className="px-3 py-2">{p.active ? "Yes" : "No"}</td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="inline-flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setEdit(p)}>Edit</Button>
-                      <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
-                      <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; const locals = getLocalPlayers().filter((x) => x.id !== p.id); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={7}>No players.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <EditDialog player={edit} onClose={() => setEdit(null)} onSaved={load} />
       </div>
     </div>
   )

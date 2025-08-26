@@ -55,9 +55,13 @@ export default function AdminTournamentsPage() {
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
       <div className="container-5xl section-pad">
-        <div className="mb-6">
-          <h1 className="text-[28px] md:text-[32px] font-extrabold">Tournaments</h1>
-          <p className="text-sm text-[#9E9E9E]">Create and view tournaments</p>
+        <div className="mb-3"><Button onClick={() => router.push("/admin")}>← Back to Admin</Button></div>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-[28px] md:text-[32px] font-extrabold">Tournaments</h1>
+            <p className="text-sm text-[#9E9E9E]">Create and view tournaments</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -96,8 +100,9 @@ export default function AdminTournamentsPage() {
                 <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm">Number of Players (approved)</label>
-                <Input className="mt-1 bg-transparent" type="number" value={players} onChange={(e) => setPlayers(Number(e.target.value || 0))} />
+                <label className="text-sm">Number of Players (active)</label>
+                <Input className="mt-1 bg-transparent" type="number" value={players} readOnly aria-readonly="true" />
+                <div className="text-xs text-[#9E9E9E] mt-1">Auto from Active players in Players page</div>
               </div>
               <div>
                 <label className="text-sm">League Type</label>
