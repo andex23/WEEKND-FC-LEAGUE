@@ -7,7 +7,7 @@ export default function UsefulLinks({ rulesUrl, discordInvite, reportHref }: { r
       <ul className="text-sm text-[#9E9E9E] space-y-1">
         <li><a className="underline" href={rulesUrl || "/rules"} target={rulesUrl ? "_blank" : undefined}>Rules</a></li>
         <li><a className="underline" href={discordInvite || "#"} target="_blank">Discord Invite</a></li>
-        <li><a className="underline" href={reportHref || "/dashboard?report=1"}>Report Result</a></li>
+        <li><a className="underline" href={reportHref || "/report"}>Report Result</a></li>
       </ul>
     </nav>
   )
