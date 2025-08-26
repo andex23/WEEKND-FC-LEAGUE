@@ -8,6 +8,7 @@ import RecentMatchCard from "./_components/RecentMatchCard"
 import KpiCard from "./_components/KpiCard"
 import FixtureList from "./_components/FixtureList"
 import PersonalStats from "./_components/PersonalStats"
+import LeagueTable from "./_components/LeagueTable"
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
@@ -20,10 +21,11 @@ export default function DashboardPage() {
         const profile = await fetch("/api/player/profile").then((r) => r.json()).catch(() => ({ player: { name: "Player One", preferredClub: "Arsenal", console: "PS5", season_name: "2024/25" } }))
         const stats = await fetch("/api/player-stats").then((r) => r.json()).catch(() => ({ goals: 5, assists: 3, yellow: 1, red: 0, wins: 4, draws: 1, losses: 2 }))
         const fixtures = await fetch("/api/fixtures").then((r) => r.json()).catch(() => ({ fixtures: [] }))
+        const standingsRes = await fetch("/api/standings").then((r) => r.json()).catch(() => ({ standings: [] }))
         const all = fixtures.fixtures || []
         const next = all.find((f: any) => String(f.status || "").toUpperCase() !== "PLAYED") || null
         const recent = all.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED").slice(-1)[0] || null
-        setData({ user: profile.player, stats, fixtures: all, next, recent })
+        setData({ user: profile.player, stats, fixtures: all, next, recent, standings: standingsRes.standings || [] })
       } finally {
         setLoading(false)
       }
@@ -63,6 +65,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-6 space-y-6 order-3 lg:order-2">
             <NextMatchCard match={next} />
             <RecentMatchCard match={recent} />
+            <LeagueTable standings={data.standings} />
             <div className="block lg:hidden">
               <UsefulLinks rulesUrl={user.rules_url} discordInvite={user.discord_invite_url} reportHref="/dashboard?report=1" />
             </div>
