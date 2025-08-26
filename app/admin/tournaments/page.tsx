@@ -41,6 +41,11 @@ export default function AdminTournamentsPage() {
     router.push("/admin")
   }
   const openSettings = () => { router.push("/admin?section=settings") }
+  const generateNow = async (t: any) => {
+    const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
+    const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds }) })
+    if (res.ok) router.push("/admin/fixtures")
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -65,6 +70,7 @@ export default function AdminTournamentsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
+                      <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
                       <Button size="sm" variant="outline" onClick={openSettings}>Settings</Button>
                       <Button size="sm" variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={() => remove(t.id)}>Delete</Button>
                     </div>
