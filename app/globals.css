@@ -131,11 +131,14 @@
   }
 
   .container-5xl {
-    max-width: 64rem; /* 1024px ~ max-w-5xl */
+    max-width: 80rem; /* 1280px for wider desktop */
     margin-left: auto;
     margin-right: auto;
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+  @media (min-width: 1536px) {
+    .container-5xl { max-width: 90rem; } /* 1440px on very large screens */
   }
 
   .section-pad {

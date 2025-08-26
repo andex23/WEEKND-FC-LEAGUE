@@ -414,7 +414,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex gap-8">
-          <aside className="w-56 shrink-0">
+          <aside className="w-64 shrink-0">
             <nav className="space-y-1">
               {[
                 { key: "overview", label: "Overview" },
