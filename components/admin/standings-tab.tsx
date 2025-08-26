@@ -84,6 +84,11 @@ export function StandingsTab() {
     fetchAll()
   }
 
+  const updateMeta = async (table: string, id: string, field: "name" | "team", value: string) => {
+    await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_meta", table, id, [field]: value }) })
+    fetchAll()
+  }
+
   const onPickRegistration = (id: string) => {
     const p = registrations.find((r) => String(r.id) === String(id))
     if (!p) return
@@ -129,8 +134,12 @@ export function StandingsTab() {
             <tbody>
               {pageRows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">{r.name}</td>
-                  <td className="px-3 py-2">{r.team}</td>
+                  <td className="px-3 py-2">
+                    <Input defaultValue={r.name} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== r.name) updateMeta(table, r.id, "name", v) }} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
+                  </td>
                   {r._cols?.map((c) => (
                     <td key={c} className="px-3 py-2 text-right tabular-nums">
                       <div className="flex items-center justify-end gap-2">

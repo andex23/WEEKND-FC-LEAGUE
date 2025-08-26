@@ -81,5 +81,14 @@ export async function POST(request: Request) {
     if (table === "discipline") discipline = discipline.filter((r) => r.id !== id)
     return NextResponse.json({ ok: true })
   }
+  if (action === "update_meta") {
+    const { table, id, name, team } = body
+    const apply = (row: any) => ({ ...row, ...(name != null ? { name } : {}), ...(team != null ? { team } : {}) })
+    if (table === "standings") standings = standings.map((r) => (r.id === id ? apply(r) : r))
+    if (table === "scorers") scorers = scorers.map((r) => (r.id === id ? apply(r) : r))
+    if (table === "assists") assists = assists.map((r) => (r.id === id ? apply(r) : r))
+    if (table === "discipline") discipline = discipline.map((r) => (r.id === id ? apply(r) : r))
+    return NextResponse.json({ ok: true })
+  }
   return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 })
 }
