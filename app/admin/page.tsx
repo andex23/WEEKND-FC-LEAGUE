@@ -429,16 +429,17 @@ export default function AdminDashboard() {
                 { key: "overview", label: "Overview" },
                 { key: "registrations", label: "Registrations" },
                 { key: "fixtures", label: "Fixtures" },
+                { key: "tournaments", label: "Tournaments" },
                 { key: "stats", label: "Stats" },
                 { key: "reports", label: "Reports" },
                 { key: "messaging", label: "Messaging" },
                 { key: "settings", label: "Settings" },
               ].map((item) => {
-                const isActive = section === item.key || (item.key === "fixtures" && (pathname || "").startsWith("/admin/fixtures"))
+                const isActive = section === item.key || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
                 return (
                   <button
                     key={item.key}
-                    onClick={() => item.key === "fixtures" ? router.push("/admin/fixtures") : setSection(item.key as any)}
+                    onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : setSection(item.key as any))}
                     className={`w-full text-left px-3 py-2 rounded-md text-sm ${
                       isActive ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
                     }`}
