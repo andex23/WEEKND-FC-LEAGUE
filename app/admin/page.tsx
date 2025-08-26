@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter, usePathname } from "next/navigation"
 import { StandingsTab } from "@/components/admin/standings-tab"
 import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon, Plus } from "lucide-react"
+import { SettingsPage } from "@/components/admin/settings-page"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -859,52 +860,7 @@ export default function AdminDashboard() {
 
             {section === "settings" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>League Name</Label>
-                    <Input type="text" defaultValue={leagueSettings?.name || "Weekend FC League"} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>League Status</Label>
-                    <Select defaultValue={leagueSettings?.status || "DRAFT"}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DRAFT">Draft</SelectItem>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="COMPLETE">Complete</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Allow late reports</Label>
-                    <Select defaultValue="no">
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="yes">Yes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Self-report deadline (hours)</Label>
-                    <Input type="number" defaultValue={24} min={1} max={72} />
-                  </div>
-                </div>
-                <div className="border rounded-md p-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold">Tournament Setup Wizard</div>
-                    <div className="text-xs text-gray-600">Configure basics, rules, scheduling, and publish the tournament.</div>
-                  </div>
-                  <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Open Wizard</Button>
-                </div>
-                <div className="flex justify-end">
-                  <Button className="bg-primary hover:bg-primary/90">Save</Button>
-                </div>
+                <SettingsPage />
               </div>
             )}
           </section>
