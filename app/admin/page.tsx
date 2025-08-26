@@ -390,34 +390,34 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading admin...</div>
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
+        <div className="text-[#9E9E9E]">Loading admin...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={fetchAllData}>Retry</Button>
+          <p className="text-rose-400 mb-4">{error}</p>
+          <Button onClick={fetchAllData} className="bg-[#00C853] text-black hover:bg-[#00C853]/90">Retry</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
       <div className="container-5xl section-pad">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Admin</h1>
-            <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
+            <h1 className="text-[28px] md:text-[32px] font-extrabold">Admin</h1>
+            <p className="text-sm text-[#9E9E9E]">Manage the Weekend FC League</p>
           </div>
         </div>
         {String(leagueSettings?.status || "").toUpperCase() === "COMPLETED" && (
-          <div className="mb-6 border rounded-md p-3 bg-gray-50 text-gray-700 text-sm">
+          <div className="mb-6 border rounded-md p-3 bg-[#141414] text-[#D1D1D1] text-sm">
             Tournament is completed. Editing fixtures and approving new results are disabled.
           </div>
         )}
@@ -440,8 +440,8 @@ export default function AdminDashboard() {
                   <button
                     key={item.key}
                     onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : setSection(item.key as any))}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm ${
-                      isActive ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
+                      isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
                     }`}
                   >
                     {item.label}
@@ -455,38 +455,38 @@ export default function AdminDashboard() {
             {section === "overview" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div className="border rounded-md p-4">
-                    <div className="text-xs text-gray-600">Registered Players</div>
-                    <div className="text-2xl font-bold tabular-nums">{players.length}</div>
+                  <div className="rounded-2xl p-4 border bg-[#141414]">
+                    <div className="text-xs text-[#9E9E9E]">Registered Players</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{players.length}</div>
                   </div>
-                  <div className="border rounded-md p-4">
-                    <div className="text-xs text-gray-600">Fixtures Created</div>
-                    <div className="text-2xl font-bold tabular-nums">{fixtures.length}</div>
+                  <div className="rounded-2xl p-4 border bg-[#141414]">
+                    <div className="text-xs text-[#9E9E9E]">Fixtures Created</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{fixtures.length}</div>
                   </div>
-                  <div className="border rounded-md p-4">
-                    <div className="text-xs text-gray-600">Matches Played</div>
-                    <div className="text-2xl font-bold tabular-nums">{matchesPlayed}</div>
+                  <div className="rounded-2xl p-4 border bg-[#141414]">
+                    <div className="text-xs text-[#9E9E9E]">Matches Played</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{matchesPlayed}</div>
                   </div>
-                  <div className="border rounded-md p-4">
-                    <div className="text-xs text-gray-600">Pending Approval</div>
-                    <div className="text-2xl font-bold tabular-nums">{matchesPendingApproval}</div>
+                  <div className="rounded-2xl p-4 border bg-[#141414]">
+                    <div className="text-xs text-[#9E9E9E]">Pending Approval</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{matchesPendingApproval}</div>
                   </div>
-                  <div className="border rounded-md p-4">
-                    <div className="text-xs text-gray-600">League Status</div>
+                  <div className="rounded-2xl p-4 border bg-[#141414]">
+                    <div className="text-xs text-[#9E9E9E]">League Status</div>
                     <div className="text-sm font-semibold">{leagueSettings?.status || "DRAFT"}</div>
                   </div>
                 </div>
 
                 {leagueActive && fixtures.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border rounded-md p-4">
+                    <div className="rounded-2xl p-4 border bg-[#141414]">
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-sm font-semibold">League Standings (Top 5)</div>
                         <Button variant="outline" size="sm" onClick={() => setSection("stats" as any)}>Open Stats</Button>
                       </div>
                       {standings && standings.length > 0 ? (
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
+                          <thead className="text-[#9E9E9E]">
                             <tr>
                               <th className="text-left px-3 py-2">Player</th>
                               <th className="text-right px-3 py-2">Pts</th>
@@ -496,7 +496,7 @@ export default function AdminDashboard() {
                           </thead>
                           <tbody>
                             {standings.slice(0, 5).map((s: any) => (
-                              <tr key={s.playerId} className="border-t">
+                              <tr key={s.playerId} className="border-t border-[#1E1E1E]">
                                 <td className="px-3 py-2">{s.playerName}</td>
                                 <td className="px-3 py-2 text-right tabular-nums">{s.points}</td>
                                 <td className="px-3 py-2 text-right tabular-nums">{s.played}</td>
@@ -506,60 +506,60 @@ export default function AdminDashboard() {
                           </tbody>
                         </table>
                       ) : (
-                        <div className="text-sm text-gray-600">Standings unavailable.</div>
+                        <div className="text-sm text-[#9E9E9E]">Standings unavailable.</div>
                       )}
                     </div>
 
-                    <div className="border rounded-md p-4">
+                    <div className="rounded-2xl p-4 border bg-[#141414]">
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-sm font-semibold">Stats Leaders</div>
                         <Button variant="outline" size="sm" onClick={() => setSection("stats" as any)}>Open Stats</Button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Top Scorers</div>
+                          <div className="text-xs text-[#9E9E9E] mb-1">Top Scorers</div>
                           {playerStats?.topScorers?.slice(0, 3)?.map((p: any) => (
                             <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
                               <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
-                              <span className="tabular-nums text-gray-700">{p.goals || p.G || 0}</span>
+                              <span className="tabular-nums text-[#D1D1D1]">{p.goals || p.G || 0}</span>
                             </div>
-                          )) || <div className="text-xs text-gray-500">—</div>}
+                          )) || <div className="text-xs text-[#9E9E9E]">—</div>}
                         </div>
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Top Assists</div>
+                          <div className="text-xs text-[#9E9E9E] mb-1">Top Assists</div>
                           {playerStats?.topAssists?.slice(0, 3)?.map((p: any) => (
                             <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
                               <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
-                              <span className="tabular-nums text-gray-700">{p.assists || p.A || 0}</span>
+                              <span className="tabular-nums text-[#D1D1D1]">{p.assists || p.A || 0}</span>
                             </div>
-                          )) || <div className="text-xs text-gray-500">—</div>}
+                          )) || <div className="text-xs text-[#9E9E9E]">—</div>}
                         </div>
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Discipline</div>
+                          <div className="text-xs text-[#9E9E9E] mb-1">Discipline</div>
                           {playerStats?.discipline?.slice(0, 3)?.map((p: any) => (
                             <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
                               <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
-                              <span className="tabular-nums text-gray-700">{(p.yellow_cards || p.YC || 0)} / {(p.red_cards || p.RC || 0)}</span>
+                              <span className="tabular-nums text-[#D1D1D1]">{(p.yellow_cards || p.YC || 0)} / {(p.red_cards || p.RC || 0)}</span>
                             </div>
-                          )) || <div className="text-xs text-gray-500">—</div>}
+                          )) || <div className="text-xs text-[#9E9E9E]">—</div>}
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="border rounded-md p-8 flex items-center justify-between">
+                  <div className="rounded-2xl p-8 flex items-center justify-between border bg-[#141414]">
                     <div>
                       <div className="text-sm font-semibold">League Standings & Stats</div>
-                      <div className="text-xs text-gray-600">No league yet. Create one to see standings and leaders here.</div>
+                      <div className="text-xs text-[#9E9E9E]">No league yet. Create one to see standings and leaders here.</div>
                     </div>
-                    <Button onClick={goSetup} className="bg-primary hover:bg-primary/90"><Plus className="h-4 w-4 mr-2" /> Create League</Button>
+                    <Button onClick={goSetup} className="bg-[#00C853] text-black hover:bg-[#00C853]/90"><Plus className="h-4 w-4 mr-2" /> Create League</Button>
                   </div>
                 )}
 
-                <div className="border rounded-md p-4 flex items-center justify-between">
+                <div className="rounded-2xl p-4 border bg-[#141414] flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Reports</div>
-                    <div className="text-xs text-gray-600">Pending {matchesPendingApproval} • Last 7 days {recentReports7d}</div>
+                    <div className="text-xs text-[#9E9E9E]">Pending {matchesPendingApproval} • Last 7 days {recentReports7d}</div>
                   </div>
                   <Button variant="outline" onClick={() => setSection("reports" as any)}>View Reports</Button>
                 </div>
@@ -568,14 +568,14 @@ export default function AdminDashboard() {
 
             {section === "registrations" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold text-gray-900">Registrations</h2>
+                <h2 className="text-[26px] font-extrabold">Registrations</h2>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
-                    <SearchIcon className="h-4 w-4 text-gray-500" />
-                    <Input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0" />
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                    <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
+                    <Input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
-                  <Button variant="outline" className="h-9">
+                  <Button variant="outline" className="h-9"> 
                     <FilterIcon className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -595,16 +595,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex flex-wrap gap-4">
-                  <div className="px-4 py-2 rounded-md border bg-gray-50 text-sm">Total: <span className="font-semibold">{players.length}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-purple-50 text-sm text-purple-900">Pending: <span className="font-semibold">{pendingRegistrations.length}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-green-50 text-sm text-green-900">Approved: <span className="font-semibold">{approvedPlayers.length}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-red-50 text-sm text-red-900">Rejected: <span className="font-semibold">{rejectedCount}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-amber-50 text-sm text-amber-900">Conflicts: <span className="font-semibold">{conflictsCount}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-[#141414] text-sm">Total: <span className="font-semibold">{players.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-emerald-900/20 text-sm text-emerald-300">Pending: <span className="font-semibold">{pendingRegistrations.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-emerald-900/20 text-sm text-emerald-300">Approved: <span className="font-semibold">{approvedPlayers.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-rose-900/20 text-sm text-rose-300">Rejected: <span className="font-semibold">{rejectedCount}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-amber-900/20 text-sm text-amber-300">Conflicts: <span className="font-semibold">{conflictsCount}</span></div>
                 </div>
 
-                <div className="overflow-x-auto border rounded-md">
+                <div className="overflow-x-auto rounded-2xl border">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+                    <thead className="text-[#9E9E9E]">
                       <tr>
                         <th className="text-left px-3 py-2 w-8">
                           <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} />
@@ -621,7 +621,7 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {pageRows.map((p) => (
-                        <tr key={p.id} className="border-t">
+                        <tr key={p.id} className="border-t border-[#1E1E1E]">
                           <td className="px-3 py-2 w-8">
                             <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelectOne(p.id)} />
                           </td>
@@ -633,20 +633,20 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{p.location || p.city || p.country || "—"}</td>
                           <td className="px-3 py-2">
                             {(p.status || "pending").toLowerCase() === "approved" ? (
-                              <span className="px-2 py-0.5 text-xs rounded border bg-green-50 border-green-200 text-green-800">Approved</span>
+                              <span className="px-2 py-0.5 text-xs rounded border bg-emerald-600/15 text-emerald-300">Approved</span>
                             ) : (p.status || "pending").toLowerCase() === "rejected" ? (
-                              <span className="px-2 py-0.5 text-xs rounded border bg-red-50 border-red-200 text-red-800">Rejected</span>
+                              <span className="px-2 py-0.5 text-xs rounded border bg-rose-600/15 text-rose-300">Rejected</span>
                             ) : (
-                              <span className="px-2 py-0.5 text-xs rounded border bg-purple-50 border-purple-200 text-purple-800">Pending</span>
+                              <span className="px-2 py-0.5 text-xs rounded border bg-amber-600/15 text-amber-300">Pending</span>
                             )}
                           </td>
                           <td className="px-3 py-2 text-right">
                             {(p.status || "pending").toLowerCase() === "pending" ? (
-                              <Button size="sm" variant="ghost" className="text-purple-700 hover:text-purple-800" onClick={async () => { await approvePlayer(p.id); }}>
+                              <Button size="sm" variant="ghost" className="text-white hover:bg-[#141414]" onClick={async () => { await approvePlayer(p.id); }}>
                                 Review
                               </Button>
                             ) : (
-                              <Button size="sm" variant="ghost" className="text-gray-600 hover:text-gray-800">
+                              <Button size="sm" variant="ghost" className="text-white/70 hover:bg-[#141414]">
                                 Edit
                               </Button>
                             )}
@@ -658,20 +658,20 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <div className="text-gray-600">Rows per page: {rowsPerPage}</div>
+                  <div className="text-[#9E9E9E]">Rows per page: {rowsPerPage}</div>
                   <div className="flex items-center gap-1">
-                    <button className="p-2 hover:bg-gray-50 rounded" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    <button className="p-2 hover:bg-[#141414] rounded" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>
+                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-white text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )
                     })}
-                    <button className="p-2 hover:bg-gray-50 rounded" disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
+                    <button className="p-2 hover:bg-[#141414] rounded" disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -681,12 +681,12 @@ export default function AdminDashboard() {
 
             {section === "reports" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold text-gray-900">Reports</h2>
+                <h2 className="text-[26px] font-extrabold">Reports</h2>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
-                    <SearchIcon className="h-4 w-4 text-gray-500" />
-                    <Input value={reportQuery} onChange={(e) => { setReportQuery(e.target.value); setReportPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0" />
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                    <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
+                    <Input value={reportQuery} onChange={(e) => { setReportQuery(e.target.value); setReportPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
                   <Button variant="outline" className="h-9">
                     <FilterIcon className="h-4 w-4 mr-2" />
@@ -707,13 +707,13 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex flex-wrap gap-4">
-                  <div className="px-4 py-2 rounded-md border bg-gray-50 text-sm">Total: <span className="font-semibold">{resultsQueue.length}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-purple-50 text-sm text-purple-900">Pending: <span className="font-semibold">{matchesPendingApproval}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-[#141414] text-sm">Total: <span className="font-semibold">{resultsQueue.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-amber-900/20 text-sm text-amber-300">Pending: <span className="font-semibold">{matchesPendingApproval}</span></div>
                 </div>
 
-                <div className="overflow-x-auto border rounded-md">
+                <div className="overflow-x-auto rounded-2xl border">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+                    <thead className="text-[#9E9E9E]">
                       <tr>
                         <th className="text-left px-3 py-2 w-8">
                           <input type="checkbox" checked={allReportsSelected} onChange={toggleSelectAllReports} />
@@ -727,19 +727,19 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {reportPageRows.map((r) => (
-                        <tr key={r.id} className="border-t">
+                        <tr key={r.id} className="border-t border-[#1E1E1E]">
                           <td className="px-3 py-2 w-8">
                             <input type="checkbox" checked={selectedReportIds.has(r.id)} onChange={() => toggleSelectOneReport(r.id)} />
                           </td>
                           <td className="px-3 py-2 font-medium">{r.homePlayer} {r.homeScore} - {r.awayScore} {r.awayPlayer}</td>
                           <td className="px-3 py-2">{r.submittedBy}</td>
                           <td className="px-3 py-2">
-                            <span className="px-2 py-0.5 text-xs rounded border bg-amber-50 border-amber-200 text-amber-800">{r.status || "Pending"}</span>
+                            <span className="px-2 py-0.5 text-xs rounded border bg-amber-600/15 text-amber-300">{r.status || "Pending"}</span>
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{r.reason || "Awaiting opponent confirmation"}</td>
+                          <td className="px-3 py-2 text-[#9E9E9E]">{r.reason || "Awaiting opponent confirmation"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
+                              <Button size="sm" className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
                               <Button size="sm" variant="outline">Override</Button>
                               <Button size="sm" variant="outline">Flag/Dispute</Button>
                             </div>
@@ -751,20 +751,20 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <div className="text-gray-600">Rows per page: {reportRowsPerPage}</div>
+                  <div className="text-[#9E9E9E]">Rows per page: {reportRowsPerPage}</div>
                   <div className="flex items-center gap-1">
-                    <button className="p-2 hover:bg-gray-50 rounded" disabled={reportsCurrentPage <= 1} onClick={() => setReportPage((p) => Math.max(1, p - 1))}>
+                    <button className="p-2 hover:bg-[#141414] rounded" disabled={reportsCurrentPage <= 1} onClick={() => setReportPage((p) => Math.max(1, p - 1))}>
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     {Array.from({ length: reportsPageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>
+                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-white text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )
                     })}
-                    <button className="p-2 hover:bg-gray-50 rounded" disabled={reportsCurrentPage >= reportsPageCount} onClick={() => setReportPage((p) => Math.min(reportsPageCount, p + 1))}>
+                    <button className="p-2 hover:bg-[#141414] rounded" disabled={reportsCurrentPage >= reportsPageCount} onClick={() => setReportPage((p) => Math.min(reportsPageCount, p + 1))}>
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -780,12 +780,12 @@ export default function AdminDashboard() {
 
             {section === "messaging" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold text-gray-900">Messaging</h2>
+                <h2 className="text-[26px] font-extrabold">Messaging</h2>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
-                    <SearchIcon className="h-4 w-4 text-gray-500" />
-                    <Input value={messageQuery} onChange={(e) => setMessageQuery(e.target.value)} placeholder="Search messages" className="h-7 border-0 focus-visible:ring-0 p-0" />
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                    <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
+                    <Input value={messageQuery} onChange={(e) => setMessageQuery(e.target.value)} placeholder="Search messages" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
                   <Select value={messageType} onValueChange={(v) => setMessageType(v as any)}>
                     <SelectTrigger className="w-[160px] h-9">
@@ -804,15 +804,15 @@ export default function AdminDashboard() {
                   <Button variant="outline" className="h-9" onClick={clearMessages}>Clear History</Button>
                 </div>
 
-                <div className="border rounded-md p-4">
+                <div className="rounded-2xl border p-4 bg-[#141414]">
                   <Label className="text-sm">Global broadcast</Label>
-                  <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2" />
+                  <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2 bg-transparent" />
                   <div className="flex justify-end mt-3">
-                    <Button className="bg-primary hover:bg-primary/90" onClick={sendBroadcast}>Send Broadcast</Button>
+                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={sendBroadcast}>Send Broadcast</Button>
                   </div>
                 </div>
 
-                <div className="border rounded-md p-4">
+                <div className="rounded-2xl border p-4 bg-[#141414]">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <Label className="text-sm">Player</Label>
@@ -829,17 +829,17 @@ export default function AdminDashboard() {
                     </div>
                     <div className="md:col-span-2">
                       <Label className="text-sm">Message</Label>
-                      <Input value={directText} onChange={(e) => setDirectText(e.target.value)} placeholder="Direct message (for disputes/clarifications)" className="mt-2" />
+                      <Input value={directText} onChange={(e) => setDirectText(e.target.value)} placeholder="Direct message (for disputes/clarifications)" className="mt-2 bg-transparent" />
                     </div>
                   </div>
                   <div className="flex justify-end mt-3">
-                    <Button className="bg-primary hover:bg-primary/90" onClick={sendDirect}>Send Message</Button>
+                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={sendDirect}>Send Message</Button>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto border rounded-md">
+                <div className="overflow-x-auto rounded-2xl border">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+                    <thead className="text-[#9E9E9E]">
                       <tr>
                         <th className="text-left px-3 py-2">Type</th>
                         <th className="text-left px-3 py-2">To</th>
@@ -850,13 +850,13 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {filteredMessages.map((m) => (
-                        <tr key={m.id} className="border-t">
+                        <tr key={m.id} className="border-t border-[#1E1E1E]">
                           <td className="px-3 py-2 capitalize">{m.type}</td>
                           <td className="px-3 py-2">{m.type === "broadcast" ? "All" : (m.toName || m.toId)}</td>
                           <td className="px-3 py-2">{m.content}</td>
-                          <td className="px-3 py-2 text-gray-600">{new Date(m.createdAt).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-[#9E9E9E]">{new Date(m.createdAt).toLocaleString()}</td>
                           <td className="px-3 py-2 text-right">
-                            <span className="px-2 py-0.5 text-xs rounded border bg-green-50 border-green-200 text-green-800">{m.status}</span>
+                            <span className="px-2 py-0.5 text-xs rounded border bg-emerald-600/15 text-emerald-300">{m.status}</span>
                           </td>
                         </tr>
                       ))}
