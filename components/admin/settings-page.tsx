@@ -54,6 +54,16 @@ export function SettingsPage() {
     save("tournament")
   }
 
+  const syncRosterFromPlayers = async () => {
+    try {
+      const tid = (data?.tournament?.id || "") as string
+      if (!tid) { alert("No tournament id"); return }
+      const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: tid }) })
+      const out = await res.json()
+      alert(`Roster synced: ${out.count} players now in roster`)
+    } catch {}
+  }
+
   const uploadLogo = async (f: File) => {
     const reader = new FileReader()
     reader.onload = () => { update("branding", { logo_url: String(reader.result || "") }) }
@@ -147,8 +157,8 @@ export function SettingsPage() {
                   </div>
                   <div>
                     <label className="text-sm">Roster</label>
-                    <div className="mt-1 text-sm text-[#D1D1D1]">{approvedCount} Approved Players</div>
-                    <div className="mt-2"><Button variant="outline" onClick={syncRoster} disabled={isCompleted}>Sync Roster from Approved</Button></div>
+                    <div className="mt-1 text-sm text-[#D1D1D1]">{approvedCount} Active Players</div>
+                    <div className="mt-2"><Button variant="outline" onClick={syncRosterFromPlayers}>Sync Roster from Players</Button></div>
                   </div>
                 </div>
               </div>

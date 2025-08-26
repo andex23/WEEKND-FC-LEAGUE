@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     for (const f of fixtures) {
       await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         id: f.id,
+        tournamentId,
         season: body.season || "2024/25",
         matchday: f.matchday,
         homeId: f.homeId,
