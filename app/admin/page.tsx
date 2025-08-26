@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [leagueSettings, setLeagueSettings] = useState<any>(null)
   const [playerStats, setPlayerStats] = useState<any>(null)
   const [resultsQueue, setResultsQueue] = useState<any[]>([])
+  const [clearing, setClearing] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -125,6 +126,18 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error("fallback")
     } catch {
       setResultsQueue([])
+    }
+  }
+
+  const clearAllData = async () => {
+    if (!confirm("Clear league data? This deletes tournaments and fixtures but keeps players.")) return
+    setClearing(true)
+    try {
+      await fetch("/api/admin/clear", { method: "POST" })
+      setSection("registrations" as any)
+      await fetchAllData()
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -414,6 +427,11 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-[28px] md:text-[32px] font-extrabold">Admin</h1>
             <p className="text-sm text-[#9E9E9E]">Manage the Weekend FC League</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="text-rose-300 border-rose-900 hover:bg-rose-900/20" onClick={clearAllData} disabled={clearing}>
+              {clearing ? "Clearing…" : "Clear League Data"}
+            </Button>
           </div>
         </div>
         {String(leagueSettings?.status || "").toUpperCase() === "COMPLETED" && (
