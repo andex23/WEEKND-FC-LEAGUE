@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,15 +23,22 @@ export function StandingsTab() {
 
   const [newName, setNewName] = useState("")
   const [newTeam, setNewTeam] = useState("")
+  const [registrations, setRegistrations] = useState<any[]>([])
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   const setPage = (key: keyof typeof pages, value: number) => setPages((p) => ({ ...p, [key]: value }))
 
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/admin/stats")
-      if (!res.ok) throw new Error("Failed to load stats")
-      setData(await res.json())
+      const [statsRes, regsRes] = await Promise.all([
+        fetch("/api/admin/stats"),
+        fetch("/api/admin/registrations"),
+      ])
+      if (!statsRes.ok) throw new Error("Failed to load stats")
+      const stats = await statsRes.json()
+      setData(stats)
+      setRegistrations((await regsRes.json()).registrations || [])
       setError(null)
     } catch (e: any) {
       setError(e.message)
@@ -74,6 +81,27 @@ export function StandingsTab() {
 
   const deleteRow = async (table: string, id: string) => {
     await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_row", table, id }) })
+    fetchAll()
+  }
+
+  const onPickRegistration = (id: string) => {
+    const p = registrations.find((r) => String(r.id) === String(id))
+    if (!p) return
+    setNewName(p.name || "")
+    setNewTeam(p.assignedTeam || p.preferred_team || p.preferred_club || "")
+  }
+
+  const onImportCsv = async (file: File) => {
+    const txt = await file.text()
+    const lines = txt.split(/\r?\n/).filter(Boolean)
+    if (lines.length === 0) return
+    const table = activeTab === "table" ? "standings" : activeTab
+    for (const line of lines) {
+      const [name, team] = line.split(",")
+      if (!name) continue
+      // eslint-disable-next-line no-await-in-loop
+      await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_row", table, name: name.trim(), team: (team || "").trim() }) })
+    }
     fetchAll()
   }
 
@@ -124,10 +152,20 @@ export function StandingsTab() {
         </div>
 
         <div className="flex items-center justify-between gap-2 text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Input placeholder="Player name" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-48" />
             <Input placeholder="Team" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} className="w-40" />
+            <Select onValueChange={(v) => onPickRegistration(v)}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Pick from registrations (optional)" /></SelectTrigger>
+              <SelectContent>
+                {registrations.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name}{p.preferred_team ? ` · ${p.preferred_team}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="sm" onClick={addRow}>Add</Button>
+            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.currentTarget.files?.[0]; if (f) onImportCsv(f); e.currentTarget.value = "" }} />
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>Import CSV</Button>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-gray-600">Page {currentPage} of {pageCount}</div>
