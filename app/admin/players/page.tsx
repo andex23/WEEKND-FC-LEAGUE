@@ -6,13 +6,35 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const LS_KEY = "admin_players"
+
+function getLocalPlayers(): any[] {
+  try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
+}
+function setLocalPlayers(rows: any[]) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(rows)) } catch {}
+}
+function mergePlayers(a: any[], b: any[]) {
+  const byId = new Map<string, any>()
+  ;[...a, ...b].forEach((p) => {
+    const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
+    if (!byId.has(key)) byId.set(key, p)
+  })
+  return Array.from(byId.values())
+}
+
 export default function AdminPlayersPage() {
   const [players, setPlayers] = useState<any[]>([])
   const [q, setQ] = useState("")
 
   const load = async () => {
-    const r = await fetch("/api/admin/players").then((x) => x.json())
-    setPlayers(r.players || [])
+    try {
+      const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] }))
+      const local = getLocalPlayers()
+      setPlayers(mergePlayers(local, api.players || []))
+    } catch {
+      setPlayers(getLocalPlayers())
+    }
   }
   useEffect(() => { load() }, [])
 
@@ -21,6 +43,45 @@ export default function AdminPlayersPage() {
     if (!query) return players
     return players.filter((p) => [p.name, p.gamer_tag, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query)))
   }, [players, q])
+
+  const onAdded = () => load()
+
+  const importCsv = async (file: File) => {
+    const text = await file.text()
+    const lines = text.split(/\r?\n/).filter(Boolean)
+    if (lines.length === 0) return
+    const header = lines[0].split(",").map((h) => h.replaceAll('"','').trim().toLowerCase())
+    const rows = lines.slice(1).map((line) => {
+      const cols = line.split(",").map((c) => c.replaceAll('"','').trim())
+      const obj: any = {}
+      header.forEach((h, i) => { obj[h] = cols[i] })
+      return obj
+    })
+    const local = getLocalPlayers()
+    const toAdd = rows.map((r) => ({
+      id: r.id || (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
+      name: r.name || "Unnamed",
+      gamer_tag: r.gamer_tag || r.gamertag || "",
+      console: (r.console || "PS5").toUpperCase(),
+      preferred_club: r.preferred_club || "",
+      location: r.location || "",
+      active: String(r.status || "active").toLowerCase() !== "inactive",
+      created_at: new Date().toISOString(),
+    }))
+    setLocalPlayers(mergePlayers(local, toAdd))
+    // Best-effort POSTs (non-blocking)
+    Promise.all(toAdd.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
+      .finally(load)
+  }
+
+  const downloadTemplate = () => {
+    const csv = [
+      ["name","gamer_tag","console","preferred_club","location","status"].join(","),
+      ["Alex","alex99","PS5","Arsenal","London","active"].join(","),
+    ].join("\n")
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
+    const a = document.createElement("a"); a.href = url; a.download = "players_template.csv"; a.click(); URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
@@ -32,7 +93,17 @@ export default function AdminPlayersPage() {
           </div>
         </header>
 
-        <AddForm onAdded={load} />
+        <AddForm onAdded={onAdded} />
+
+        <div className="rounded-2xl border p-4 bg-[#141414]">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Import Players</div>
+            <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
+          </div>
+          <div className="mt-2">
+            <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
@@ -64,8 +135,8 @@ export default function AdminPlayersPage() {
                   <td className="px-3 py-2">{p.active ? "Yes" : "No"}</td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex gap-2">
-                      <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch: { active: !p.active } }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
-                      <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
+                      <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
+                      <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; const locals = getLocalPlayers().filter((x) => x.id !== p.id); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
                     </div>
                   </td>
                 </tr>
@@ -93,8 +164,13 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
   const submit = async () => {
     if (!name.trim()) return
     setLoading(true)
+    const payload = { id: crypto?.randomUUID?.() || Math.random().toString(36).slice(2), name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location, active, created_at: new Date().toISOString() }
     try {
-      await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location, active }) })
+      // persist locally for reliability
+      const locals = getLocalPlayers()
+      setLocalPlayers(mergePlayers(locals, [payload]))
+      // best-effort API
+      await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...payload }) })
       setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
       onAdded()
     } finally { setLoading(false) }
