@@ -456,7 +456,7 @@ export default function AdminDashboard() {
             <nav className="space-y-1">
               {[
                 { key: "overview", label: "Overview" },
-                { key: "registrations", label: "Registrations" },
+                { key: "players", label: "Players" },
                 { key: "fixtures", label: "Fixtures" },
                 { key: "tournaments", label: "Tournaments" },
                 { key: "stats", label: "Stats" },
@@ -466,15 +466,15 @@ export default function AdminDashboard() {
               ].map((item) => {
                 const isActive = section === item.key || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
                 return (
-                <button
-                  key={item.key}
-                    onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : setSection(item.key as any))}
+                  <button
+                    key={item.key}
+                    onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : item.key === "players" ? router.push("/admin/players") : setSection(item.key as any))}
                     className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
                       isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
-                  }`}
-                >
-                  {item.label}
-                </button>
+                    }`}
+                  >
+                    {item.label}
+                  </button>
                 )
               })}
             </nav>
