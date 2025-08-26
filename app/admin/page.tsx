@@ -599,6 +599,9 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <h2 className="text-[26px] font-extrabold">Registrations</h2>
 
+                {/* Manual add */}
+                <ManualAdd onAdded={fetchAllData} />
+
                 <div className="flex flex-wrap gap-3 items-center">
                   <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
                     <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
@@ -901,6 +904,51 @@ export default function AdminDashboard() {
               </div>
             )}
           </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ManualAdd({ onAdded }: { onAdded: () => void }) {
+  const [name, setName] = useState("")
+  const [consoleType, setConsoleType] = useState("PS5")
+  const [club, setClub] = useState("")
+  const [loading, setLoading] = useState(false)
+  const submit = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    try {
+      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", name, console: consoleType, preferred_club: club }) })
+      setName(""); setClub("")
+      onAdded()
+    } finally { setLoading(false) }
+  }
+  return (
+    <div className="rounded-2xl border p-4 bg-[#141414]">
+      <div className="text-sm font-semibold mb-2">Add Player Manually</div>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+        <div>
+          <Label className="text-sm">Name</Label>
+          <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player name" />
+        </div>
+        <div>
+          <Label className="text-sm">Console</Label>
+          <Select value={consoleType} onValueChange={setConsoleType}>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PS5">PS5</SelectItem>
+              <SelectItem value="XBOX">Xbox</SelectItem>
+              <SelectItem value="PC">PC</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="md:col-span-2">
+          <Label className="text-sm">Preferred Club</Label>
+          <Input className="mt-1 bg-transparent" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Arsenal" />
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={submit} disabled={loading}>{loading ? "Adding…" : "Add"}</Button>
         </div>
       </div>
     </div>

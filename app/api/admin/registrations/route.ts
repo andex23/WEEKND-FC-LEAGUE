@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // Utility for mocking: seed or clear
+  // Utility for mocking: seed, clear, or add
   try {
     const body = await request.json().catch(() => ({}))
     if (body?.action === "seed6") {
@@ -55,6 +55,14 @@ export async function POST(request: Request) {
     if (body?.action === "clear") {
       clearMemRegistrations()
       return NextResponse.json({ ok: true })
+    }
+    if (body?.action === "add") {
+      const current = getMemRegistrations() || []
+      const now = new Date().toISOString()
+      const id = String(body.id || crypto.randomUUID())
+      const reg = { id, name: String(body.name || "New Player"), console: String(body.console || "PS5"), preferred_club: String(body.preferred_club || ""), status: String(body.status || "pending"), created_at: now }
+      setMemRegistrations([reg as any, ...current])
+      return NextResponse.json({ ok: true, registration: reg })
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
   } catch (e) {

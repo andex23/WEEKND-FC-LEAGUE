@@ -44,8 +44,25 @@ export default function AdminTournamentsPage() {
   const generateNow = async (t: any) => {
     const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
     const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds }) })
-    if (res.ok) router.push("/admin/fixtures")
+    if (!res.ok) return
+    const data = await res.json()
+    // Persist each generated fixture to our fixtures store so they display under
+    for (const f of data.fixtures || []) {
+      await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        id: f.id,
+        season: season || t.season || "2024/25",
+        matchday: f.matchday,
+        homeId: f.homeId || f.home_player || f.home || f.home_reg_id || f.homePlayer || f.home_player_id || "",
+        awayId: f.awayId || f.away_player || f.away || f.away_reg_id || f.awayPlayer || f.away_player_id || "",
+        status: "SCHEDULED",
+        date: null,
+      }) })
+    }
+    // Reload list so user can click through or view under
+    await load()
   }
+
+  const [justGenerated, setJustGenerated] = useState<any[]>([])
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
@@ -63,17 +80,21 @@ export default function AdminTournamentsPage() {
                 {list.length === 0 ? (
                   <div className="p-4 text-sm text-[#9E9E9E]">No tournaments yet</div>
                 ) : list.map((t) => (
-                  <div key={t.id} className="px-4 py-3 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-[#9E9E9E]">{t.season || "—"} · {t.status} · {t.type} · {t.players} players</div>
+                  <div key={t.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{t.name}</div>
+                        <div className="text-xs text-[#9E9E9E]">{t.season || "—"} · {t.status} · {t.type} · {t.players} players</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
+                        <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
+                        <Button size="sm" variant="outline" onClick={openSettings}>Settings</Button>
+                        <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => remove(t.id)}>Delete</Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
-                      <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
-                      <Button size="sm" variant="outline" onClick={openSettings}>Settings</Button>
-                      <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => remove(t.id)}>Delete</Button>
-                    </div>
+                    {/* Inline fixtures preview */}
+                    <InlineFixtures />
                   </div>
                 ))}
               </div>
@@ -127,6 +148,32 @@ export default function AdminTournamentsPage() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function InlineFixtures() {
+  const [rows, setRows] = useState<any[]>([])
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const r = await fetch("/api/fixtures").then((x) => x.json())
+        setRows(r.fixtures || [])
+      } catch {}
+    })()
+  }, [])
+  if (rows.length === 0) return null
+  return (
+    <div className="mt-3 rounded-md border border-[#1E1E1E]">
+      <div className="px-3 py-2 text-xs text-[#9E9E9E]">Generated Fixtures</div>
+      <div className="divide-y divide-[#1E1E1E]">
+        {rows.map((f) => (
+          <div key={f.id} className="px-3 py-2 flex items-center justify-between">
+            <div className="text-sm">MD{f.matchday} • {f.homePlayer} vs {f.awayPlayer}</div>
+            <a className="text-xs underline" href="/admin/fixtures">Edit</a>
+          </div>
+        ))}
       </div>
     </div>
   )
