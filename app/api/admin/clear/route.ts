@@ -11,15 +11,13 @@ export async function POST() {
       return NextResponse.json({ error: "Disabled in production" }, { status: 400 })
     }
 
-    // Clear fixtures/reports-like fields from fixtures table if exists
+    // Clear fixtures
     await sb.from("fixtures").delete().neq("id", "").catch(() => null)
 
-    // Clear tournaments if exists
+    // Clear tournaments
     await sb.from("tournaments").delete().neq("id", "").catch(() => null)
 
-    // Clear users table but keep auth.users intact in dev (cannot delete via anon)
-    await sb.from("users").delete().neq("id", "").catch(() => null)
-    await sb.from("profiles").delete().neq("id", "").catch(() => null)
+    // Preserve users/profiles
 
     return NextResponse.json({ ok: true })
   } catch (e) {

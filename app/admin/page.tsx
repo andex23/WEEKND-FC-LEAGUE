@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const router = useRouter()
   const pathname = usePathname()
   const [section, setSection] = useState<"overview" | "registrations" | "stats" | "reports" | "messaging" | "settings">(
-    "overview",
+    "registrations",
   )
 
   const [players, setPlayers] = useState<any[]>([])
