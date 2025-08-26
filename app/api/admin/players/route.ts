@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { listPlayers, addPlayer, updatePlayer, deletePlayer } from "@/lib/mocks/players"
+import { listPlayers, addPlayer, updatePlayer, deletePlayer, clearPlayers } from "@/lib/mocks/players"
 
 export async function GET() {
   return NextResponse.json({ players: listPlayers() })
@@ -19,6 +19,10 @@ export async function POST(request: Request) {
   }
   if (action === "delete") {
     deletePlayer(String(body.id))
+    return NextResponse.json({ ok: true })
+  }
+  if (action === "clear") {
+    clearPlayers()
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })

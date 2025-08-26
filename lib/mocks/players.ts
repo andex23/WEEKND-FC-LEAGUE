@@ -19,6 +19,7 @@ export function updatePlayer(id: string, patch: Partial<MockPlayer>) {
   memPlayers = memPlayers.map((p) => (String(p.id) === String(id) ? { ...p, ...patch } : p))
 }
 export function deletePlayer(id: string) { memPlayers = memPlayers.filter((p) => String(p.id) !== String(id)) }
+export function clearPlayers() { memPlayers = [] }
 export function activePlayers(): MockPlayer[] { return memPlayers.filter((p) => p.active) }
 
 export function snapshotTournamentPlayers(tournamentId: string) {

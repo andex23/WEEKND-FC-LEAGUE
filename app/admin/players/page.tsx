@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const LS_KEY = "admin_players"
 
@@ -18,7 +19,7 @@ function mergePlayers(a: any[], b: any[]) {
   const byId = new Map<string, any>()
   ;[...a, ...b].forEach((p) => {
     const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
-    if (!byId.has(key)) byId.set(key, p)
+    byId.set(key, { ...byId.get(key), ...p })
   })
   return Array.from(byId.values())
 }
@@ -26,6 +27,7 @@ function mergePlayers(a: any[], b: any[]) {
 export default function AdminPlayersPage() {
   const [players, setPlayers] = useState<any[]>([])
   const [q, setQ] = useState("")
+  const [edit, setEdit] = useState<any | null>(null)
 
   const load = async () => {
     try {
@@ -48,6 +50,10 @@ export default function AdminPlayersPage() {
 
   const importCsv = async (file: File) => {
     const text = await file.text()
+    await importFromText(text)
+  }
+
+  const importFromText = async (text: string) => {
     const lines = text.split(/\r?\n/).filter(Boolean)
     if (lines.length === 0) return
     const header = lines[0].split(",").map((h) => h.replaceAll('"','').trim().toLowerCase())
@@ -69,7 +75,6 @@ export default function AdminPlayersPage() {
       created_at: new Date().toISOString(),
     }))
     setLocalPlayers(mergePlayers(local, toAdd))
-    // Best-effort POSTs (non-blocking)
     Promise.all(toAdd.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
       .finally(load)
   }
@@ -91,17 +96,24 @@ export default function AdminPlayersPage() {
             <h1 className="text-xl font-extrabold">Players</h1>
             <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={async () => { if (!confirm("Clear all players?")) return; setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}>Clear Players</Button>
+          </div>
         </header>
 
         <AddForm onAdded={onAdded} />
 
-        <div className="rounded-2xl border p-4 bg-[#141414]">
+        <div className="rounded-2xl border p-4 bg-[#141414] space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">Import Players</div>
             <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
           </div>
-          <div className="mt-2">
+          <div>
             <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
+          </div>
+          <div>
+            <Label className="text-sm">Or paste CSV rows</Label>
+            <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const v = e.target.value.trim(); if (v) { await importFromText(v); e.target.value = "" } }} />
           </div>
         </div>
 
@@ -135,6 +147,7 @@ export default function AdminPlayersPage() {
                   <td className="px-3 py-2">{p.active ? "Yes" : "No"}</td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEdit(p)}>Edit</Button>
                       <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
                       <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; const locals = getLocalPlayers().filter((x) => x.id !== p.id); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
                     </div>
@@ -147,6 +160,8 @@ export default function AdminPlayersPage() {
             </tbody>
           </table>
         </div>
+
+        <EditDialog player={edit} onClose={() => setEdit(null)} onSaved={load} />
       </div>
     </div>
   )
@@ -166,10 +181,8 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
     setLoading(true)
     const payload = { id: crypto?.randomUUID?.() || Math.random().toString(36).slice(2), name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location, active, created_at: new Date().toISOString() }
     try {
-      // persist locally for reliability
       const locals = getLocalPlayers()
       setLocalPlayers(mergePlayers(locals, [payload]))
-      // best-effort API
       await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...payload }) })
       setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
       onAdded()
@@ -216,5 +229,65 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
         <Button onClick={submit} disabled={loading}>{loading ? "Adding…" : "Add Player"}</Button>
       </div>
     </div>
+  )
+}
+
+function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<any>(player)
+  useEffect(() => { setForm(player) }, [player])
+  if (!player) return null
+
+  const save = async () => {
+    const patch = { name: form.name, gamer_tag: form.gamer_tag, console: form.console, preferred_club: form.preferred_club, location: form.location, active: !!form.active }
+    const locals = getLocalPlayers().map((x) => x.id === form.id ? { ...x, ...patch } : x)
+    setLocalPlayers(locals)
+    await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: form.id, patch }) })
+    onSaved(); onClose()
+  }
+
+  return (
+    <Dialog open={!!player} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-2xl bg-[#141414] text-white border">
+        <DialogHeader>
+          <DialogTitle>Edit Player</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          <div>
+            <Label className="text-sm">Name</Label>
+            <Input className="mt-1 bg-transparent" value={form?.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-sm">Gamer Tag</Label>
+            <Input className="mt-1 bg-transparent" value={form?.gamer_tag || ""} onChange={(e) => setForm({ ...form, gamer_tag: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-sm">Console</Label>
+            <Select value={form?.console || "PS5"} onValueChange={(v) => setForm({ ...form, console: v })}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PS5">PS5</SelectItem>
+                <SelectItem value="XBOX">Xbox</SelectItem>
+                <SelectItem value="PC">PC</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-sm">Club</Label>
+            <Input className="mt-1 bg-transparent" value={form?.preferred_club || ""} onChange={(e) => setForm({ ...form, preferred_club: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-sm">Location</Label>
+            <Input className="mt-1 bg-transparent" value={form?.location || ""} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-sm">Active</Label>
+            <div className="mt-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!form?.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Active</label></div>
+          </div>
+        </div>
+        <div className="flex justify-end mt-3">
+          <Button onClick={save}>Save</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
