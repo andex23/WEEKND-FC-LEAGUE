@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { StandingsTab } from "@/components/admin/standings-tab"
 import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon, Plus } from "lucide-react"
 
 export default function AdminDashboard() {
   const router = useRouter()
+  const pathname = usePathname()
   const [section, setSection] = useState<"overview" | "registrations" | "stats" | "reports" | "messaging" | "settings">(
     "overview",
   )
@@ -424,17 +425,20 @@ export default function AdminDashboard() {
                 { key: "reports", label: "Reports" },
                 { key: "messaging", label: "Messaging" },
                 { key: "settings", label: "Settings" },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => item.key === "fixtures" ? router.push("/admin/fixtures") : setSection(item.key as any)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm ${
-                    section === item.key ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              ].map((item) => {
+                const isActive = section === item.key || (item.key === "fixtures" && (pathname || "").startsWith("/admin/fixtures"))
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => item.key === "fixtures" ? router.push("/admin/fixtures") : setSection(item.key as any)}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                      isActive ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
             </nav>
           </aside>
 
