@@ -10,34 +10,8 @@ export async function GET(request: NextRequest) {
     const playerId = searchParams.get("playerId")
 
     if (!memoryFixtures) {
-      memoryFixtures = [
-        {
-          id: "1",
-          matchday: 1,
-          homePlayer: "1",
-          awayPlayer: "2",
-          homeTeam: "Arsenal",
-          awayTeam: "Chelsea",
-          homeScore: 2,
-          awayScore: 1,
-          status: "PLAYED" as const,
-          scheduledDate: new Date("2024-01-06T19:00:00").toISOString(),
-          season: "2024/25",
-        },
-        {
-          id: "2",
-          matchday: 2,
-          homePlayer: "2",
-          awayPlayer: "1",
-          homeTeam: "Chelsea",
-          awayTeam: "Arsenal",
-          homeScore: null,
-          awayScore: null,
-          status: "SCHEDULED" as const,
-          scheduledDate: new Date("2024-01-13T19:00:00").toISOString(),
-          season: "2024/25",
-        },
-      ]
+      // Do not auto-seed; start empty until admin creates fixtures
+      memoryFixtures = []
     }
 
     let filteredFixtures = memoryFixtures
