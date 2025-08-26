@@ -31,6 +31,7 @@ export default function AdminFixturesPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [settings, setSettings] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     ;(async () => {
@@ -151,28 +152,28 @@ export default function AdminFixturesPage() {
 
   // UI
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
       <div className="container-5xl section-pad">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Fixtures</h1>
-            <p className="text-sm text-gray-500">Create and manage fixtures</p>
+            <h1 className="text-[28px] md:text-[32px] font-extrabold">Fixtures</h1>
+            <p className="text-sm text-[#9E9E9E]">Create and manage fixtures</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
+            <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
           </div>
         </div>
         {String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED" && (
-          <div className="mb-6 border rounded-md p-3 bg-gray-50 text-gray-700 text-sm">Tournament is completed. Adding or editing fixtures is disabled.</div>
+          <div className="mb-6 rounded-2xl p-3 border bg-[#141414] text-[#D1D1D1] text-sm">Tournament is completed. Adding or editing fixtures is disabled.</div>
         )}
 
-        {toast && (<div className="mb-4 px-4 py-2 rounded-md border bg-green-50 text-green-800 text-sm">{toast}</div>)}
+        {toast && (<div className="mb-4 px-4 py-2 rounded-2xl border bg-emerald-900/20 text-emerald-300 text-sm">{toast}</div>)}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-9">
-            <div className="border rounded-md overflow-hidden">
-              <div className="px-4 py-2 border-b bg-gray-50 flex items-center gap-3">
+            <div className="rounded-2xl border overflow-hidden bg-[#141414]">
+              <div className="px-4 py-2 border-b border-[#1E1E1E] flex items-center gap-3">
                 <Label className="text-sm">Season</Label>
                 <Select value={activeSeason} onValueChange={(v) => { setActiveSeason(v); }}>
                   <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -182,18 +183,18 @@ export default function AdminFixturesPage() {
                 </Select>
               </div>
 
-              <div className="divide-y">
+              <div className="divide-y divide-[#1E1E1E]">
                 {fixtures.filter((f) => f.season === activeSeason).map((f) => {
                   const h = playerById(f.homeId)
                   const a = playerById(f.awayId)
                   return (
-                    <div key={f.id} className={`px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center ${highlightId === f.id ? "bg-yellow-50" : ""}`}
+                    <div key={f.id} className={`px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center ${highlightId === f.id ? "bg-emerald-900/10" : ""}`}
                          onAnimationEnd={() => setHighlightId(null)}>
-                      <div className="md:col-span-1"><span className="px-2 py-0.5 text-xs rounded border bg-blue-50 border-blue-200 text-blue-800">MD {f.matchday}</span></div>
+                      <div className="md:col-span-1"><span className="px-2 py-0.5 text-xs rounded border bg-[#141414] border-[#1E1E1E]">MD {f.matchday}</span></div>
                       <div className="md:col-span-3">
                         <div className="font-medium">{playerLabel(h)}</div>
                       </div>
-                      <div className="md:col-span-2 text-xs text-gray-600 flex items-center gap-2"><CalendarClock className="h-4 w-4" />{f.date ? new Date(f.date).toLocaleString() : "TBD"}</div>
+                      <div className="md:col-span-2 text-xs text-[#9E9E9E] flex items-center gap-2"><CalendarClock className="h-4 w-4" />{f.date ? new Date(f.date).toLocaleString() : "TBD"}</div>
                       <div className="md:col-span-3">
                         <div className="font-medium">{playerLabel(a)}</div>
                       </div>
@@ -208,15 +209,15 @@ export default function AdminFixturesPage() {
             </div>
           </div>
           <div className="lg:col-span-3">
-            <div className="border rounded-md p-4 sticky top-4">
+            <div className="rounded-2xl border p-4 sticky top-4 bg-[#141414]">
               <div className="text-sm font-semibold mb-2">Tips</div>
-              <div className="text-xs text-gray-600">Use Add Fixture to schedule quickly. CMD/CTRL+K in the modal to search players. After save, we highlight the updated row.</div>
+              <div className="text-xs text-[#9E9E9E]">Use Add Fixture to schedule quickly. CMD/CTRL+K in the modal to search players. After save, we highlight the updated row.</div>
             </div>
           </div>
         </div>
 
         <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl bg-[#141414] text-white border">
             <DialogHeader>
               <DialogTitle>{editId ? "Edit Fixture" : "Add Fixture"}</DialogTitle>
             </DialogHeader>
@@ -250,10 +251,10 @@ export default function AdminFixturesPage() {
                   <Label className="text-sm">Home Club/Player</Label>
                   <PlayerSearch players={players} value={form.homeId} onChange={(id) => setForm({ ...form, homeId: id, /* autofill via preferred team if needed */ })} />
                   {home && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                    <div className="mt-2 flex items-center gap-2 text-xs text-[#9E9E9E]">
                       <Image src={home.avatar_url || "/placeholder-user.jpg"} alt="avatar" width={20} height={20} className="rounded-full" />
                       <span>{home.username || ""}</span>
-                      {home.preferred_team && <span className="px-2 py-0.5 rounded border bg-gray-50 text-gray-700">{home.preferred_team}</span>}
+                      {home.preferred_team && <span className="px-2 py-0.5 rounded border bg-[#141414] text-[#D1D1D1] border-[#1E1E1E]">{home.preferred_team}</span>}
                     </div>
                   )}
                 </div>
@@ -261,10 +262,10 @@ export default function AdminFixturesPage() {
                   <Label className="text-sm">Away Club/Player</Label>
                   <PlayerSearch players={players} value={form.awayId} onChange={(id) => setForm({ ...form, awayId: id })} disabledId={form.homeId} />
                   {away && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                    <div className="mt-2 flex items-center gap-2 text-xs text-[#9E9E9E]">
                       <Image src={away.avatar_url || "/placeholder-user.jpg"} alt="avatar" width={20} height={20} className="rounded-full" />
                       <span>{away.username || ""}</span>
-                      {away.preferred_team && <span className="px-2 py-0.5 rounded border bg-gray-50 text-gray-700">{away.preferred_team}</span>}
+                      {away.preferred_team && <span className="px-2 py-0.5 rounded border bg-[#141414] text-[#D1D1D1] border-[#1E1E1E]">{away.preferred_team}</span>}
                     </div>
                   )}
                 </div>
@@ -274,8 +275,8 @@ export default function AdminFixturesPage() {
                 <div>
                   <Label className="text-sm">Date/Time</Label>
                   <div className="mt-1 flex items-center gap-2">
-                    <Input type="datetime-local" value={tbd ? "" : (form.date || "")} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={tbd} />
-                    <label className="text-sm text-gray-600 flex items-center gap-2"><input type="checkbox" checked={tbd} onChange={(e) => setTbd(e.target.checked)} /> TBD</label>
+                    <Input type="datetime-local" value={tbd ? "" : (form.date || "")} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={tbd} className="bg-transparent" />
+                    <label className="text-sm text-[#9E9E9E] flex items-center gap-2"><input type="checkbox" checked={tbd} onChange={(e) => setTbd(e.target.checked)} /> TBD</label>
                   </div>
                 </div>
                 <div>
@@ -297,11 +298,11 @@ export default function AdminFixturesPage() {
                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm">Home Score</Label>
-                    <Input type="number" min="0" value={form.homeScore ?? ""} onChange={(e) => setForm({ ...form, homeScore: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1" />
+                    <Input type="number" min="0" value={form.homeScore ?? ""} onChange={(e) => setForm({ ...form, homeScore: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1 bg-transparent" />
                   </div>
                   <div>
                     <Label className="text-sm">Away Score</Label>
-                    <Input type="number" min="0" value={form.awayScore ?? ""} onChange={(e) => setForm({ ...form, awayScore: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1" />
+                    <Input type="number" min="0" value={form.awayScore ?? ""} onChange={(e) => setForm({ ...form, awayScore: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1 bg-transparent" />
                   </div>
                 </div>
               )}
@@ -321,18 +322,18 @@ export default function AdminFixturesPage() {
 
               <div className="md:col-span-2">
                 <Label className="text-sm">Notes (admins only)</Label>
-                <Input value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1" />
+                <Input value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1 bg-transparent" />
               </div>
             </div>
 
             <div className="flex items-center justify-between mt-4">
-              <div className="text-xs text-gray-600">
+              <div className="text-xs text-[#9E9E9E]">
                 Tip: ⌘/Ctrl+K to search players · Enter to save
               </div>
               <div className="flex items-center gap-2">
                 {editId && <Button variant="outline" onClick={duplicate}><Copy className="h-4 w-4 mr-1" /> Duplicate</Button>}
-                {editId && <Button variant="outline" onClick={del} className="text-red-700 border-red-200 hover:text-red-800 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
-                <Button className="bg-primary hover:bg-primary/90" onClick={save}><Save className="h-4 w-4 mr-1" /> Save</Button>
+                {editId && <Button variant="outline" onClick={del} className="text-rose-400 border-rose-900 hover:bg-rose-900/20"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
+                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={save}><Save className="h-4 w-4 mr-1" /> Save</Button>
               </div>
             </div>
           </DialogContent>
@@ -374,7 +375,7 @@ function PlayerSearch({ players, value, onChange, disabledId }: { players: Playe
       </Button>
       {open && (
         <div className="relative z-50">
-          <div className="mt-2 border rounded-md bg-white shadow-lg">
+          <div className="mt-2 border rounded-md bg-[#141414] text-white shadow-lg">
             <Command>
               <CommandInput ref={inputRef as any} placeholder="Search players" />
               <CommandList>
@@ -386,7 +387,7 @@ function PlayerSearch({ players, value, onChange, disabledId }: { players: Playe
                         <Image src={p.avatar_url || "/placeholder-user.jpg"} alt="avatar" width={20} height={20} className="rounded-full" />
                         <div className="flex flex-col">
                           <span className="text-sm">{p.name}</span>
-                          <span className="text-xs text-gray-500">{p.username || ""}{p.preferred_team ? ` · ${p.preferred_team}` : ""}</span>
+                          <span className="text-xs text-[#9E9E9E]">{p.username || ""}{p.preferred_team ? ` · ${p.preferred_team}` : ""}</span>
                         </div>
                       </div>
                     </CommandItem>
