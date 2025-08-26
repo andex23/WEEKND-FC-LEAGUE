@@ -437,15 +437,15 @@ export default function AdminDashboard() {
               ].map((item) => {
                 const isActive = section === item.key || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
                 return (
-                  <button
-                    key={item.key}
+                <button
+                  key={item.key}
                     onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : setSection(item.key as any))}
                     className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
                       isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
+                  }`}
+                >
+                  {item.label}
+                </button>
                 )
               })}
             </nav>
@@ -666,7 +666,7 @@ export default function AdminDashboard() {
                     {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-white text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-[#00C853] text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )
@@ -709,7 +709,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-wrap gap-4">
                   <div className="px-4 py-2 rounded-md border bg-[#141414] text-sm">Total: <span className="font-semibold">{resultsQueue.length}</span></div>
                   <div className="px-4 py-2 rounded-md border bg-amber-900/20 text-sm text-amber-300">Pending: <span className="font-semibold">{matchesPendingApproval}</span></div>
-                </div>
+                          </div>
 
                 <div className="overflow-x-auto rounded-2xl border">
                   <table className="w-full text-sm">
@@ -740,15 +740,15 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
                               <Button size="sm" className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
-                              <Button size="sm" variant="outline">Override</Button>
-                              <Button size="sm" variant="outline">Flag/Dispute</Button>
-                            </div>
+                            <Button size="sm" variant="outline">Override</Button>
+                            <Button size="sm" variant="outline">Flag/Dispute</Button>
+                          </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                        </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-[#9E9E9E]">Rows per page: {reportRowsPerPage}</div>
@@ -759,7 +759,7 @@ export default function AdminDashboard() {
                     {Array.from({ length: reportsPageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-white text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-[#00C853] text-black" : "hover:bg-[#141414]"}`}>
                           {num}
                         </button>
                       )
