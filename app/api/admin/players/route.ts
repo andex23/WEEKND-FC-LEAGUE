@@ -25,5 +25,20 @@ export async function POST(request: Request) {
     clearPlayers()
     return NextResponse.json({ ok: true })
   }
+  if (action === "seed6") {
+    const now = new Date().toISOString()
+    const sample = [
+      { name: "Alex Rodriguez", gamer_tag: "CR7_Alex99", console: "PS5", preferred_club: "Man United", location: "London" },
+      { name: "Jordan Smith", gamer_tag: "MessiKing10", console: "XBOX", preferred_club: "Man City", location: "Manchester" },
+      { name: "Sam Wilson", gamer_tag: "BluesSam", console: "PS5", preferred_club: "Chelsea", location: "Birmingham" },
+      { name: "Ryan Taylor", gamer_tag: "ArsenalRyan", console: "PC", preferred_club: "Arsenal", location: "London" },
+      { name: "Mike Johnson", gamer_tag: "LFC_Mike", console: "PS5", preferred_club: "Liverpool", location: "Liverpool" },
+      { name: "Tom Brown", gamer_tag: "SpursTom", console: "XBOX", preferred_club: "Spurs", location: "London" },
+    ] as const
+    for (const s of sample) {
+      addPlayer({ id: crypto.randomUUID(), name: s.name, gamer_tag: s.gamer_tag, console: s.console as any, preferred_club: s.preferred_club, location: s.location, active: true, created_at: now })
+    }
+    return NextResponse.json({ ok: true, players: listPlayers() })
+  }
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
 }

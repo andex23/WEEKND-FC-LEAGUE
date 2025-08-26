@@ -97,6 +97,7 @@ export default function AdminPlayersPage() {
             <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) }); const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] })); setLocalPlayers(api.players || []); load() }}>Seed 6 demo players</Button>
             <Button variant="outline" onClick={async () => { if (!confirm("Clear all players?")) return; setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}>Clear Players</Button>
           </div>
         </header>
