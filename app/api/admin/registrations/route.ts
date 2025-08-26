@@ -36,18 +36,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // Utility for mocking: seed, clear, or add
+  // Utility for mocking: seed, clear, add, import
   try {
     const body = await request.json().catch(() => ({}))
     if (body?.action === "seed6") {
       const now = new Date().toISOString()
       const six = [
-        { id: "1", name: "Player One", console: "PS5", preferred_club: "Arsenal", status: "pending", created_at: now },
-        { id: "2", name: "Player Two", console: "XBOX", preferred_club: "Chelsea", status: "pending", created_at: now },
-        { id: "3", name: "Player Three", console: "PS5", preferred_club: "Liverpool", status: "pending", created_at: now },
-        { id: "4", name: "Player Four", console: "PC", preferred_club: "Man City", status: "pending", created_at: now },
-        { id: "5", name: "Player Five", console: "PS5", preferred_club: "Spurs", status: "pending", created_at: now },
-        { id: "6", name: "Player Six", console: "XBOX", preferred_club: "Newcastle", status: "pending", created_at: now },
+        { id: "1", name: "Player One", gamer_tag: "player1", console: "PS5", preferred_club: "Arsenal", location: "London", status: "pending", created_at: now },
+        { id: "2", name: "Player Two", gamer_tag: "player2", console: "XBOX", preferred_club: "Chelsea", location: "Manchester", status: "pending", created_at: now },
+        { id: "3", name: "Player Three", gamer_tag: "player3", console: "PS5", preferred_club: "Liverpool", location: "Liverpool", status: "pending", created_at: now },
+        { id: "4", name: "Player Four", gamer_tag: "player4", console: "PC", preferred_club: "Man City", location: "Leeds", status: "pending", created_at: now },
+        { id: "5", name: "Player Five", gamer_tag: "player5", console: "PS5", preferred_club: "Spurs", location: "Birmingham", status: "pending", created_at: now },
+        { id: "6", name: "Player Six", gamer_tag: "player6", console: "XBOX", preferred_club: "Newcastle", location: "Newcastle", status: "pending", created_at: now },
       ]
       setMemRegistrations(six as any)
       return NextResponse.json({ ok: true, registrations: six })
@@ -60,9 +60,35 @@ export async function POST(request: Request) {
       const current = getMemRegistrations() || []
       const now = new Date().toISOString()
       const id = String(body.id || crypto.randomUUID())
-      const reg = { id, name: String(body.name || "New Player"), console: String(body.console || "PS5"), preferred_club: String(body.preferred_club || ""), status: String(body.status || "pending"), created_at: now }
+      const reg = {
+        id,
+        name: String(body.name || "New Player"),
+        gamer_tag: String(body.gamer_tag || body.gamertag || ""),
+        console: String(body.console || "PS5"),
+        preferred_club: String(body.preferred_club || ""),
+        location: String(body.location || ""),
+        status: String(body.status || "pending"),
+        created_at: now,
+      }
       setMemRegistrations([reg as any, ...current])
       return NextResponse.json({ ok: true, registration: reg })
+    }
+    if (body?.action === "import") {
+      const rows = Array.isArray(body.rows) ? body.rows : []
+      const current = getMemRegistrations() || []
+      const now = new Date().toISOString()
+      const mapped = rows.map((r: any) => ({
+        id: String(r.id || crypto.randomUUID()),
+        name: String(r.name || "Unnamed"),
+        gamer_tag: String(r.gamer_tag || r.gamertag || ""),
+        console: String(r.console || "PS5"),
+        preferred_club: String(r.preferred_club || ""),
+        location: String(r.location || ""),
+        status: String(r.status || "pending"),
+        created_at: now,
+      }))
+      setMemRegistrations([...mapped as any, ...current])
+      return NextResponse.json({ ok: true, added: mapped.length })
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
   } catch (e) {

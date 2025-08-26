@@ -912,25 +912,48 @@ export default function AdminDashboard() {
 
 function ManualAdd({ onAdded }: { onAdded: () => void }) {
   const [name, setName] = useState("")
+  const [gamerTag, setGamerTag] = useState("")
   const [consoleType, setConsoleType] = useState("PS5")
   const [club, setClub] = useState("")
+  const [location, setLocation] = useState("")
   const [loading, setLoading] = useState(false)
+
   const submit = async () => {
     if (!name.trim()) return
     setLoading(true)
     try {
-      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", name, console: consoleType, preferred_club: club }) })
-      setName(""); setClub("")
+      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location }) })
+      setName(""); setClub(""); setGamerTag(""); setLocation("")
       onAdded()
     } finally { setLoading(false) }
   }
+
+  const importCsv = async (file: File) => {
+    const text = await file.text()
+    const lines = text.split(/\r?\n/).filter(Boolean)
+    if (lines.length === 0) return
+    const header = lines[0].split(",").map((h) => h.replaceAll('"','').trim().toLowerCase())
+    const rows = lines.slice(1).map((line) => {
+      const cols = line.split(",").map((c) => c.replaceAll('"','').trim())
+      const obj: any = {}
+      header.forEach((h, i) => { obj[h] = cols[i] })
+      return obj
+    })
+    await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import", rows }) })
+    onAdded()
+  }
+
   return (
     <div className="rounded-2xl border p-4 bg-[#141414]">
       <div className="text-sm font-semibold mb-2">Add Player Manually</div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
         <div>
           <Label className="text-sm">Name</Label>
           <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player name" />
+        </div>
+        <div>
+          <Label className="text-sm">Gamer Tag</Label>
+          <Input className="mt-1 bg-transparent" value={gamerTag} onChange={(e) => setGamerTag(e.target.value)} placeholder="PSN / Xbox handle" />
         </div>
         <div>
           <Label className="text-sm">Console</Label>
@@ -943,13 +966,22 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="md:col-span-2">
+        <div>
           <Label className="text-sm">Preferred Club</Label>
           <Input className="mt-1 bg-transparent" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Arsenal" />
+        </div>
+        <div>
+          <Label className="text-sm">Location</Label>
+          <Input className="mt-1 bg-transparent" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />
         </div>
         <div className="flex justify-end">
           <Button onClick={submit} disabled={loading}>{loading ? "Adding…" : "Add"}</Button>
         </div>
+      </div>
+
+      <div className="mt-4 text-xs text-[#9E9E9E]">Or import CSV (headers: name,gamer_tag,console,preferred_club,location,status)</div>
+      <div className="mt-2">
+        <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
       </div>
     </div>
   )
