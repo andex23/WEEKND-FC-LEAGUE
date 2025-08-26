@@ -28,8 +28,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true })
   }
   if (action === "export") {
-    const headers = ["name","team","P","W","D","L","GF","GA","GD","Pts"]
-    const rows = standings.map((r) => [r.name,r.team,r.P,r.W,r.D,r.L,r.GF,r.GA,r.GD,r.Pts].join(","))
+    const table = String(body.table || "standings")
+    let headers: string[] = []
+    let rows: string[] = []
+    if (table === "standings") {
+      headers = ["name","team","P","W","D","L","GF","GA","GD","Pts"]
+      rows = standings.map((r) => [r.name,r.team,r.P,r.W,r.D,r.L,r.GF,r.GA,r.GD,r.Pts].join(","))
+    } else if (table === "scorers") {
+      headers = ["name","team","G"]
+      rows = scorers.map((r) => [r.name,r.team,r.G].join(","))
+    } else if (table === "assists") {
+      headers = ["name","team","A"]
+      rows = assists.map((r) => [r.name,r.team,r.A].join(","))
+    } else if (table === "discipline") {
+      headers = ["name","team","YC","RC"]
+      rows = discipline.map((r) => [r.name,r.team,r.YC,r.RC].join(","))
+    } else {
+      headers = ["name","team"]
+      rows = []
+    }
     const csv = [headers.join(","), ...rows].join("\n")
     return new NextResponse(csv, { headers: { "content-type": "text/csv" } })
   }

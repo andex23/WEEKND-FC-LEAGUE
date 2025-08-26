@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { FixturesTab } from "@/components/admin/fixtures-tab"
 import { StandingsTab } from "@/components/admin/standings-tab"
+import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon } from "lucide-react"
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const [section, setSection] = useState<"overview" | "registrations" | "fixtures" | "results" | "stats" | "messaging" | "settings" | "setup">(
+  const [section, setSection] = useState<"overview" | "registrations" | "stats" | "reports" | "messaging" | "settings">(
     "overview",
   )
 
@@ -124,35 +124,261 @@ export default function AdminDashboard() {
     }
   }
 
-  const generateAllFixtures = async () => {
-    try {
-      const response = await fetch("/api/admin/generate-fixtures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ format: "double-round-robin" }),
-      })
+  const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
+  const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
 
-      if (response.ok) {
-        const data = await response.json()
-        setFixtures(data.fixtures)
-      }
-    } catch (err) {
-      console.error("Error generating fixtures:", err)
+  const recentReports7d = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return resultsQueue.filter((r) => {
+      const dateString = (r?.created_at || r?.createdAt || r?.submitted_at || r?.submittedAt || r?.date || r?.timestamp) as string | undefined
+      if (!dateString) return false
+      const t = Date.parse(dateString)
+      return Number.isFinite(t) && t >= cutoff
+    }).length
+  }, [resultsQueue])
+
+  // Registrations page state: search, selection, pagination
+  const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(25)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const normalize = (v: any) => (typeof v === "string" ? v.toLowerCase() : "")
+
+  const filteredPlayers = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return players
+    return players.filter((p) => {
+      const name = normalize(p.name)
+      const tag = normalize(p.username || p.gamertag || p.gamer_tag || p.handle)
+      const email = normalize(p.email || p.email_address || p.user?.email)
+      const club = normalize(p.preferred_team || p.preferred_club)
+      const location = normalize(p.location || p.city || p.country)
+      return name.includes(q) || tag.includes(q) || email.includes(q) || club.includes(q) || location.includes(q)
+    })
+  }, [players, query])
+
+  const rejectedCount = useMemo(
+    () => players.filter((p) => (p.status || "").toLowerCase() === "rejected").length,
+    [players],
+  )
+
+  const conflictsCount = useMemo(() => {
+    const seen = new Map<string, number>()
+    let conflicts = 0
+    for (const p of players) {
+      const key = (p.email || p.email_address || p.user?.email || p.username || p.gamertag || p.gamer_tag || "") as string
+      if (!key) continue
+      const k = key.toLowerCase()
+      const count = (seen.get(k) || 0) + 1
+      seen.set(k, count)
+      if (count === 2) conflicts += 2
+      else if (count > 2) conflicts += 1
+    }
+    return conflicts
+  }, [players])
+
+  const pageCount = Math.max(1, Math.ceil(filteredPlayers.length / rowsPerPage))
+  const currentPage = Math.min(page, pageCount)
+  const pageStart = (currentPage - 1) * rowsPerPage
+  const pageRows = filteredPlayers.slice(pageStart, pageStart + rowsPerPage)
+
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((p) => selectedIds.has(p.id))
+
+  const toggleSelectAll = () => {
+    const next = new Set(selectedIds)
+    if (allVisibleSelected) {
+      pageRows.forEach((p) => next.delete(p.id))
+    } else {
+      pageRows.forEach((p) => next.add(p.id))
+    }
+    setSelectedIds(next)
+  }
+
+  const toggleSelectOne = (id: string) => {
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelectedIds(next)
+  }
+
+  const bulkAction = async (action: "approve" | "reject") => {
+    for (const id of selectedIds) {
+      if (action === "approve") await approvePlayer(id)
+      else await rejectPlayer(id)
+    }
+    setSelectedIds(new Set())
+    fetchAllData()
+  }
+
+  const exportVisibleToCsv = () => {
+    const rows = [
+      ["Player", "Gamer Tag", "Email", "Console", "Club", "Location", "Status"],
+      ...pageRows.map((p) => [
+        p.name ?? "",
+        p.username || p.gamertag || p.gamer_tag || "",
+        p.email || p.email_address || p.user?.email || "",
+        p.console || "",
+        p.preferred_team || p.preferred_club || "",
+        p.location || p.city || p.country || "",
+        p.status || "",
+      ]),
+    ]
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replaceAll("\"", "\"\"")}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "registrations.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Reports page state: search, selection, pagination
+  const [reportQuery, setReportQuery] = useState("")
+  const [reportPage, setReportPage] = useState(1)
+  const [reportRowsPerPage, setReportRowsPerPage] = useState(25)
+  const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set())
+
+  const filteredReports = useMemo(() => {
+    const q = reportQuery.trim().toLowerCase()
+    if (!q) return resultsQueue
+    return resultsQueue.filter((r) => {
+      const home = normalize(r.homePlayer)
+      const away = normalize(r.awayPlayer)
+      const by = normalize(r.submittedBy)
+      const reason = normalize(r.reason)
+      const status = normalize(r.status)
+      return home.includes(q) || away.includes(q) || by.includes(q) || reason.includes(q) || status.includes(q)
+    })
+  }, [resultsQueue, reportQuery])
+
+  const reportsPageCount = Math.max(1, Math.ceil(filteredReports.length / reportRowsPerPage))
+  const reportsCurrentPage = Math.min(reportPage, reportsPageCount)
+  const reportsStart = (reportsCurrentPage - 1) * reportRowsPerPage
+  const reportPageRows = filteredReports.slice(reportsStart, reportsStart + reportRowsPerPage)
+
+  const allReportsSelected = reportPageRows.length > 0 && reportPageRows.every((r) => selectedReportIds.has(r.id))
+
+  const toggleSelectAllReports = () => {
+    const next = new Set(selectedReportIds)
+    if (allReportsSelected) reportPageRows.forEach((r) => next.delete(r.id))
+    else reportPageRows.forEach((r) => next.add(r.id))
+    setSelectedReportIds(next)
+  }
+
+  const toggleSelectOneReport = (id: string) => {
+    const next = new Set(selectedReportIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelectedReportIds(next)
+  }
+
+  const approveReport = async (id: string) => {
+    try {
+      // Try a specific endpoint if available, otherwise fall back to remove from queue
+      const res = await fetch("/api/admin/results/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+      if (!res.ok) throw new Error("fallback")
+    } catch {
+      setResultsQueue((prev) => prev.filter((r) => r.id !== id))
     }
   }
 
-  const groupedFixtures = useMemo(() => {
-    const map: Record<string, any[]> = {}
-    fixtures.forEach((fx) => {
-      const key = `Matchday ${fx.matchday ?? "?"}`
-      if (!map[key]) map[key] = []
-      map[key].push(fx)
-    })
-    return map
-  }, [fixtures])
+  const bulkApproveReports = async () => {
+    for (const id of selectedReportIds) {
+      // eslint-disable-next-line no-await-in-loop
+      await approveReport(id)
+    }
+    setSelectedReportIds(new Set())
+    fetchAllData()
+  }
 
-  const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
-  const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
+  const exportReportsCsv = () => {
+    const rows = [
+      ["Home", "Away", "Score", "Submitted By", "Status", "Reason"],
+      ...reportPageRows.map((r) => [
+        r.homePlayer ?? "",
+        r.awayPlayer ?? "",
+        `${r.homeScore ?? ""}-${r.awayScore ?? ""}`,
+        r.submittedBy ?? "",
+        r.status ?? "",
+        r.reason ?? "",
+      ]),
+    ]
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replaceAll("\"", "\"\"")}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "reports.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Messaging state and helpers
+  type AdminMessage = { id: string; type: "broadcast" | "direct"; toId?: string; toName?: string; content: string; createdAt: string; status: "sent" | "queued" }
+  const [messages, setMessages] = useState<AdminMessage[]>([])
+  const [broadcastText, setBroadcastText] = useState("")
+  const [directPlayerId, setDirectPlayerId] = useState<string | undefined>(undefined)
+  const [directText, setDirectText] = useState("")
+  const [messageQuery, setMessageQuery] = useState("")
+  const [messageType, setMessageType] = useState<"all" | "broadcast" | "direct">("all")
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("admin_messages")
+      if (raw) setMessages(JSON.parse(raw))
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem("admin_messages", JSON.stringify(messages))
+    } catch {}
+  }, [messages])
+
+  const filteredMessages = useMemo(() => {
+    const q = messageQuery.trim().toLowerCase()
+    return messages.filter((m) => {
+      if (messageType !== "all" && m.type !== messageType) return false
+      if (!q) return true
+      const content = normalize(m.content)
+      const toName = normalize(m.toName)
+      return content.includes(q) || toName.includes(q)
+    })
+  }, [messages, messageQuery, messageType])
+
+  const exportMessagesCsv = () => {
+    const rows = [
+      ["Type", "To", "Content", "Date"],
+      ...filteredMessages.map((m) => [m.type, m.toName || "All", m.content, new Date(m.createdAt).toLocaleString()]),
+    ]
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replaceAll("\"", "\"\"")}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "messages.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const sendBroadcast = async () => {
+    if (!broadcastText.trim()) return
+    const message: AdminMessage = { id: `${Date.now()}-${Math.random()}`, type: "broadcast", content: broadcastText.trim(), createdAt: new Date().toISOString(), status: "sent" }
+    setMessages((prev) => [message, ...prev])
+    setBroadcastText("")
+  }
+
+  const sendDirect = async () => {
+    if (!directText.trim() || !directPlayerId) return
+    const player = players.find((p) => String(p.id) === String(directPlayerId))
+    const message: AdminMessage = { id: `${Date.now()}-${Math.random()}`, type: "direct", toId: String(directPlayerId), toName: player?.name || "Unknown", content: directText.trim(), createdAt: new Date().toISOString(), status: "sent" }
+    setMessages((prev) => [message, ...prev])
+    setDirectText("")
+    setDirectPlayerId(undefined)
+  }
+
+  const clearMessages = () => setMessages([])
 
   const goSetup = () => router.push("/admin/setup")
 
@@ -183,7 +409,6 @@ export default function AdminDashboard() {
             <h1 className="text-[28px] md:text-[32px] font-extrabold text-gray-900">Admin</h1>
             <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Tournament Setup</Button>
         </div>
 
         <div className="flex gap-8">
@@ -192,16 +417,14 @@ export default function AdminDashboard() {
               {[
                 { key: "overview", label: "Overview" },
                 { key: "registrations", label: "Registrations" },
-                { key: "fixtures", label: "Fixtures" },
-                { key: "results", label: "Reports" },
                 { key: "stats", label: "Stats" },
+                { key: "reports", label: "Reports" },
                 { key: "messaging", label: "Messaging" },
                 { key: "settings", label: "Settings" },
-                { key: "setup", label: "Setup" },
               ].map((item) => (
                 <button
                   key={item.key}
-                  onClick={() => (item.key === "setup" ? goSetup() : setSection(item.key as any))}
+                  onClick={() => setSection(item.key as any)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm ${
                     section === item.key ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
                   }`}
@@ -240,54 +463,190 @@ export default function AdminDashboard() {
 
                 <div className="border rounded-md p-4 flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold">Tournament Setup Wizard</div>
-                    <div className="text-xs text-gray-600">Configure basics, rules, and scheduling, then publish.</div>
+                    <div className="text-sm font-semibold">Reports</div>
+                    <div className="text-xs text-gray-600">Pending {matchesPendingApproval} • Last 7 days {recentReports7d}</div>
                   </div>
-                  <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Open Wizard</Button>
+                  <Button variant="outline" onClick={() => setSection("reports" as any)}>View Reports</Button>
                 </div>
-              </div>
-            )}
-
-            {section === "fixtures" && (
-              <div className="space-y-6">
-                <FixturesTab />
               </div>
             )}
 
             {section === "registrations" && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Registrations</h2>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-purple-100 text-purple-800">{pendingRegistrations.length} pending</Badge>
-                    <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/seed-demo-players", { method: "POST" }); fetchAllData() }}>Seed 8 Demo Players</Button>
+                <h2 className="text-[26px] font-extrabold text-gray-900">Registrations</h2>
+
+                <div className="flex flex-wrap gap-3 items-center">
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                    <SearchIcon className="h-4 w-4 text-gray-500" />
+                    <Input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0" />
                   </div>
+                  <Button variant="outline" className="h-9">
+                    <FilterIcon className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
+                  <Select onValueChange={async (v) => { if (v === "approve") await bulkAction("approve"); if (v === "reject") await bulkAction("reject") }}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Bulk Actions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approve">Approve selected</SelectItem>
+                      <SelectItem value="reject">Reject selected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="h-9" onClick={exportVisibleToCsv}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-4">
+                  <div className="px-4 py-2 rounded-md border bg-gray-50 text-sm">Total: <span className="font-semibold">{players.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-purple-50 text-sm text-purple-900">Pending: <span className="font-semibold">{pendingRegistrations.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-green-50 text-sm text-green-900">Approved: <span className="font-semibold">{approvedPlayers.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-red-50 text-sm text-red-900">Rejected: <span className="font-semibold">{rejectedCount}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-amber-50 text-sm text-amber-900">Conflicts: <span className="font-semibold">{conflictsCount}</span></div>
                 </div>
 
                 <div className="overflow-x-auto border rounded-md">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="text-left px-3 py-2 w-8">
+                          <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} />
+                        </th>
                         <th className="text-left px-3 py-2">Player</th>
+                        <th className="text-left px-3 py-2">Gamer Tag</th>
+                        <th className="text-left px-3 py-2">Email</th>
                         <th className="text-left px-3 py-2">Console</th>
-                        <th className="text-left px-3 py-2">Preferred Team</th>
-                        <th className="text-left px-3 py-2">Registered</th>
+                        <th className="text-left px-3 py-2">Club</th>
+                        <th className="text-left px-3 py-2">Location</th>
                         <th className="text-left px-3 py-2">Status</th>
                         <th className="text-right px-3 py-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {players.map((p) => (
+                      {pageRows.map((p) => (
                         <tr key={p.id} className="border-t">
+                          <td className="px-3 py-2 w-8">
+                            <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelectOne(p.id)} />
+                          </td>
                           <td className="px-3 py-2">{p.name}</td>
+                          <td className="px-3 py-2">{p.username || p.gamertag || p.gamer_tag || "—"}</td>
+                          <td className="px-3 py-2">{p.email || p.email_address || p.user?.email || "—"}</td>
                           <td className="px-3 py-2">{p.console || "—"}</td>
                           <td className="px-3 py-2">{p.preferred_team || p.preferred_club || "—"}</td>
-                          <td className="px-3 py-2 text-gray-500">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</td>
-                          <td className="px-3 py-2">{p.status || "pending"}</td>
+                          <td className="px-3 py-2">{p.location || p.city || p.country || "—"}</td>
+                          <td className="px-3 py-2">
+                            {(p.status || "pending").toLowerCase() === "approved" ? (
+                              <span className="px-2 py-0.5 text-xs rounded border bg-green-50 border-green-200 text-green-800">Approved</span>
+                            ) : (p.status || "pending").toLowerCase() === "rejected" ? (
+                              <span className="px-2 py-0.5 text-xs rounded border bg-red-50 border-red-200 text-red-800">Rejected</span>
+                            ) : (
+                              <span className="px-2 py-0.5 text-xs rounded border bg-purple-50 border-purple-200 text-purple-800">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {(p.status || "pending").toLowerCase() === "pending" ? (
+                              <Button size="sm" variant="ghost" className="text-purple-700 hover:text-purple-800" onClick={async () => { await approvePlayer(p.id); }}>
+                                Review
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="ghost" className="text-gray-600 hover:text-gray-800">
+                                Edit
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-600">Rows per page: {rowsPerPage}</div>
+                  <div className="flex items-center gap-1">
+                    <button className="p-2 hover:bg-gray-50 rounded" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => {
+                      const num = i + 1
+                      return (
+                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>
+                          {num}
+                        </button>
+                      )
+                    })}
+                    <button className="p-2 hover:bg-gray-50 rounded" disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {section === "reports" && (
+              <div className="space-y-6">
+                <h2 className="text-[26px] font-extrabold text-gray-900">Reports</h2>
+
+                <div className="flex flex-wrap gap-3 items-center">
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                    <SearchIcon className="h-4 w-4 text-gray-500" />
+                    <Input value={reportQuery} onChange={(e) => { setReportQuery(e.target.value); setReportPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0" />
+                  </div>
+                  <Button variant="outline" className="h-9">
+                    <FilterIcon className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
+                  <Select onValueChange={async (v) => { if (v === "approve") await bulkApproveReports() }}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Bulk Actions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approve">Approve selected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="h-9" onClick={exportReportsCsv}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-4">
+                  <div className="px-4 py-2 rounded-md border bg-gray-50 text-sm">Total: <span className="font-semibold">{resultsQueue.length}</span></div>
+                  <div className="px-4 py-2 rounded-md border bg-purple-50 text-sm text-purple-900">Pending: <span className="font-semibold">{matchesPendingApproval}</span></div>
+                </div>
+
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-3 py-2 w-8">
+                          <input type="checkbox" checked={allReportsSelected} onChange={toggleSelectAllReports} />
+                        </th>
+                        <th className="text-left px-3 py-2">Match</th>
+                        <th className="text-left px-3 py-2">Submitted By</th>
+                        <th className="text-left px-3 py-2">Status</th>
+                        <th className="text-left px-3 py-2">Reason</th>
+                        <th className="text-right px-3 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportPageRows.map((r) => (
+                        <tr key={r.id} className="border-t">
+                          <td className="px-3 py-2 w-8">
+                            <input type="checkbox" checked={selectedReportIds.has(r.id)} onChange={() => toggleSelectOneReport(r.id)} />
+                          </td>
+                          <td className="px-3 py-2 font-medium">{r.homePlayer} {r.homeScore} - {r.awayScore} {r.awayPlayer}</td>
+                          <td className="px-3 py-2">{r.submittedBy}</td>
+                          <td className="px-3 py-2">
+                            <span className="px-2 py-0.5 text-xs rounded border bg-amber-50 border-amber-200 text-amber-800">{r.status || "Pending"}</span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">{r.reason || "Awaiting opponent confirmation"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await fetch("/api/admin/approve-registration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: p.id, action: "approve" }) }); fetchAllData() }}>Approve</Button>
-                              <Button size="sm" variant="outline" onClick={async () => { await fetch("/api/admin/approve-registration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: p.id, action: "reject" }) }); fetchAllData() }}>Reject</Button>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await approveReport(r.id) }}>Approve</Button>
+                              <Button size="sm" variant="outline">Override</Button>
+                              <Button size="sm" variant="outline">Flag/Dispute</Button>
                             </div>
                           </td>
                         </tr>
@@ -295,41 +654,26 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
 
-            {section === "results" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Result Reports</h2>
-                  <Button variant="outline" disabled={resultsQueue.length === 0}>Approve All Reports</Button>
-                </div>
-
-                {resultsQueue.length === 0 ? (
-                  <div className="p-4 border rounded-md text-sm text-gray-500">No results pending review</div>
-                ) : (
-                  <div className="space-y-4">
-                    {resultsQueue.map((r) => (
-                      <div key={r.id} className="p-4 border rounded-md">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">{r.homePlayer} {r.homeScore} - {r.awayScore} {r.awayPlayer}</div>
-                          <div>
-                            <span className="px-2 py-0.5 text-xs rounded border bg-amber-50 border-amber-200 text-amber-800">{r.status || "Pending"}</span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-600 mb-3">Submitted by {r.submittedBy}</div>
-                        <div className="flex items-center gap-3 justify-between">
-                          <div className="text-sm text-gray-600">Reason: {r.reason || "Awaiting opponent confirmation"}</div>
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700">Approve</Button>
-                            <Button size="sm" variant="outline">Override</Button>
-                            <Button size="sm" variant="outline">Flag/Dispute</Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-600">Rows per page: {reportRowsPerPage}</div>
+                  <div className="flex items-center gap-1">
+                    <button className="p-2 hover:bg-gray-50 rounded" disabled={reportsCurrentPage <= 1} onClick={() => setReportPage((p) => Math.max(1, p - 1))}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    {Array.from({ length: reportsPageCount }).slice(0, 5).map((_, i) => {
+                      const num = i + 1
+                      return (
+                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>
+                          {num}
+                        </button>
+                      )
+                    })}
+                    <button className="p-2 hover:bg-gray-50 rounded" disabled={reportsCurrentPage >= reportsPageCount} onClick={() => setReportPage((p) => Math.min(reportsPageCount, p + 1))}>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -341,19 +685,43 @@ export default function AdminDashboard() {
 
             {section === "messaging" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Messaging / Announcements</h2>
+                <h2 className="text-[26px] font-extrabold text-gray-900">Messaging</h2>
+
+                <div className="flex flex-wrap gap-3 items-center">
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                    <SearchIcon className="h-4 w-4 text-gray-500" />
+                    <Input value={messageQuery} onChange={(e) => setMessageQuery(e.target.value)} placeholder="Search messages" className="h-7 border-0 focus-visible:ring-0 p-0" />
+                  </div>
+                  <Select value={messageType} onValueChange={(v) => setMessageType(v as any)}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="broadcast">Broadcast</SelectItem>
+                      <SelectItem value="direct">Direct</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="h-9" onClick={exportMessagesCsv}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                  <Button variant="outline" className="h-9" onClick={clearMessages}>Clear History</Button>
+                </div>
+
                 <div className="border rounded-md p-4">
                   <Label className="text-sm">Global broadcast</Label>
-                  <Input placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2" />
+                  <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2" />
                   <div className="flex justify-end mt-3">
-                    <Button className="bg-primary hover:bg-primary/90">Send Broadcast</Button>
+                    <Button className="bg-primary hover:bg-primary/90" onClick={sendBroadcast}>Send Broadcast</Button>
                   </div>
                 </div>
+
                 <div className="border rounded-md p-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
                       <Label className="text-sm">Player</Label>
-                      <Select>
+                      <Select value={directPlayerId} onValueChange={(v) => setDirectPlayerId(v)}>
                         <SelectTrigger className="mt-2">
                           <SelectValue placeholder="Choose player" />
                         </SelectTrigger>
@@ -366,12 +734,39 @@ export default function AdminDashboard() {
                     </div>
                     <div className="md:col-span-2">
                       <Label className="text-sm">Message</Label>
-                      <Input placeholder="Direct message (for disputes/clarifications)" className="mt-2" />
+                      <Input value={directText} onChange={(e) => setDirectText(e.target.value)} placeholder="Direct message (for disputes/clarifications)" className="mt-2" />
                     </div>
                   </div>
                   <div className="flex justify-end mt-3">
-                    <Button className="bg-primary hover:bg-primary/90">Send Message</Button>
+                    <Button className="bg-primary hover:bg-primary/90" onClick={sendDirect}>Send Message</Button>
                   </div>
+                </div>
+
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-3 py-2">Type</th>
+                        <th className="text-left px-3 py-2">To</th>
+                        <th className="text-left px-3 py-2">Message</th>
+                        <th className="text-left px-3 py-2">Date</th>
+                        <th className="text-right px-3 py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredMessages.map((m) => (
+                        <tr key={m.id} className="border-t">
+                          <td className="px-3 py-2 capitalize">{m.type}</td>
+                          <td className="px-3 py-2">{m.type === "broadcast" ? "All" : (m.toName || m.toId)}</td>
+                          <td className="px-3 py-2">{m.content}</td>
+                          <td className="px-3 py-2 text-gray-600">{new Date(m.createdAt).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right">
+                            <span className="px-2 py-0.5 text-xs rounded border bg-green-50 border-green-200 text-green-800">{m.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
@@ -413,6 +808,13 @@ export default function AdminDashboard() {
                     <Label>Self-report deadline (hours)</Label>
                     <Input type="number" defaultValue={24} min={1} max={72} />
                   </div>
+                </div>
+                <div className="border rounded-md p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Tournament Setup Wizard</div>
+                    <div className="text-xs text-gray-600">Configure basics, rules, scheduling, and publish the tournament.</div>
+                  </div>
+                  <Button className="bg-primary hover:bg-primary/90" onClick={goSetup}>Open Wizard</Button>
                 </div>
                 <div className="flex justify-end">
                   <Button className="bg-primary hover:bg-primary/90">Save</Button>
