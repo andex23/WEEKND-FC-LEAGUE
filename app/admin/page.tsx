@@ -419,6 +419,7 @@ export default function AdminDashboard() {
               {[
                 { key: "overview", label: "Overview" },
                 { key: "registrations", label: "Registrations" },
+                { key: "fixtures", label: "Fixtures" },
                 { key: "stats", label: "Stats" },
                 { key: "reports", label: "Reports" },
                 { key: "messaging", label: "Messaging" },
@@ -426,7 +427,7 @@ export default function AdminDashboard() {
               ].map((item) => (
                 <button
                   key={item.key}
-                  onClick={() => setSection(item.key as any)}
+                  onClick={() => item.key === "fixtures" ? router.push("/admin/fixtures") : setSection(item.key as any)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm ${
                     section === item.key ? "bg-purple-50 text-purple-800 border border-purple-200" : "hover:bg-gray-50"
                   }`}
