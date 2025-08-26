@@ -12,15 +12,31 @@ export default function AdminTournamentsPage() {
   const [name, setName] = useState("")
   const [status, setStatus] = useState("DRAFT")
   const [season, setSeason] = useState("")
+  const [type, setType] = useState("DOUBLE")
+  const [players, setPlayers] = useState(0)
+  const [rules, setRules] = useState("")
 
   const load = async () => { const r = await fetch("/api/admin/tournaments").then((x) => x.json()); setList(r.tournaments || []) }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    ;(async () => {
+      try {
+        const regs = await fetch("/api/admin/registrations").then((r) => r.json())
+        const count = (regs.registrations || []).filter((p: any) => String(p.status || "").toLowerCase() === "approved").length
+        setPlayers(count)
+      } catch {}
+    })()
+  }, [])
 
-  const create = async () => { if (!name.trim()) return; await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season }) }); setName(""); setSeason(""); load() }
+  const create = async () => {
+    if (!name.trim()) return
+    await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players, rules }) })
+    setName(""); setSeason(""); setRules("")
+    load()
+  }
   const remove = async (id: string) => { if (!confirm("Delete tournament?")) return; await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); load() }
   const activate = async (t: any) => {
-    // Update settings tournament + optional branding name
-    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", season: t.season || "", matchdays: ["Sat","Sun"], match_length: 8 } }) })
+    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", season: t.season || "", format: t.type, matchdays: ["Sat","Sun"], match_length: 8 } }) })
     await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"branding", data: { league_name: t.name } }) })
     router.push("/admin")
   }
@@ -37,7 +53,7 @@ export default function AdminTournamentsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8">
             <div className="border rounded-md overflow-hidden">
-              <div className="px-4 py-2 border-b bg-gray-50 text-sm font-semibold">Active Tournaments</div>
+              <div className="px-4 py-2 border-b bg-gray-50 text-sm font-semibold">Tournaments</div>
               <div className="divide-y">
                 {list.length === 0 ? (
                   <div className="p-4 text-sm text-gray-600">No tournaments yet</div>
@@ -45,7 +61,7 @@ export default function AdminTournamentsPage() {
                   <div key={t.id} className="px-4 py-3 flex items-center justify-between">
                     <div>
                       <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-gray-600">{t.season || "—"} · {t.status}</div>
+                      <div className="text-xs text-gray-600">{t.season || "—"} · {t.status} · {t.type} · {t.players} players</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
@@ -61,23 +77,43 @@ export default function AdminTournamentsPage() {
             <div className="border rounded-md p-4 sticky top-4 space-y-3">
               <div className="text-sm font-semibold">New Tournament</div>
               <div>
-                <label className="text-sm">Name</label>
+                <label className="text-sm">League Name</label>
                 <Input className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm">Status</label>
-                <Select value={status} onValueChange={setStatus}>
+                <label className="text-sm">Number of Players (approved)</label>
+                <Input className="mt-1" type="number" value={players} onChange={(e) => setPlayers(Number(e.target.value || 0))} />
+              </div>
+              <div>
+                <label className="text-sm">League Type</label>
+                <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="SINGLE">Single Round Robin</SelectItem>
+                    <SelectItem value="DOUBLE">Double Round Robin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm">Season</label>
-                <Input className="mt-1" placeholder="2024/25" value={season} onChange={(e) => setSeason(e.target.value)} />
+                <label className="text-sm">Rules</label>
+                <Input className="mt-1" placeholder="Link or brief notes" value={rules} onChange={(e) => setRules(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm">Status</label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DRAFT">Draft</SelectItem>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm">Season</label>
+                  <Input className="mt-1" placeholder="2024/25" value={season} onChange={(e) => setSeason(e.target.value)} />
+                </div>
               </div>
               <div className="flex justify-end">
                 <Button className="bg-primary hover:bg-primary/90" onClick={create}>Create</Button>
