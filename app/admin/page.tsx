@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { StandingsTab } from "@/components/admin/standings-tab"
-import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon, Plus } from "lucide-react"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -382,6 +382,8 @@ export default function AdminDashboard() {
 
   const goSetup = () => router.push("/admin/setup")
 
+  const leagueActive = (leagueSettings?.status || "DRAFT").toUpperCase() === "ACTIVE"
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -460,6 +462,85 @@ export default function AdminDashboard() {
                     <div className="text-sm font-semibold">{leagueSettings?.status || "DRAFT"}</div>
                   </div>
                 </div>
+
+                {leagueActive && fixtures.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border rounded-md p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-semibold">League Standings (Top 5)</div>
+                        <Button variant="outline" size="sm" onClick={() => setSection("stats" as any)}>Open Stats</Button>
+                      </div>
+                      {standings && standings.length > 0 ? (
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="text-left px-3 py-2">Player</th>
+                              <th className="text-right px-3 py-2">Pts</th>
+                              <th className="text-right px-3 py-2">P</th>
+                              <th className="text-right px-3 py-2">GD</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standings.slice(0, 5).map((s: any) => (
+                              <tr key={s.playerId} className="border-t">
+                                <td className="px-3 py-2">{s.playerName}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{s.points}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{s.played}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{s.goalDifference}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="text-sm text-gray-600">Standings unavailable.</div>
+                      )}
+                    </div>
+
+                    <div className="border rounded-md p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-semibold">Stats Leaders</div>
+                        <Button variant="outline" size="sm" onClick={() => setSection("stats" as any)}>Open Stats</Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Top Scorers</div>
+                          {playerStats?.topScorers?.slice(0, 3)?.map((p: any) => (
+                            <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
+                              <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
+                              <span className="tabular-nums text-gray-700">{p.goals || p.G || 0}</span>
+                            </div>
+                          )) || <div className="text-xs text-gray-500">—</div>}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Top Assists</div>
+                          {playerStats?.topAssists?.slice(0, 3)?.map((p: any) => (
+                            <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
+                              <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
+                              <span className="tabular-nums text-gray-700">{p.assists || p.A || 0}</span>
+                            </div>
+                          )) || <div className="text-xs text-gray-500">—</div>}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Discipline</div>
+                          {playerStats?.discipline?.slice(0, 3)?.map((p: any) => (
+                            <div key={p.id || p.player_id || p.playerId || p.name} className="text-sm flex items-center justify-between">
+                              <span className="truncate mr-2">{p.name || p.player_name || p.player}</span>
+                              <span className="tabular-nums text-gray-700">{(p.yellow_cards || p.YC || 0)} / {(p.red_cards || p.RC || 0)}</span>
+                            </div>
+                          )) || <div className="text-xs text-gray-500">—</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border rounded-md p-8 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold">League Standings & Stats</div>
+                      <div className="text-xs text-gray-600">No league yet. Create one to see standings and leaders here.</div>
+                    </div>
+                    <Button onClick={goSetup} className="bg-primary hover:bg-primary/90"><Plus className="h-4 w-4 mr-2" /> Create League</Button>
+                  </div>
+                )}
 
                 <div className="border rounded-md p-4 flex items-center justify-between">
                   <div>
