@@ -117,6 +117,14 @@ export function StandingsTab() {
     const start = (currentPage - 1) * rowsPerPage
     const pageRows = rows.slice(start, start + rowsPerPage)
 
+    const colClass = (col: string) => {
+      if (table !== "standings") return ""
+      if (["GF","GA","GD"].includes(col)) return "hidden lg:table-cell"
+      if (["P","W","D","L"].includes(col)) return "hidden md:table-cell"
+      // Pts is always visible
+      return ""
+    }
+
     return (
       <div className="space-y-3">
         <div className="overflow-x-auto border rounded-md">
@@ -126,7 +134,7 @@ export function StandingsTab() {
                 <th className="text-left px-3 py-2 w-48">Player</th>
                 <th className="text-left px-3 py-2 w-40">Team</th>
                 {pageRows[0]?._cols?.map((c) => (
-                  <th key={c} className="text-right px-3 py-2">{c}</th>
+                  <th key={c} className={`text-right px-3 py-2 ${colClass(c)}`}>{c}</th>
                 ))}
                 <th className="text-right px-3 py-2">Actions</th>
               </tr>
@@ -135,15 +143,15 @@ export function StandingsTab() {
               {pageRows.map((r) => (
                 <tr key={r.id} className="border-t">
                   <td className="px-3 py-2 min-w-[12rem]">
-                    <Input className="w-48" defaultValue={r.name} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== r.name) updateMeta(table, r.id, "name", v) }} />
+                    <Input className="w-full sm:w-48" defaultValue={r.name} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== r.name) updateMeta(table, r.id, "name", v) }} />
                   </td>
                   <td className="px-3 py-2 min-w-[9rem]">
-                    <Input className="w-40" defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
+                    <Input className="w-full sm:w-40" defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
                   </td>
                   {r._cols?.map((c) => (
-                    <td key={c} className="px-3 py-2 text-right tabular-nums">
+                    <td key={c} className={`px-3 py-2 text-right tabular-nums ${colClass(c)}`}>
                       <div className="flex items-center justify-end gap-2">
-                        <Input defaultValue={r[c] ?? 0} type="number" className="w-14 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
+                        <Input defaultValue={r[c] ?? 0} type="number" className="w-12 sm:w-14 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
                         {r.overridden?.[c] && <span className="px-2 py-0.5 rounded text-xs border bg-yellow-50 border-yellow-200 text-yellow-800">overridden</span>}
                       </div>
                     </td>
