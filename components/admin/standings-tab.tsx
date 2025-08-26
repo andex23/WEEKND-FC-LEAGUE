@@ -21,6 +21,9 @@ export function StandingsTab() {
   const [pages, setPages] = useState<{ standings: number; scorers: number; assists: number; discipline: number }>({ standings: 1, scorers: 1, assists: 1, discipline: 1 })
   const [activeTab, setActiveTab] = useState<"table" | "scorers" | "assists" | "discipline">("table")
 
+  const [newName, setNewName] = useState("")
+  const [newTeam, setNewTeam] = useState("")
+
   const setPage = (key: keyof typeof pages, value: number) => setPages((p) => ({ ...p, [key]: value }))
 
   const fetchAll = async () => {
@@ -60,6 +63,20 @@ export function StandingsTab() {
   const resetRow = async (table: string, id: string) => { await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reset_row", table, id }) }); fetchAll() }
   const exportCsv = async (table: "standings" | "scorers" | "assists" | "discipline" = "standings") => { const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export", table }) }); const txt = await res.text(); const url = URL.createObjectURL(new Blob([txt],{type:"text/csv"})); const a=document.createElement("a"); a.href=url;a.download=`${table}.csv`;a.click();URL.revokeObjectURL(url) }
 
+  const addRow = async () => {
+    const table = activeTab === "table" ? "standings" : activeTab
+    if (!newName.trim()) return
+    await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_row", table, name: newName.trim(), team: newTeam.trim() }) })
+    setNewName("")
+    setNewTeam("")
+    fetchAll()
+  }
+
+  const deleteRow = async (table: string, id: string) => {
+    await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_row", table, id }) })
+    fetchAll()
+  }
+
   const Table = ({ rows, table, pageKey }: { rows: Row[]; table: string; pageKey: keyof typeof pages }) => {
     const page = pages[pageKey]
     const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage))
@@ -95,7 +112,10 @@ export function StandingsTab() {
                     </td>
                   ))}
                   <td className="px-3 py-2 text-right">
-                    <Button size="sm" variant="outline" onClick={() => resetRow(table, r.id)}>Reset</Button>
+                    <div className="inline-flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => resetRow(table, r.id)}>Reset</Button>
+                      <Button size="sm" variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={() => deleteRow(table, r.id)}>Delete</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -103,16 +123,23 @@ export function StandingsTab() {
           </table>
         </div>
 
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <div className="text-gray-600">Page {currentPage} of {pageCount}</div>
-          <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(pageKey, Math.max(1, currentPage - 1))}>Prev</Button>
-          {Array.from({ length: Math.min(pageCount, 5) }).map((_, i) => {
-            const num = i + 1
-            return (
-              <button key={num} onClick={() => setPage(pageKey, num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>{num}</button>
-            )
-          })}
-          <Button variant="outline" size="sm" disabled={currentPage >= pageCount} onClick={() => setPage(pageKey, Math.min(pageCount, currentPage + 1))}>Next</Button>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Input placeholder="Player name" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-48" />
+            <Input placeholder="Team" value={newTeam} onChange={(e) => setNewTeam(e.target.value)} className="w-40" />
+            <Button size="sm" onClick={addRow}>Add</Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-gray-600">Page {currentPage} of {pageCount}</div>
+            <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(pageKey, Math.max(1, currentPage - 1))}>Prev</Button>
+            {Array.from({ length: Math.min(pageCount, 5) }).map((_, i) => {
+              const num = i + 1
+              return (
+                <button key={num} onClick={() => setPage(pageKey, num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-gray-900 text-white" : "hover:bg-gray-50"}`}>{num}</button>
+              )
+            })}
+            <Button variant="outline" size="sm" disabled={currentPage >= pageCount} onClick={() => setPage(pageKey, Math.min(pageCount, currentPage + 1))}>Next</Button>
+          </div>
         </div>
       </div>
     )

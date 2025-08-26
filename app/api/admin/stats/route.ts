@@ -9,6 +9,8 @@ let scorers = [ { id: "1", name: "Alex", team: "Man United", G: 12, overridden: 
 let assists = [ { id: "2", name: "Jordan", team: "Man City", A: 9, overridden: {} as Record<string, boolean> } ]
 let discipline = [ { id: "3", name: "Sam", team: "Chelsea", YC: 3, RC: 0, overridden: {} as Record<string, boolean> } ]
 
+const newId = () => Math.random().toString(36).slice(2, 10)
+
 export async function GET() {
   return NextResponse.json({ standings, leaders: { scorers, assists, discipline } })
 }
@@ -17,7 +19,6 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const { action } = body
   if (action === "recompute") {
-    // For demo, just echo success
     return NextResponse.json({ ok: true })
   }
   if (action === "reset_overrides") {
@@ -59,6 +60,25 @@ export async function POST(request: Request) {
     if (table === "scorers") scorers = scorers.map((r) => (r.id === id ? upd(r) : r))
     if (table === "assists") assists = assists.map((r) => (r.id === id ? upd(r) : r))
     if (table === "discipline") discipline = discipline.map((r) => (r.id === id ? upd(r) : r))
+    return NextResponse.json({ ok: true })
+  }
+  if (action === "add_row") {
+    const { table, name, team } = body
+    if (!name) return NextResponse.json({ ok: false, error: "Missing name" }, { status: 400 })
+    const rowId = newId()
+    if (table === "standings") standings.unshift({ id: rowId, name, team: team || "-", P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0, overridden: {} })
+    if (table === "scorers") scorers.unshift({ id: rowId, name, team: team || "-", G: 0, overridden: {} })
+    if (table === "assists") assists.unshift({ id: rowId, name, team: team || "-", A: 0, overridden: {} })
+    if (table === "discipline") discipline.unshift({ id: rowId, name, team: team || "-", YC: 0, RC: 0, overridden: {} })
+    return NextResponse.json({ ok: true, id: rowId })
+  }
+  if (action === "delete_row") {
+    const { table, id } = body
+    if (!id) return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 })
+    if (table === "standings") standings = standings.filter((r) => r.id !== id)
+    if (table === "scorers") scorers = scorers.filter((r) => r.id !== id)
+    if (table === "assists") assists = assists.filter((r) => r.id !== id)
+    if (table === "discipline") discipline = discipline.filter((r) => r.id !== id)
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 })
