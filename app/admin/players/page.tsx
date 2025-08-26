@@ -166,6 +166,11 @@ export default function AdminPlayersPage() {
               <Button variant="outline" onClick={() => router.push("/admin/tournaments") } disabled={!canCreateTournament}>Create Tournament</Button>
             </div>
 
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 rounded border bg-[#141414] text-xs">Active: <span className="font-semibold">{activeCount}</span></div>
+              <div className="px-3 py-1 rounded border bg-[#141414] text-xs">Total: <span className="font-semibold">{players.length}</span></div>
+            </div>
+
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />

@@ -15,6 +15,7 @@ export default function AdminTournamentsPage() {
   const [type, setType] = useState("DOUBLE")
   const [players, setPlayers] = useState(0)
   const [rules, setRules] = useState("")
+  const [overrideCount, setOverrideCount] = useState(false)
 
   const load = async () => { const r = await fetch("/api/admin/tournaments").then((x) => x.json()); setList(r.tournaments || []) }
   useEffect(() => {
@@ -23,10 +24,10 @@ export default function AdminTournamentsPage() {
       try {
         const res = await fetch("/api/admin/players").then((r) => r.json())
         const count = (res.players || []).filter((p: any) => !!p.active).length
-        setPlayers(count)
+        if (!overrideCount) setPlayers(count)
       } catch {}
     })()
-  }, [])
+  }, [overrideCount])
 
   const create = async () => {
     if (!name.trim()) return
@@ -101,8 +102,9 @@ export default function AdminTournamentsPage() {
               </div>
               <div>
                 <label className="text-sm">Number of Players (active)</label>
-                <Input className="mt-1 bg-transparent" type="number" value={players} readOnly aria-readonly="true" />
-                <div className="text-xs text-[#9E9E9E] mt-1">Auto from Active players in Players page</div>
+                <Input className="mt-1 bg-transparent" type="number" value={players} onChange={(e) => setPlayers(Number(e.target.value || 0))} readOnly={!overrideCount} aria-readonly={!overrideCount} />
+                <div className="text-xs text-[#9E9E9E] mt-1">Auto from Active players in Players page{!overrideCount ? " (read-only)" : " (overridden)"}</div>
+                <div className="mt-1 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={overrideCount} onChange={(e) => setOverrideCount(e.target.checked)} /> Override count</label></div>
               </div>
               <div>
                 <label className="text-sm">League Type</label>
