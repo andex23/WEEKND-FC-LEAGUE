@@ -35,12 +35,13 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [regsRes, standingsRes, fixturesRes, statusRes, statsRes] = await Promise.all([
+      const [regsRes, standingsRes, fixturesRes, statusRes, statsRes, settingsRes] = await Promise.all([
         fetch("/api/admin/registrations"),
         fetch("/api/standings"),
         fetch("/api/fixtures"),
         fetch("/api/league/status"),
         fetch("/api/player-stats"),
+        fetch("/api/admin/settings").catch(() => null),
       ])
 
       const regsData = await regsRes.json()
@@ -48,11 +49,12 @@ export default function AdminDashboard() {
       const fixturesData = await fixturesRes.json()
       const statusData = await statusRes.json()
       const statsData = await statsRes.json()
+      const settingsData = settingsRes ? await settingsRes.json() : null
 
       setPlayers(regsData.registrations || [])
       setStandings(standingsData.standings || [])
       setFixtures(fixturesData.fixtures || [])
-      setLeagueSettings(statusData || {})
+      setLeagueSettings(settingsData?.tournament ? { ...(statusData || {}), name: settingsData.branding?.league_name || settingsData.tournament?.name, status: settingsData.tournament?.status || (statusData?.status || "DRAFT") } : (statusData || {}))
       setPlayerStats(statsData || null)
 
       try {

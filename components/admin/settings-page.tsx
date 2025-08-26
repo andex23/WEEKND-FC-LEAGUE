@@ -82,6 +82,8 @@ export function SettingsPage() {
 
   if (!data) return <div className="p-8 text-gray-600">Loading settings…</div>
 
+  const isCompleted = String(data?.tournament?.status || "DRAFT").toUpperCase() === "COMPLETED"
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -114,7 +116,7 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Tournament Name</label>
-                    <Input className="mt-1" value={data.tournament.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} />
+                    <Input className="mt-1" value={data.tournament.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} disabled={isCompleted} />
                   </div>
                   <div>
                     <label className="text-sm">Status</label>
@@ -130,8 +132,8 @@ export function SettingsPage() {
                   <div className="md:col-span-2">
                     <label className="text-sm">Matchdays</label>
                     <div className="mt-2 flex items-center gap-4 text-sm">
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sat")} onChange={() => toggleMatchday("Sat")} /> Sat</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sun")} onChange={() => toggleMatchday("Sun")} /> Sun</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sat")} onChange={() => toggleMatchday("Sat")} disabled={isCompleted} /> Sat</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sun")} onChange={() => toggleMatchday("Sun")} disabled={isCompleted} /> Sun</label>
                     </div>
                   </div>
                   <div>
@@ -146,7 +148,7 @@ export function SettingsPage() {
                   <div>
                     <label className="text-sm">Roster</label>
                     <div className="mt-1 text-sm text-gray-700">{approvedCount} Approved Players</div>
-                    <div className="mt-2"><Button variant="outline" onClick={syncRoster}>Sync Roster from Approved</Button></div>
+                    <div className="mt-2"><Button variant="outline" onClick={syncRoster} disabled={isCompleted}>Sync Roster from Approved</Button></div>
                   </div>
                 </div>
               </div>
@@ -154,9 +156,10 @@ export function SettingsPage() {
               <div className="border rounded-md p-4">
                 <div className="text-sm font-semibold mb-3 text-red-700">Danger Zone</div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={markCompleted}>Mark Tournament as Completed</Button>
+                  <Button variant="outline" onClick={markCompleted} disabled={isCompleted}>Mark Tournament as Completed</Button>
                   <Button variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={deleteTournament}>Delete Tournament</Button>
                 </div>
+                {isCompleted && <div className="mt-2 text-xs text-gray-600">Tournament is completed. Editing is locked.</div>}
               </div>
             </TabsContent>
 
