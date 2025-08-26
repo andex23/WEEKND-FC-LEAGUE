@@ -80,30 +80,30 @@ export function SettingsPage() {
 
   const resetSeason = async () => { if (!confirm("Reset season? Clears stats & fixtures while keeping shell.")) return; alert("Reset simulated. Hook to backend as needed.") }
 
-  if (!data) return <div className="p-8 text-gray-600">Loading settings…</div>
+  if (!data) return <div className="p-8 text-[#9E9E9E]">Loading settings…</div>
 
   const isCompleted = String(data?.tournament?.status || "DRAFT").toUpperCase() === "COMPLETED"
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-white">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[26px] font-extrabold">Settings</h2>
-          <div className="text-sm text-gray-500">Season: <span className="px-2 py-0.5 text-xs rounded bg-purple-50 text-purple-800 border border-purple-200">{seasonChip}</span></div>
+          <div className="text-sm text-[#9E9E9E]">Season: <span className="px-2 py-0.5 text-xs rounded bg-[#141414] border border-[#1E1E1E]">{seasonChip}</span></div>
         </div>
       </div>
 
       {dirty && (
-        <div className="sticky top-0 z-10 border rounded-md p-2 bg-amber-50 flex items-center justify-end gap-2">
+        <div className="sticky top-0 z-10 border rounded-2xl p-2 bg-amber-900/20 text-amber-200 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={discard}>Discard</Button>
-          <Button className="bg-primary hover:bg-primary/90" onClick={() => save(tab)} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save(tab)} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-9">
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="grid grid-cols-4 w-full">
+            <TabsList className="grid grid-cols-4 w-full bg-[#141414] border">
               <TabsTrigger value="tournament">Tournament</TabsTrigger>
               <TabsTrigger value="branding">Branding</TabsTrigger>
               <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -111,12 +111,12 @@ export function SettingsPage() {
             </TabsList>
 
             <TabsContent value="tournament" className="space-y-6 mt-4">
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Tournament Settings</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Tournament Name</label>
-                    <Input className="mt-1" value={data.tournament.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} disabled={isCompleted} />
+                    <Input className="mt-1 bg-transparent" value={data.tournament.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} disabled={isCompleted} />
                   </div>
                   <div>
                     <label className="text-sm">Status</label>
@@ -147,24 +147,24 @@ export function SettingsPage() {
                   </div>
                   <div>
                     <label className="text-sm">Roster</label>
-                    <div className="mt-1 text-sm text-gray-700">{approvedCount} Approved Players</div>
+                    <div className="mt-1 text-sm text-[#D1D1D1]">{approvedCount} Approved Players</div>
                     <div className="mt-2"><Button variant="outline" onClick={syncRoster} disabled={isCompleted}>Sync Roster from Approved</Button></div>
                   </div>
                 </div>
               </div>
 
-              <div className="border rounded-md p-4">
-                <div className="text-sm font-semibold mb-3 text-red-700">Danger Zone</div>
+              <div className="rounded-2xl border p-4 bg-[#141414]">
+                <div className="text-sm font-semibold mb-3 text-rose-300">Danger Zone</div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={markCompleted} disabled={isCompleted}>Mark Tournament as Completed</Button>
-                  <Button variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={deleteTournament}>Delete Tournament</Button>
+                  <Button variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={deleteTournament}>Delete Tournament</Button>
                 </div>
-                {isCompleted && <div className="mt-2 text-xs text-gray-600">Tournament is completed. Editing is locked.</div>}
+                {isCompleted && <div className="mt-2 text-xs text-[#9E9E9E]">Tournament is completed. Editing is locked.</div>}
               </div>
             </TabsContent>
 
             <TabsContent value="branding" className="space-y-6 mt-4">
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Branding</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <div>
@@ -184,74 +184,74 @@ export function SettingsPage() {
                   </div>
                 </div>
               </div>
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Links</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Rules PDF URL</label>
-                    <Input className="mt-1" value={data.branding.rules_url || ""} onChange={(e) => update("branding", { rules_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data.branding.rules_url || ""} onChange={(e) => update("branding", { rules_url: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-sm">Discord Invite URL</label>
-                    <Input className="mt-1" value={data.branding.discord_invite_url || ""} onChange={(e) => update("branding", { discord_invite_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data.branding.discord_invite_url || ""} onChange={(e) => update("branding", { discord_invite_url: e.target.value })} />
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button className="bg-primary hover:bg-primary/90" onClick={() => save("branding")}>Save</Button>
+                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save("branding")}>Save</Button>
               </div>
             </TabsContent>
 
             <TabsContent value="integrations" className="space-y-6 mt-4">
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Discord</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <div>
                     <label className="text-sm">Webhook URL</label>
-                    <Input className="mt-1" value={data.integrations.discord_webhook_url || ""} onChange={(e) => update("integrations", { discord_webhook_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data.integrations.discord_webhook_url || ""} onChange={(e) => update("integrations", { discord_webhook_url: e.target.value })} />
                   </div>
                   <div>
-                    <Button className="bg-primary hover:bg-primary/90" onClick={testDiscord}>Send Test Message</Button>
+                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={testDiscord}>Send Test Message</Button>
                   </div>
                 </div>
               </div>
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Email</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">From Name</label>
-                    <Input className="mt-1" value={data.integrations.email_from_name || ""} onChange={(e) => update("integrations", { email_from_name: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data.integrations.email_from_name || ""} onChange={(e) => update("integrations", { email_from_name: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-sm">From Address</label>
-                    <Input className="mt-1" value={data.integrations.email_from_address || ""} onChange={(e) => update("integrations", { email_from_address: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data.integrations.email_from_address || ""} onChange={(e) => update("integrations", { email_from_address: e.target.value })} />
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button className="bg-primary hover:bg-primary/90" onClick={() => save("integrations")}>Save</Button>
+                <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={() => save("integrations")}>Save</Button>
               </div>
             </TabsContent>
 
             <TabsContent value="general" className="space-y-6 mt-4">
-              <div className="border rounded-md p-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Export Data</div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={exportFixturesCsv}>Export Fixtures CSV</Button>
                   <Button variant="outline" onClick={exportStandingsCsv}>Export Standings CSV</Button>
                 </div>
               </div>
-              <div className="border rounded-md p-4">
-                <div className="text-sm font-semibold mb-3 text-red-700">Season Reset</div>
-                <Button variant="outline" className="text-red-700 border-red-200 hover:bg-red-50" onClick={resetSeason}>Reset Season</Button>
+              <div className="rounded-2xl border p-4 bg-[#141414]">
+                <div className="text-sm font-semibold mb-3 text-rose-300">Season Reset</div>
+                <Button variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={resetSeason}>Reset Season</Button>
               </div>
             </TabsContent>
           </Tabs>
         </div>
         <div className="lg:col-span-3">
-          <div className="border rounded-md p-4 sticky top-4">
+          <div className="rounded-2xl border p-4 sticky top-4 bg-[#141414]">
             <div className="text-sm font-semibold mb-2">Help</div>
-            <div className="text-xs text-gray-600">Settings let you tweak basics and connect Discord/Email. You can sync roster from approved players and finish or delete a tournament here.</div>
+            <div className="text-xs text-[#9E9E9E]">Settings let you tweak basics and connect Discord/Email. You can sync roster from approved players and finish or delete a tournament here.</div>
             <div className="mt-2 text-xs"><a className="underline" href={data.branding.rules_url || "#"} target="_blank">Rules PDF</a> · <a className="underline" href={data.branding.discord_invite_url || "#"} target="_blank">Discord</a></div>
           </div>
         </div>
