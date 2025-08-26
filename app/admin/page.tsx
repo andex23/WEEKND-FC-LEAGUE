@@ -416,6 +416,11 @@ export default function AdminDashboard() {
             <p className="text-sm text-gray-500">Manage the Weekend FC League</p>
           </div>
         </div>
+        {String(leagueSettings?.status || "").toUpperCase() === "COMPLETED" && (
+          <div className="mb-6 border rounded-md p-3 bg-gray-50 text-gray-700 text-sm">
+            Tournament is completed. Editing fixtures and approving new results are disabled.
+          </div>
+        )}
 
         <div className="flex gap-8">
           <aside className="w-64 shrink-0">
@@ -733,7 +738,7 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2 text-gray-600">{r.reason || "Awaiting opponent confirmation"}</td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await approveReport(r.id) }}>Approve</Button>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
                               <Button size="sm" variant="outline">Override</Button>
                               <Button size="sm" variant="outline">Flag/Dispute</Button>
                             </div>

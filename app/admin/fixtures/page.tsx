@@ -30,23 +30,40 @@ export default function AdminFixturesPage() {
   const [tbd, setTbd] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [settings, setSettings] = useState<any>(null)
 
-  // Load players and existing fixtures
   useEffect(() => {
     ;(async () => {
       try {
-        const pr = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-        const pf: Player[] = (pr.players || []).map((p: any) => ({ id: String(p.id), name: p.name, username: p.username, preferred_team: p.preferred_team || p.preferred_club, preferred_club: p.preferred_club, avatar_url: p.avatar_url }))
-        setPlayers(pf)
-      } catch { setPlayers([]) }
-      try {
-        const fr = await fetch("/api/fixtures").then((r) => r.json()).catch(() => ({ fixtures: [] }))
-        const fx: Fixture[] = (fr.fixtures || []).map((f: any) => ({ id: String(f.id || newId()), season: f.season || "2024/25", matchday: Number(f.matchday || 1), date: f.kickoff_at || f.scheduledDate || null, status: String((f.status || "SCHEDULED")).toUpperCase(), homeId: String(f.homeId || f.home_id || f.homePlayerId || f.homePlayer || ""), awayId: String(f.awayId || f.away_id || f.awayPlayerId || f.awayPlayer || ""), homeScore: f.homeScore ?? null, awayScore: f.awayScore ?? null, forfeitWinnerId: f.forfeitWinnerId ?? null, notes: f.note || f.notes || "" }))
-        setFixtures(fx)
-      } catch { setFixtures([]) }
-      // preselect active season if available from tournament config in future
-      setForm((prev) => ({ ...prev, season: activeSeason }))
+        const cfg = await fetch("/api/tournament/config").then((r) => r.json())
+        const isActive = Boolean(cfg?.config?.basics?.is_active)
+        setTournamentActive(isActive)
+        setTournamentStatus((cfg?.config?.basics?.status as any) || "DRAFT")
+        if (isActive) {
+          const res = await fetch("/api/fixtures")
+          const data = await res.json()
+          const rows: FixtureRow[] = (data.fixtures || []).map((f: any) => ({
+            id: String(f.id || newId()),
+            season: f.season || "2024/25",
+            matchday: Number(f.matchday || 1),
+            date: f.kickoff_at || f.scheduledDate || null,
+            status: String((f.status || "SCHEDULED")).toUpperCase(),
+            homeId: String(f.homeId || f.home_id || f.homePlayerId || f.homePlayer || ""),
+            awayId: String(f.awayId || f.away_id || f.awayPlayerId || f.awayPlayer || ""),
+            homeScore: f.homeScore ?? null,
+            awayScore: f.awayScore ?? null,
+            forfeitWinnerId: f.forfeitWinnerId ?? null,
+            notes: f.note || f.notes || ""
+          }))
+          setFixtures(rows)
+        }
+      } catch {
+        setFixtures([])
+      } finally {
+        setLoading(false)
+      }
     })()
+    fetch("/api/admin/settings").then((r) => r.json()).then((s) => setSettings(s)).catch(() => null)
   }, [])
 
   // Matchday counts for current season
@@ -143,9 +160,12 @@ export default function AdminFixturesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={openCreate}>Add Fixture</Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
           </div>
         </div>
+        {String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED" && (
+          <div className="mb-6 border rounded-md p-3 bg-gray-50 text-gray-700 text-sm">Tournament is completed. Adding or editing fixtures is disabled.</div>
+        )}
 
         {toast && (<div className="mb-4 px-4 py-2 rounded-md border bg-green-50 text-green-800 text-sm">{toast}</div>)}
 
@@ -179,7 +199,7 @@ export default function AdminFixturesPage() {
                       </div>
                       <div className="md:col-span-3 flex items-center justify-end gap-2">
                         <Badge variant="outline">{f.status}</Badge>
-                        <Button size="sm" variant="outline" onClick={() => openEdit(f)}>Edit</Button>
+                        <Button size="sm" variant="outline" onClick={() => openEdit(f)} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Edit</Button>
                       </div>
                     </div>
                   )
