@@ -31,6 +31,8 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const activePlayersCount = useMemo(() => players.filter((p) => !!p.active).length, [players])
+
 
   useEffect(() => {
     fetchAllData()
@@ -527,8 +529,8 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Registered Players</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{players.length}</div>
+                    <div className="text-xs text-[#9E9E9E]">Players (Active / Total)</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{activePlayersCount} / {players.length}</div>
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Fixtures Created</div>
