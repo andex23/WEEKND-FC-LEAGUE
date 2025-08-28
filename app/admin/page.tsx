@@ -27,7 +27,6 @@ export default function AdminDashboard() {
   const [playerStats, setPlayerStats] = useState<any>(null)
   const [resultsQueue, setResultsQueue] = useState<any[]>([])
   const [clearing, setClearing] = useState(false)
-  const [seeding, setSeeding] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
 
   const [loading, setLoading] = useState(true)
@@ -195,16 +194,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const seedDemoPlayers = async () => {
-    setSeeding(true)
-    try {
-      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) })
-      setSection("registrations" as any)
-      await fetchAllData()
-    } finally {
-      setSeeding(false)
-    }
-  }
+  // demo seeding removed
 
   const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
   const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
@@ -494,7 +484,6 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <AdminOverlayNav />
-            <Button variant="outline" onClick={seedDemoPlayers} disabled={seeding}>{seeding ? "Seeding…" : "Seed 6 demo players"}</Button>
             <Button variant="outline" onClick={() => setConfirmClear(true)}>Clear League Data</Button>
           </div>
         </div>
