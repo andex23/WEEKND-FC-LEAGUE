@@ -39,21 +39,21 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [regsRes, standingsRes, fixturesRes, statusRes, settingsRes] = await Promise.all([
-        fetch("/api/admin/registrations"),
+      const [playersRes, standingsRes, fixturesRes, statusRes, settingsRes] = await Promise.all([
+        fetch("/api/admin/players"),
         fetch("/api/standings"),
         fetch("/api/fixtures"),
         fetch("/api/league/status"),
         fetch("/api/admin/settings").catch(() => null),
       ])
 
-      const regsData = await regsRes.json()
+      const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
       const fixturesData = await fixturesRes.json()
       const statusData = await statusRes.json()
       const settingsData = settingsRes ? await settingsRes.json() : null
 
-      setPlayers(regsData.registrations || [])
+      setPlayers(playersData.players || [])
       setStandings(standingsData.standings || [])
       // Scope fixtures to active tournament if set
       const activeIdScoped = (settingsData?.tournament?.active_tournament_id || null) as string | null
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
         const stillEmpty = !mapped || (!mapped.topScorers?.length && !mapped.topAssists?.length && !mapped.discipline?.length)
         if (stillEmpty) {
           const goals = new Map<string, { name: string; team: string; goals: number }>()
-          const byId = new Map((regsData.registrations || []).map((p: any) => [String(p.id || p.player_id || p.user_id || p.registration_id || p.name), p]))
+          const byId = new Map((playersData.players || []).map((p: any) => [String(p.id || p.player_id || p.user_id || p.registration_id || p.name), p]))
           for (const fx of scopedFx) {
             const played = String(fx.status || "").toUpperCase() === "PLAYED"
             if (!played) continue
