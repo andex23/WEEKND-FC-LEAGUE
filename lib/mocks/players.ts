@@ -35,6 +35,12 @@ export function snapshotTournamentPlayers(tournamentId: string) {
   g.__memTournamentPlayers = memTournamentPlayers
   return memTournamentPlayers[tournamentId]
 }
+export function snapshotTournamentPlayersFromIds(tournamentId: string, ids: string[]) {
+  const set = new Set(ids.map(String))
+  memTournamentPlayers[tournamentId] = Array.from(set)
+  g.__memTournamentPlayers = memTournamentPlayers
+  return memTournamentPlayers[tournamentId]
+}
 export function getTournamentPlayers(tournamentId: string): string[] { return memTournamentPlayers[tournamentId] || [] }
 export function syncTournamentPlayers(tournamentId: string) {
   const current = new Set(getTournamentPlayers(tournamentId))
