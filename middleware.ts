@@ -4,12 +4,12 @@ import { NextResponse } from "next/server"
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  // Protect admin route: allow if demo cookie grants ADMIN
-  if (pathname.startsWith("/admin")) {
-    const role = request.cookies.get("wfc_demo_role")?.value
-    if (role !== "ADMIN") {
+  // Protect admin routes (except the login page itself)
+  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+    const isAdmin = request.cookies.get("wfc_admin")?.value === "1"
+    if (!isAdmin) {
       const url = request.nextUrl.clone()
-      url.pathname = "/auth/login"
+      url.pathname = "/admin/login"
       url.search = `?next=${encodeURIComponent(pathname + (search || ""))}`
       return NextResponse.redirect(url)
     }

@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Trophy, Play, Shield } from "lucide-react"
+import { Loader2, Trophy } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -43,19 +43,7 @@ export default function LoginForm() {
     }
   }, [state, router])
 
-  const handleDemoLogin = () => {
-    startTransition(async () => {
-      router.push("/dashboard")
-    })
-  }
-
-  const handleAdminLogin = () => {
-    startTransition(async () => {
-      // Set a short-lived cookie granting ADMIN for demo/testing
-      document.cookie = `wfc_demo_role=ADMIN; path=/; max-age=1800` // 30 minutes
-      router.push("/admin")
-    })
-  }
+  // Demo and test admin removed
 
   return (
     <Card className="w-full max-w-md">
@@ -67,31 +55,6 @@ export default function LoginForm() {
         <CardDescription>Sign in to your Weeknd FC League account</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 grid grid-cols-1 gap-2">
-          <Button
-            onClick={handleDemoLogin}
-            disabled={isPending}
-            variant="outline"
-            className="w-full h-12 border-accent/20 hover:bg-accent/5 bg-transparent"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading demo...
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" />
-                Try Demo (striker_sam)
-              </>
-            )}
-          </Button>
-          <Button onClick={handleAdminLogin} disabled={isPending} className="w-full h-12 bg-primary hover:bg-primary/90">
-            <Shield className="mr-2 h-4 w-4" /> Log in as Admin (test)
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">Admin test button grants temporary access</p>
-        </div>
-
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
