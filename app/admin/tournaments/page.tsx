@@ -96,6 +96,14 @@ export default function AdminTournamentsPage() {
     await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "tournament", data: { status: "INACTIVE", active_tournament_id: null } }) })
     toast.success("Tournament deactivated")
   }
+  const syncRoster = async (t: any) => {
+    const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: t.id }) })
+    if (!res.ok) { toast.error("Failed to sync roster"); return }
+    const data = await res.json().catch(() => null)
+    toast.success(`Roster synced (${data?.count ?? 0} players)`) 
+    await load()
+    bumpRefresh(t.id)
+  }
   const generateNow = async (t: any) => {
     const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
     const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds, tournamentId: t.id, season: t.season || "2024/25" }) })
@@ -135,6 +143,7 @@ export default function AdminTournamentsPage() {
                       <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
                       <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
                       <Button size="sm" variant="outline" onClick={() => regenerate(t)}>Regenerate</Button>
+                      <Button size="sm" variant="outline" onClick={() => syncRoster(t)}>Sync Roster</Button>
                       <Button size="sm" variant="outline" onClick={() => openSettings(t)}>Settings</Button>
                       <Button size="sm" variant="outline" onClick={deactivateGlobal}>Deactivate</Button>
                       <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => remove(t.id)}>Delete</Button>
