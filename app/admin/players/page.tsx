@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useRouter, usePathname } from "next/navigation"
+import { AdminOverlayNav } from "@/components/admin/overlay-nav"
 
 const LS_KEY = "admin_players"
 
@@ -31,6 +32,8 @@ export default function AdminPlayersPage() {
   const [players, setPlayers] = useState<any[]>([])
   const [q, setQ] = useState("")
   const [edit, setEdit] = useState<any | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -100,8 +103,8 @@ export default function AdminPlayersPage() {
         <div className="mb-3">
           <Button onClick={() => router.push("/admin")}>← Back to Admin</Button>
         </div>
-        <div className="flex gap-8">
-          <aside className="w-64 shrink-0">
+        <div className="flex gap-6 lg:gap-8">
+          <aside className="hidden md:block w-64 shrink-0">
             <nav className="space-y-1">
               {[
                 { key: "overview", label: "Overview" },
@@ -129,16 +132,17 @@ export default function AdminPlayersPage() {
             </nav>
           </aside>
 
-          <section className="flex-1 space-y-6">
+          <section className="flex-1 space-y-6 min-w-0">
             <header className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-extrabold">Players</h1>
                 <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
               </div>
               <div className="flex items-center gap-2">
+                <AdminOverlayNav />
                 <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
                 <Button variant="outline" onClick={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "seed6" }) }); const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] })); setLocalPlayers(api.players || []); load() }}>Seed 6 demo players</Button>
-                <Button variant="outline" onClick={async () => { if (!confirm("Clear all players?")) return; setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}>Clear Players</Button>
+                <Button variant="outline" onClick={async () => { setConfirmClear(true) }}>Clear Players</Button>
               </div>
             </header>
 
@@ -150,11 +154,11 @@ export default function AdminPlayersPage() {
                 <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
               </div>
               <div>
-                <input type="file" accept=".csv" onChange={async (e) => { const f = e.currentTarget.files?.[0]; if (f) await importCsv(f); e.currentTarget.value = "" }} />
+                <input type="file" accept=".csv" onChange={async (e) => { const input = e.currentTarget; const f = input.files?.[0]; if (f) await importCsv(f); input.value = "" }} />
               </div>
               <div>
                 <Label className="text-sm">Or paste CSV rows</Label>
-                <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const v = e.target.value.trim(); if (v) { await importFromText(v); e.target.value = "" } }} />
+                <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const ta = e.currentTarget; const v = ta.value.trim(); if (v) { await importFromText(v); ta.value = "" } }} />
               </div>
             </div>
 
@@ -172,8 +176,8 @@ export default function AdminPlayersPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
+              <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414] w-full md:w-auto">
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent w-full" />
               </div>
             </div>
 
@@ -203,7 +207,7 @@ export default function AdminPlayersPage() {
                         <div className="inline-flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => setEdit(p)}>Edit</Button>
                           <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
-                          <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { if (!confirm("Delete player?")) return; const locals = getLocalPlayers().filter((x) => x.id !== p.id); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: p.id }) }); load() }}>Delete</Button>
+                          <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { setConfirmDeleteId(p.id) }}>Delete</Button>
                         </div>
                       </td>
                     </tr>
@@ -219,6 +223,14 @@ export default function AdminPlayersPage() {
           </section>
         </div>
       </div>
+      <PlayersConfirmDialogs
+        confirmClear={confirmClear}
+        setConfirmClear={setConfirmClear}
+        confirmDeleteId={confirmDeleteId}
+        setConfirmDeleteId={setConfirmDeleteId}
+        onCleared={async () => { setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}
+        onDeleted={async () => { if (confirmDeleteId) { const locals = getLocalPlayers().filter((x) => x.id !== confirmDeleteId); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: confirmDeleteId }) }); load() } }}
+      />
     </div>
   )
 }
@@ -345,5 +357,35 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// Confirm dialogs
+function PlayersConfirmDialogs({ confirmClear, setConfirmClear, confirmDeleteId, setConfirmDeleteId, onCleared, onDeleted }: { confirmClear: boolean; setConfirmClear: (v: boolean) => void; confirmDeleteId: string | null; setConfirmDeleteId: (v: string | null) => void; onCleared: () => void; onDeleted: () => void }) {
+  return (
+    <>
+      <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+          <DialogHeader>
+            <DialogTitle>Clear all players?</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setConfirmClear(false)}>Cancel</Button>
+            <Button variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { onCleared(); setConfirmClear(false) }}>Clear</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!confirmDeleteId} onOpenChange={(o) => setConfirmDeleteId(o ? (confirmDeleteId || "") : null)}>
+        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+          <DialogHeader>
+            <DialogTitle>Delete player?</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+            <Button variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { onDeleted(); setConfirmDeleteId(null) }}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

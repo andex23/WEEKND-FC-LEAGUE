@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 export function SettingsPage() {
   const [tab, setTab] = useState("tournament")
@@ -13,6 +15,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [approvedCount, setApprovedCount] = useState(0)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const [confirmType, setConfirmType] = useState<null | "complete" | "delete" | "reset">(null)
 
   useEffect(() => {
     (async () => {
@@ -45,22 +48,32 @@ export function SettingsPage() {
 
   const syncRoster = () => { update("tournament", { roster_count: approvedCount }) }
 
-  const markCompleted = () => { if (!confirm("Mark tournament as Completed? This locks edits.")) return; update("tournament", { status: "COMPLETED" }); save("tournament") }
+  const markCompleted = () => { setConfirmType("complete") }
+  const doComplete = () => { update("tournament", { status: "COMPLETED" }); save("tournament"); toast.success("Marked completed") }
+  const doDelete = async () => {
+    try {
+      const tid = (data?.tournament?.id || data?.tournament?.active_tournament_id || "") as string
+      if (!tid) { toast.error("No tournament id"); return }
+      await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: tid }) })
+      // Clear active tournament in settings
+      await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "tournament", data: { status: "INACTIVE", active_tournament_id: null } }) })
+      toast.success("Tournament deleted")
+      window.location.reload()
+    } catch (e) { toast.error("Failed to delete") }
+  }
   const deleteTournament = () => {
     const st = (data.tournament.status || "DRAFT").toUpperCase()
-    if (!(st === "DRAFT" || st === "COMPLETED")) { alert("You can only delete when Draft or Completed."); return }
-    if (!confirm("Delete tournament? This cannot be undone.")) return
-    update("tournament", { name: "", slug: "", status: "DRAFT", matchdays: [], match_length: 8, roster_count: 0 })
-    save("tournament")
+    if (!(st === "DRAFT" || st === "COMPLETED")) { toast.error("You can only delete when Draft or Completed."); return }
+    setConfirmType("delete")
   }
 
   const syncRosterFromPlayers = async () => {
     try {
       const tid = (data?.tournament?.id || "") as string
-      if (!tid) { alert("No tournament id"); return }
+      if (!tid) { toast.error("No tournament id"); return }
       const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: tid }) })
       const out = await res.json()
-      alert(`Roster synced: ${out.count} players now in roster`)
+      toast.success(`Roster synced: ${out.count} players now in roster`)
     } catch {}
   }
 
@@ -72,7 +85,7 @@ export function SettingsPage() {
 
   const testDiscord = async () => {
     // Simulate send; in real system we'd POST to webhook
-    alert(data.integrations.discord_webhook_url ? "Test message sent (simulated)." : "Add a webhook URL first.")
+    toast.info(data.integrations.discord_webhook_url ? "Test message sent (simulated)." : "Add a webhook URL first.")
   }
 
   const exportFixturesCsv = async () => {
@@ -88,7 +101,7 @@ export function SettingsPage() {
     const txt = await res.text(); const url = URL.createObjectURL(new Blob([txt], { type: "text/csv" })); const a=document.createElement("a"); a.href=url; a.download="standings.csv"; a.click(); URL.revokeObjectURL(url)
   }
 
-  const resetSeason = async () => { if (!confirm("Reset season? Clears stats & fixtures while keeping shell.")) return; alert("Reset simulated. Hook to backend as needed.") }
+  const resetSeason = async () => { setConfirmType("reset") }
 
   if (!data) return <div className="p-8 text-[#9E9E9E]">Loading settings…</div>
 
@@ -266,6 +279,19 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+      <Dialog open={!!confirmType} onOpenChange={(o) => setConfirmType(o ? (confirmType || null) : null)}>
+        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+          <DialogHeader>
+            <DialogTitle>{confirmType === "complete" ? "Mark tournament as Completed?" : confirmType === "delete" ? "Delete tournament?" : "Reset season?"}</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <button className="px-3 py-2 rounded-md border" onClick={() => setConfirmType(null)}>Cancel</button>
+            {confirmType === "complete" && <button className="px-3 py-2 rounded-md border" onClick={() => { setConfirmType(null); doComplete() }}>Confirm</button>}
+            {confirmType === "delete" && <button className="px-3 py-2 rounded-md border text-rose-400" onClick={() => { setConfirmType(null); doDelete() }}>Delete</button>}
+            {confirmType === "reset" && <button className="px-3 py-2 rounded-md border" onClick={() => { setConfirmType(null); toast.success("Reset simulated") }}>Reset</button>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,6 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-let memoryFixtures: any[] | null = null
+// Global single store for fixtures
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const g: any = globalThis as any
+if (!g.__memoryFixtures) g.__memoryFixtures = [] as any[]
+if (!g.__adminLeaders) g.__adminLeaders = { scorers: [] as any[], assists: [] as any[], discipline: [] as any[] }
+let memoryFixtures: any[] | null = g.__memoryFixtures
+
+function bumpLeadersFromFixture(fx: any) {
+  try {
+    const isPlayed = String(fx.status || "").toUpperCase() === "PLAYED"
+    if (!isPlayed) return
+    const { scorers } = g.__adminLeaders as { scorers: any[] }
+    const ensure = (id: string, name?: string, team?: string) => {
+      let row = scorers.find((r: any) => String(r.id) === String(id))
+      if (!row) { row = { id: String(id), name: name || String(id), team: team || "-", G: 0, overridden: {} }; scorers.push(row) }
+      return row
+    }
+    const h = ensure(String(fx.homePlayer), fx.homeName, fx.homeTeam)
+    const a = ensure(String(fx.awayPlayer), fx.awayName, fx.awayTeam)
+    h.G = Number(h.G || 0) + Number(fx.homeScore || 0)
+    a.G = Number(a.G || 0) + Number(fx.awayScore || 0)
+    g.__adminLeaders.scorers = scorers
+  } catch {}
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,11 +31,17 @@ export async function GET(request: NextRequest) {
     const matchday = searchParams.get("matchday")
     const status = searchParams.get("status")
     const playerId = searchParams.get("playerId")
-    const tournamentId = searchParams.get("tournamentId")
+    let tournamentId = searchParams.get("tournamentId")
+
+    if (!tournamentId) {
+      const active = g.__adminSettings?.tournament?.active_tournament_id || null
+      if (active) tournamentId = String(active)
+      else return NextResponse.json({ fixtures: [], totalFixtures: 0 })
+    }
 
     if (!memoryFixtures) {
-      // Do not auto-seed; start empty until admin creates fixtures
       memoryFixtures = []
+      g.__memoryFixtures = memoryFixtures
     }
 
     let filteredFixtures = memoryFixtures
@@ -35,7 +64,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ fixtures: filteredFixtures, totalFixtures: filteredFixtures.length })
+    // Enrich with player names/teams if missing
+    const byId = new Map((g.__memPlayers || []).map((p: any) => [String(p.id), p]))
+    const enriched = filteredFixtures.map((f) => {
+      const hid = String(f.homePlayer)
+      const aid = String(f.awayPlayer)
+      const hp = byId.get(hid)
+      const ap = byId.get(aid)
+      return {
+        ...f,
+        homeName: f.homeName || hp?.name || hid,
+        awayName: f.awayName || ap?.name || aid,
+        homeTeam: f.homeTeam || hp?.preferred_club || null,
+        awayTeam: f.awayTeam || ap?.preferred_club || null,
+      }
+    })
+
+    return NextResponse.json({ fixtures: enriched, totalFixtures: enriched.length })
   } catch (error) {
     console.error("Error fetching fixtures:", error)
     return NextResponse.json({ error: "Failed to fetch fixtures" }, { status: 500 })
@@ -45,7 +90,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    // expected fields from admin UI
+    if (body?.action === "clear_for_tournament") {
+      const tournamentId = String(body.tournamentId || "")
+      memoryFixtures = (memoryFixtures || []).filter((f) => String(f.tournamentId || "") !== tournamentId)
+      g.__memoryFixtures = memoryFixtures
+      return NextResponse.json({ ok: true, cleared: true })
+    }
     const fixture = {
       id: String(body.id || crypto.randomUUID()),
       tournamentId: body.tournamentId || null,
@@ -59,6 +109,10 @@ export async function POST(request: NextRequest) {
       scheduledDate: body.date || null,
       forfeitWinnerId: body.forfeitWinnerId || null,
       notes: body.notes || "",
+      homeName: body.homeName || null,
+      awayName: body.awayName || null,
+      homeTeam: body.homeTeam || null,
+      awayTeam: body.awayTeam || null,
     }
 
     if (!fixture.season || !fixture.matchday || !fixture.homePlayer || !fixture.awayPlayer) {
@@ -69,6 +123,9 @@ export async function POST(request: NextRequest) {
     const idx = memoryFixtures.findIndex((f) => String(f.id) === String(fixture.id))
     if (idx >= 0) memoryFixtures[idx] = { ...memoryFixtures[idx], ...fixture }
     else memoryFixtures.unshift(fixture)
+    g.__memoryFixtures = memoryFixtures
+
+    bumpLeadersFromFixture(fixture)
 
     return NextResponse.json({ ok: true, fixture })
   } catch (error) {
@@ -95,6 +152,7 @@ export async function DELETE(request: NextRequest) {
 
     if (tournamentId) {
       memoryFixtures = memoryFixtures.filter((f) => String(f.tournamentId || "") !== String(tournamentId))
+      g.__memoryFixtures = memoryFixtures
       return NextResponse.json({ ok: true, cleared: true })
     }
 
@@ -102,10 +160,12 @@ export async function DELETE(request: NextRequest) {
 
     if (id === "__all__") {
       memoryFixtures = []
+      g.__memoryFixtures = memoryFixtures
       return NextResponse.json({ ok: true, cleared: true })
     }
 
     memoryFixtures = memoryFixtures.filter((f) => String(f.id) !== String(id))
+    g.__memoryFixtures = memoryFixtures
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("Error deleting fixture:", error)

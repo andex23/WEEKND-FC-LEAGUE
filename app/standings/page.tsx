@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getTeamBadge } from "@/lib/badges"
 
 interface StandingRow {
   id: string
@@ -23,54 +24,156 @@ interface PlayerStats {
   discipline: Array<{ name: string; team: string; yellow_cards: number; red_cards: number }>
 }
 
+function formatDateRange(dates: Date[]) {
+  if (dates.length === 0) return ""
+  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime())
+  const first = sorted[0]
+  const last = sorted[sorted.length - 1]
+  const short = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" })
+  if (first.toDateString() === last.toDateString()) return short.format(first)
+  return `${short.format(first)}–${short.format(last)}`
+}
+
+function formatTime(dt?: string | null) {
+  if (!dt) return "TBD"
+  try {
+    return new Date(dt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  } catch { return "TBD" }
+}
+
+function TeamBadge({ team }: { team?: string | null }) {
+  const url = getTeamBadge(team)
+  if (url) {
+    return <img src={url} alt="" className="h-5 w-5 mr-2 rounded-full bg-[#0F0F0F] border border-[#1E1E1E] object-contain" />
+  }
+  const init = (team || "").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || ""
+  return (
+    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full border border-[#1E1E1E] bg-[#0F0F0F] text-[10px] mr-2">
+      {init}
+    </span>
+  )
+}
+
 export default function StandingsPage() {
   const [standings, setStandings] = useState<StandingRow[]>([])
   const [playerStats, setPlayerStats] = useState<PlayerStats>({ topScorers: [], topAssists: [], discipline: [] })
   const [fixtures, setFixtures] = useState<any[]>([])
+  const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [consoleFilter, setConsoleFilter] = useState("all")
   const [tab, setTab] = useState<"UPCOMING" | "COMPLETED">("UPCOMING")
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null | undefined>(undefined)
+  const [showAll, setShowAll] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
+    const loadActive = async () => {
+      try {
+        const s = await fetch("/api/admin/settings").then((r) => r.json())
+        setActiveTournamentId(s?.tournament?.active_tournament_id ?? null)
+      } catch { setActiveTournamentId(null) }
+    }
+    loadActive()
+  }, [])
+
+  useEffect(() => {
+    // Only skip while unknown (undefined). If null, still fetch to show mock/fallback data.
+    if (activeTournamentId === undefined) return
     fetchData()
-  }, [consoleFilter])
+  }, [consoleFilter, activeTournamentId])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const standingsUrl = consoleFilter === "all" ? "/api/standings" : `/api/standings?console=${consoleFilter}`
+      const qs = activeTournamentId ? `?tournamentId=${encodeURIComponent(String(activeTournamentId))}` : ""
+      const standingsUrl = consoleFilter === "all" ? `/api/standings${qs}` : `/api/standings${qs ? `${qs}&` : "?"}console=${consoleFilter}`
+      const playerStatsUrl = `/api/player-stats${qs}`
+      const fixturesUrl = `/api/fixtures${qs}`
       const [standingsResponse, statsResponse, fixturesResponse] = await Promise.all([
         fetch(standingsUrl),
-        fetch("/api/player-stats"),
-        fetch("/api/fixtures"),
+        fetch(playerStatsUrl),
+        fetch(fixturesUrl),
       ])
+
+      let byId: Map<string, any> = new Map()
+      try {
+        if ((playersResponse as any)?.ok) {
+          const pj = await (playersResponse as any).json()
+          byId = new Map((pj.players || []).map((p: any) => [String(p.id), p]))
+        }
+      } catch {}
+      setPlayers(Array.from(byId.values()))
 
       if (standingsResponse.ok) {
         const data = await standingsResponse.json()
-        const rows = (data.standings || []).map((s: any) => ({
-          id: s.playerId || s.id || String(Math.random()),
-          name: s.playerName || s.name,
-          team: s.team,
-          played: s.played || 0,
-          won: s.won || 0,
-          drawn: s.drawn || 0,
-          lost: s.lost || 0,
-          goals_for: s.goalsFor || s.goals_for || 0,
-          goals_against: s.goalsAgainst || s.goals_against || 0,
-          goal_difference: s.goalDifference || s.goal_difference || 0,
-          points: s.points || 0,
-        }))
+        const rows = (data.standings || []).map((s: any) => {
+          const id = s.playerId || s.id || ""
+          const fallbackTeam = byId.get(String(id))?.preferred_club || s.club || s.preferred_club || s.assigned_club || "-"
+          return {
+            id,
+            name: s.playerName || s.name,
+            team: s.team || fallbackTeam,
+            played: s.played || 0,
+            won: s.won || 0,
+            drawn: s.drawn || 0,
+            lost: s.lost || 0,
+            goals_for: s.goalsFor || s.goals_for || 0,
+            goals_against: s.goalsAgainst || s.goals_against || 0,
+            goal_difference: s.goalDifference || s.goal_difference || 0,
+            points: s.points || 0,
+          } as StandingRow
+        })
         setStandings(rows)
       }
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json()
-        setPlayerStats(statsData)
+        if (statsData) {
+          const ts = Array.isArray(statsData.topScorers) ? statsData.topScorers.map((r: any, i: number) => ({ rank: r.rank || i + 1, name: r.name || r.player || r.player_name || r.playerName, team: r.team || r.club || r.preferred_club || "-", goals: r.goals || r.G || 0 })) : []
+          const ta = Array.isArray(statsData.topAssists) ? statsData.topAssists.map((r: any, i: number) => ({ rank: r.rank || i + 1, name: r.name || r.player || r.player_name || r.playerName, team: r.team || r.club || r.preferred_club || "-", assists: r.assists || r.A || 0 })) : []
+          const td = Array.isArray(statsData.discipline) ? statsData.discipline.map((r: any) => ({ name: r.name || r.player || r.player_name || r.playerName, team: r.team || r.club || r.preferred_club || "-", yellow_cards: r.yellow_cards || r.YC || 0, red_cards: r.red_cards || r.RC || 0 })) : []
+          setPlayerStats({ topScorers: ts, topAssists: ta, discipline: td })
+        }
       }
 
       if (fixturesResponse.ok) {
         const f = await fixturesResponse.json()
-        setFixtures(f.fixtures || [])
+        const allFixtures = (f.fixtures || []).map((fx: any) => ({
+          ...fx,
+          // Ensure names/teams always present for UI
+          homeLabel: `${fx.homeName || fx.homePlayer}${fx.homeTeam ? ` (${fx.homeTeam})` : ""}`,
+          awayLabel: `${fx.awayName || fx.awayPlayer}${fx.awayTeam ? ` (${fx.awayTeam})` : ""}`,
+        }))
+        setFixtures(allFixtures)
+        try {
+          const goals = new Map<string, { name: string; team: string; goals: number }>()
+          for (const fx of allFixtures) {
+            const played = String(fx.status || "").toUpperCase() === "PLAYED"
+            if (!played) continue
+            const hid = String(fx.homePlayer)
+            const aid = String(fx.awayPlayer)
+            const hName = fx.homeName || hid
+            const aName = fx.awayName || aid
+            const hTeam = fx.homeTeam || byId.get(hid)?.preferred_club || "-"
+            const aTeam = fx.awayTeam || byId.get(aid)?.preferred_club || "-"
+            const hGoals = Number(fx.homeScore ?? 0)
+            const aGoals = Number(fx.awayScore ?? 0)
+            if (!Number.isNaN(hGoals)) {
+              const cur = goals.get(hid) || { name: hName, team: hTeam, goals: 0 }
+              cur.name = hName; cur.team = hTeam; cur.goals += hGoals
+              goals.set(hid, cur)
+            }
+            if (!Number.isNaN(aGoals)) {
+              const cur = goals.get(aid) || { name: aName, team: aTeam, goals: 0 }
+              cur.name = aName; cur.team = aTeam; cur.goals += aGoals
+              goals.set(aid, cur)
+            }
+          }
+          const computed = Array.from(goals.values()).sort((a, b) => b.goals - a.goals).map((r, i) => ({ rank: i + 1, name: r.name, team: r.team, goals: r.goals }))
+          if (computed.length > 0 && (playerStats.topScorers?.length || 0) === 0) {
+            setPlayerStats((prev) => ({ ...prev, topScorers: computed }))
+          }
+        } catch {}
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -79,9 +182,22 @@ export default function StandingsPage() {
     }
   }
 
-  const upcoming = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() !== "PLAYED").slice(0, 8), [fixtures])
-  const completed = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED").slice(0, 8), [fixtures])
-  const shown = tab === "UPCOMING" ? upcoming : completed
+  const upcoming = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() !== "PLAYED"), [fixtures])
+  const completed = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED"), [fixtures])
+  const shownRaw = tab === "UPCOMING" ? upcoming : completed
+  const shown = showAll ? shownRaw : shownRaw.slice(0, 8)
+
+  const groups = useMemo(() => {
+    const entries = new Map<string, { md: number; dates: Date[]; items: any[] }>()
+    for (const fx of shown) {
+      const key = String(fx.matchday || "?")
+      const rec = entries.get(key) || { md: Number(fx.matchday || 0), dates: [], items: [] }
+      if (fx.scheduledDate) rec.dates.push(new Date(fx.scheduledDate))
+      rec.items.push(fx)
+      entries.set(key, rec)
+    }
+    return Array.from(entries.values()).sort((a, b) => a.md - b.md)
+  }, [shown])
 
   if (loading) {
     return (
@@ -164,26 +280,75 @@ export default function StandingsPage() {
         {/* Fixtures list */}
         <section className="rounded-2xl border bg-[#141414] p-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold">Fixtures</h2>
-            <div className="text-xs text-[#9E9E9E]">{shown.length} shown</div>
+            <div>
+              <button className={`px-2 py-0.5 rounded ${tab === "UPCOMING" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("UPCOMING")}>Upcoming ({upcoming.length})</button>
+              <button className={`px-2 py-0.5 rounded ml-1 ${tab === "COMPLETED" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("COMPLETED")}>Completed ({completed.length})</button>
+            </div>
+            <button className="text-xs text-[#9E9E9E] underline" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "Show all"}</button>
           </div>
-          <div className="mb-2">
-            <button className={`px-2 py-0.5 rounded ${tab === "UPCOMING" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("UPCOMING")}>Upcoming</button>
-            <button className={`px-2 py-0.5 rounded ml-1 ${tab === "COMPLETED" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("COMPLETED")}>Completed</button>
-          </div>
-          {shown.length === 0 ? (
-            <div className="text-sm text-[#9E9E9E]">No fixtures.</div>
+
+          {groups.length === 0 ? (
+            <div className="text-sm text-[#9E9E9E]">{tab === "COMPLETED" ? "No completed fixtures." : "No fixtures."}</div>
           ) : (
-            <ul className="space-y-2 text-sm">
-              {shown.map((f: any) => (
-                <li key={f.id} className="border-t first:border-t-0 border-[#1E1E1E] pt-2">
-                  <div className="flex items-center justify-between">
-                    <div className="truncate mr-2">MD{f.matchday} • {f.homePlayer} vs {f.awayPlayer}</div>
-                    <div className="text-xs text-[#9E9E9E]">{f.scheduledDate ? new Date(f.scheduledDate).toLocaleString() : "TBD"}</div>
-                  </div>
-                </li>
+            <div className="space-y-4">
+              {groups.map((g) => (
+                <div key={g.md}>
+                  <div className="px-2 py-1 text-xs uppercase tracking-wide text-[#9E9E9E] bg-[#0F0F0F] rounded mb-1 border border-[#1E1E1E]">Matchday {g.md} — {formatDateRange(g.dates)}</div>
+                  <ul className="">
+                    {g.items.map((f, i) => {
+                      const isPlayed = String(f.status || "").toUpperCase() === "PLAYED"
+                      const hs = Number(f.homeScore ?? 0)
+                      const as = Number(f.awayScore ?? 0)
+                      const draw = isPlayed && hs === as
+                      const homeWin = isPlayed && hs > as
+                      const awayWin = isPlayed && as > hs
+                      const rowBg = i % 2 === 0 ? "bg-[#141414]" : "bg-[#121212]"
+                      return (
+                        <li key={f.id} className={`${rowBg} border-t first:border-t-0 border-[#1E1E1E] p-3`}>
+                          <button onClick={() => setExpandedId((id) => (id === f.id ? null : f.id))} className="w-full text-left">
+                            <div className="grid grid-cols-12 items-center gap-2">
+                              <div className="col-span-5 flex items-center truncate">
+                                <TeamBadge team={f.homeTeam} />
+                                <span className="truncate">{f.homeLabel}</span>
+                              </div>
+                              <div className="col-span-2 text-center font-semibold tabular-nums">
+                                {isPlayed ? (
+                                  <span>
+                                    <span className={`${draw ? "text-yellow-300" : homeWin ? "text-emerald-400" : "text-[#9E9E9E]"}`}>{hs}</span>
+                                    <span className="mx-1">–</span>
+                                    <span className={`${draw ? "text-yellow-300" : awayWin ? "text-emerald-400" : "text-[#9E9E9E]"}`}>{as}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[#9E9E9E]">TBD</span>
+                                )}
+                              </div>
+                              <div className="col-span-5 flex items-center justify-end truncate">
+                                <span className="truncate">{f.awayLabel}</span>
+                                <TeamBadge team={f.awayTeam} />
+                              </div>
+                            </div>
+                            <div className="mt-1 text-xs text-[#9E9E9E]">
+                              {isPlayed ? (
+                                <span>Matchday {f.matchday} · Completed</span>
+                              ) : (
+                                <span>Matchday {f.matchday} · Kickoff: {formatTime(f.scheduledDate)}</span>
+                              )}
+                            </div>
+                          </button>
+                          {expandedId === f.id && (
+                            <div className="mt-2 text-xs text-[#D1D1D1] space-y-1">
+                              <div>Venue: <span className="text-[#9E9E9E]">{f.homeLabel} (Home)</span></div>
+                              {isPlayed && <div>Reported score: <span className="text-[#9E9E9E]">{hs}–{as}</span></div>}
+                              {f.notes && <div>Notes: <span className="text-[#9E9E9E]">{f.notes}</span></div>}
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 

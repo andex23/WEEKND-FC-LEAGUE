@@ -124,6 +124,17 @@
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "tnum" 1, "lnum" 1; /* tabular numbers */
+    font-family: "Courier New", Courier, monospace;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Times New Roman", Times, serif;
+    text-transform: uppercase;
+  }
+
+  .font-heading {
+    font-family: "Times New Roman", Times, serif;
+    text-transform: uppercase;
   }
 
   .tabular-nums {

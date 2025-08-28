@@ -17,6 +17,11 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
   const numRounds = numTeams - 1
   const matchesPerRound = numTeams / 2
 
+  const pairKey = (a: string, b: string) => [a, b].sort().join("-")
+
+  // Track duplicate pairings per leg (so two legs are allowed for DOUBLE)
+  const seenPairsPerLeg: Array<Set<string>> = Array.from({ length: Math.max(1, rounds) }, () => new Set<string>())
+
   for (let round = 0; round < rounds; round++) {
     for (let matchday = 0; matchday < numRounds; matchday++) {
       const roundFixtures: Fixture[] = []
@@ -37,13 +42,19 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
         const homePlayer = teams[home]
         const awayPlayer = teams[away]
 
-        // Skip if either player is "bye"
-        if (homePlayer.id === "bye" || awayPlayer.id === "bye") continue
+        // Skip if either player is "bye" or same player
+        if (homePlayer.id === "bye" || awayPlayer.id === "bye" || String(homePlayer.id) === String(awayPlayer.id)) continue
 
-        // For second round, swap home/away
+        // For second leg, swap home/away
         const isSecondRound = round === 1
         const finalHome = isSecondRound ? awayPlayer : homePlayer
         const finalAway = isSecondRound ? homePlayer : awayPlayer
+
+        // Avoid duplicate pairings WITHIN the same leg only
+        const key = pairKey(String(finalHome.id), String(finalAway.id))
+        const seenForLeg = seenPairsPerLeg[round] || seenPairsPerLeg[0]
+        if (seenForLeg.has(key)) continue
+        seenForLeg.add(key)
 
         roundFixtures.push({
           id: fixtureId.toString(),

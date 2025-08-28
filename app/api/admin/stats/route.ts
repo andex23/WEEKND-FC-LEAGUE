@@ -1,13 +1,10 @@
-import { NextResponse } from "next/server"
+import { NextResponse, NextResponse as NextRes } from "next/server"
 
-// In-memory demo data
-let standings = [
-  { id: "1", name: "Alex", team: "Man United", P: 10, W: 6, D: 2, L: 2, GF: 18, GA: 10, GD: 8, Pts: 20, overridden: {} as Record<string, boolean> },
-  { id: "2", name: "Jordan", team: "Man City", P: 10, W: 5, D: 3, L: 2, GF: 16, GA: 11, GD: 5, Pts: 18, overridden: {} },
-]
-let scorers = [ { id: "1", name: "Alex", team: "Man United", G: 12, overridden: {} as Record<string, boolean> } ]
-let assists = [ { id: "2", name: "Jordan", team: "Man City", A: 9, overridden: {} as Record<string, boolean> } ]
-let discipline = [ { id: "3", name: "Sam", team: "Chelsea", YC: 3, RC: 0, overridden: {} as Record<string, boolean> } ]
+// In-memory demo data (start empty)
+let standings: any[] = []
+let scorers: any[] = []
+let assists: any[] = []
+let discipline: any[] = []
 
 const newId = () => Math.random().toString(36).slice(2, 10)
 
@@ -49,7 +46,7 @@ export async function POST(request: Request) {
       rows = []
     }
     const csv = [headers.join(","), ...rows].join("\n")
-    return new NextResponse(csv, { headers: { "content-type": "text/csv" } })
+    return new NextRes(csv, { headers: { "content-type": "text/csv" } })
   }
   if (action === "override") {
     const { table, id, field, value } = body

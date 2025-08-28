@@ -81,10 +81,11 @@ export function calculateStandings(fixtures: Fixture[], players: any[]): Standin
     standing.goalDifference = standing.goalsFor - standing.goalsAgainst
   })
 
-  // Sort by tiebreaker rules: Points > Goal Difference > Goals For
+  // Sort by tiebreaker rules: Points > Goal Difference > Goals For > Name (A→Z)
   return Object.values(standings).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points
     if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference
-    return b.goalsFor - a.goalsFor
+    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
+    return (a.playerName || "").localeCompare(b.playerName || "")
   })
 }

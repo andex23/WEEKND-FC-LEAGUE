@@ -25,6 +25,7 @@ export default function RulesPage() {
         <header className="space-y-1">
           <h1 className="text-xl font-extrabold">FC WEEKEND — League Rules</h1>
           <p className="text-sm text-[#9E9E9E]">Last updated: {lastUpdated}</p>
+          <p className="text-sm text-[#9E9E9E]">Telegram: <a className="underline text-white" href="https://t.me/+17bCG-bp5XI0NmFl" target="_blank" rel="noopener noreferrer">Join WFC Channel</a></p>
         </header>
 
         <div className="space-y-4">

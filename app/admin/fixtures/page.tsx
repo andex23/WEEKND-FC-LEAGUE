@@ -11,61 +11,104 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
 import { CalendarClock, Copy, Save, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import { AdminOverlayNav } from "@/components/admin/overlay-nav"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker } from "@/components/ui/time-picker"
+import { downloadCSVFromObjects } from "@/lib/utils/csv"
 
 interface Player { id: string; name: string; username?: string; preferred_team?: string; preferred_club?: string; avatar_url?: string }
 interface Fixture { id: string; season: string; matchday: number; date?: string | null; status: "SCHEDULED" | "LIVE" | "PLAYED" | "FORFEIT" | "CANCELLED"; homeId: string; awayId: string; homeScore?: number | null; awayScore?: number | null; forfeitWinnerId?: string | null; notes?: string }
 
 const newId = () => Math.random().toString(36).slice(2, 10)
 
+// Convert any ISO/string date to datetime-local friendly value (YYYY-MM-DDTHH:mm)
+function toLocalInputValue(value?: string | null): string {
+  if (!value) return ""
+  try {
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return ""
+    const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000
+    const local = new Date(d.getTime() - tzOffsetMs)
+    return local.toISOString().slice(0, 16)
+  } catch {
+    return ""
+  }
+}
+
 export default function AdminFixturesPage() {
   const router = useRouter()
   const [players, setPlayers] = useState<Player[]>([])
   const [fixtures, setFixtures] = useState<Fixture[]>([])
   const [activeSeason, setActiveSeason] = useState<string>("2024/25")
-  const [seasons, setSeasons] = useState<string[]>(["2024/25", "2023/24", "2022/23"]) // mock seasons
+  const [seasons, setSeasons] = useState<string[]>(["2024/25"]) // will be replaced after fetch
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Fixture>({ id: newId(), season: "2024/25", matchday: 1, status: "SCHEDULED", homeId: "", awayId: "", date: "", homeScore: null, awayScore: null, forfeitWinnerId: null, notes: "" })
   const [tbd, setTbd] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [clashOpen, setClashOpen] = useState(false)
+  const [skipClashCheck, setSkipClashCheck] = useState(false)
+
+  const activeTournamentId = String(settings?.tournament?.active_tournament_id || "")
 
   useEffect(() => {
     ;(async () => {
       try {
-        const cfg = await fetch("/api/tournament/config").then((r) => r.json())
-        const isActive = Boolean(cfg?.config?.basics?.is_active)
-        setTournamentActive(isActive)
-        setTournamentStatus((cfg?.config?.basics?.status as any) || "DRAFT")
-        if (isActive) {
-          const res = await fetch("/api/fixtures")
-          const data = await res.json()
-          const rows: FixtureRow[] = (data.fixtures || []).map((f: any) => ({
-            id: String(f.id || newId()),
-            season: f.season || "2024/25",
-            matchday: Number(f.matchday || 1),
-            date: f.kickoff_at || f.scheduledDate || null,
-            status: String((f.status || "SCHEDULED")).toUpperCase(),
-            homeId: String(f.homeId || f.home_id || f.homePlayerId || f.homePlayer || ""),
-            awayId: String(f.awayId || f.away_id || f.awayPlayerId || f.awayPlayer || ""),
-            homeScore: f.homeScore ?? null,
-            awayScore: f.awayScore ?? null,
-            forfeitWinnerId: f.forfeitWinnerId ?? null,
-            notes: f.note || f.notes || ""
-          }))
-          setFixtures(rows)
-        }
-      } catch {
-        setFixtures([])
-      } finally {
-        setLoading(false)
-      }
+        // Load players for labels/search
+        const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
+        const rows = (api.players || []).map((p: any) => ({ id: String(p.id), name: p.name, username: p.gamer_tag || "", preferred_team: p.preferred_club || "", avatar_url: "/placeholder-user.jpg" }))
+        setPlayers(rows)
+      } catch { setPlayers([]) }
+    })()
+  }, [])
+
+  const reloadFixtures = async (tid?: string) => {
+    const qs = tid ? `?tournamentId=${encodeURIComponent(tid)}` : ""
+    const res = await fetch(`/api/fixtures${qs}`)
+    const data = await res.json()
+    const rows: Fixture[] = (data.fixtures || []).map((f: any) => ({
+      id: String(f.id || newId()),
+      season: f.season || "2024/25",
+      matchday: Number(f.matchday || 1),
+      date: f.kickoff_at || f.scheduledDate || null,
+      status: String((f.status || "SCHEDULED")).toUpperCase() as any,
+      homeId: String(f.homeId || f.home_id || f.homePlayerId || f.homePlayer || ""),
+      awayId: String(f.awayId || f.away_id || f.awayPlayerId || f.awayPlayer || ""),
+      homeScore: f.homeScore ?? null,
+      awayScore: f.awayScore ?? null,
+      forfeitWinnerId: f.forfeitWinnerId ?? null,
+      notes: f.note || f.notes || "",
+    }))
+    setFixtures(rows)
+    const uniqueSeasons = Array.from(new Set(rows.map((r) => r.season))).sort().reverse()
+    if (uniqueSeasons.length > 0) {
+      setSeasons(uniqueSeasons)
+      setActiveSeason(uniqueSeasons[0])
+      setForm((f) => ({ ...f, season: uniqueSeasons[0] }))
+    }
+  }
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        await reloadFixtures(activeTournamentId)
+      } catch { setFixtures([]) }
+      setLoading(false)
     })()
     fetch("/api/admin/settings").then((r) => r.json()).then((s) => setSettings(s)).catch(() => null)
   }, [])
+
+  const clearTournament = async () => {
+    if (!activeTournamentId) { toast.error("No active tournament set"); return }
+    await fetch("/api/admin/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_tournament", tournamentId: activeTournamentId }) })
+    await reloadFixtures(activeTournamentId)
+    toast.success("Tournament cleared")
+  }
 
   // Matchday counts for current season
   const mdCounts = useMemo(() => {
@@ -97,36 +140,44 @@ export default function AdminFixturesPage() {
 
   const del = async () => {
     if (!editId) return
-    if (!confirm("Delete this fixture? This is a soft delete.")) return
+    setConfirmDeleteOpen(true)
+  }
+
+  const confirmDeleteRow = (id: string) => {
+    setEditId(id)
+    setConfirmDeleteOpen(true)
+  }
+
+  const performDelete = async () => {
+    if (!editId) return
     // Optimistic
     setFixtures((prev) => prev.filter((x) => x.id !== editId))
     try {
       await fetch("/api/fixtures", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editId }) })
-    } catch {}
+      toast.success("Fixture deleted")
+    } catch { toast.error("Failed to delete") }
     setEditorOpen(false)
+    setConfirmDeleteOpen(false)
   }
 
   const save = async () => {
     // Validation
-    if (!form.season || !form.matchday || !form.homeId || !form.awayId) { alert("Season, Matchday, Home, and Away are required."); return }
-    if (form.homeId === form.awayId) { alert("Home and Away cannot be the same player."); return }
+    if (!form.season || !form.matchday || !form.homeId || !form.awayId) { toast.error("Season, Matchday, Home, and Away are required."); return }
+    if (form.homeId === form.awayId) { toast.error("Home and Away cannot be the same player."); return }
     if (form.status === "PLAYED") {
-      if (form.homeScore == null || form.awayScore == null || form.homeScore < 0 || form.awayScore < 0) { alert("Scores are required for Played status."); return }
+      if (form.homeScore == null || form.awayScore == null || form.homeScore < 0 || form.awayScore < 0) { toast.error("Scores are required for Played status."); return }
     }
-    if (form.status === "FORFEIT" && !form.forfeitWinnerId) { alert("Select a forfeit winner."); return }
+    if (form.status === "FORFEIT" && !form.forfeitWinnerId) { toast.error("Select a forfeit winner."); return }
 
     // Clash checks (same day by player)
-    if (!tbd && form.date) {
+    if (!skipClashCheck && !tbd && form.date) {
       const sameDay = (d: string) => new Date(d).toDateString()
       const clashes = fixtures.filter((f) => f.id !== form.id && f.season === form.season && f.date && sameDay(f.date) === sameDay(form.date!) && (f.homeId === form.homeId || f.awayId === form.homeId || f.homeId === form.awayId || f.awayId === form.awayId))
-      if (clashes.length > 0) {
-        const ok = confirm("One or both players already have a fixture that day. Proceed?")
-        if (!ok) return
-      }
+      if (clashes.length > 0) { setClashOpen(true); return }
     }
 
     // Optimistic upsert
-    const payload = { ...form, date: tbd ? null : form.date }
+    const payload = { ...form, date: tbd ? null : form.date, tournamentId: activeTournamentId }
     setFixtures((prev) => {
       const exists = prev.some((x) => x.id === form.id)
       const next = exists ? prev.map((x) => (x.id === form.id ? { ...payload } : x)) : [{ ...payload }, ...prev]
@@ -136,12 +187,12 @@ export default function AdminFixturesPage() {
     // Persist
     try {
       await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-    } catch {}
+      toast.success("Fixture saved")
+    } catch { toast.error("Failed to save fixture") }
 
     setEditorOpen(false)
-    setToast("Fixture saved")
     setHighlightId(form.id)
-    setTimeout(() => setToast(null), 2000)
+    setSkipClashCheck(false)
   }
 
   const playerById = (id?: string) => players.find((p) => String(p.id) === String(id))
@@ -149,6 +200,29 @@ export default function AdminFixturesPage() {
 
   const home = playerById(form.homeId)
   const away = playerById(form.awayId)
+
+  const exportCSV = () => {
+    const shaped = fixtures
+      .filter((f) => f.season === activeSeason)
+      .map((f) => {
+        const h = playerById(f.homeId)
+        const a = playerById(f.awayId)
+        return {
+          id: f.id,
+          matchday: f.matchday,
+          date: f.date || "",
+          status: f.status,
+          home_name: h?.name || "",
+          home_team: h?.preferred_team || "",
+          away_name: a?.name || "",
+          away_team: a?.preferred_team || "",
+          home_score: f.homeScore ?? "",
+          away_score: f.awayScore ?? "",
+          notes: f.notes || "",
+        }
+      })
+    downloadCSVFromObjects(`fixtures-${activeSeason}.csv`, shaped)
+  }
 
   // UI
   return (
@@ -160,15 +234,16 @@ export default function AdminFixturesPage() {
             <p className="text-sm text-[#9E9E9E]">Create and manage fixtures</p>
           </div>
           <div className="flex items-center gap-2">
+            <AdminOverlayNav />
             <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
+            <Button variant="outline" onClick={clearTournament} disabled={!activeTournamentId}>Clear Tournament</Button>
+            <Button variant="outline" onClick={exportCSV} disabled={fixtures.length === 0}>Export CSV</Button>
             <Button onClick={openCreate} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Add Fixture</Button>
           </div>
         </div>
         {String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED" && (
           <div className="mb-6 rounded-2xl p-3 border bg-[#141414] text-[#D1D1D1] text-sm">Tournament is completed. Adding or editing fixtures is disabled.</div>
         )}
-
-        {toast && (<div className="mb-4 px-4 py-2 rounded-2xl border bg-emerald-900/20 text-emerald-300 text-sm">{toast}</div>)}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-9">
@@ -198,13 +273,17 @@ export default function AdminFixturesPage() {
                       <div className="md:col-span-3">
                         <div className="font-medium">{playerLabel(a)}</div>
                       </div>
-                      <div className="md:col-span-3 flex items-center justify-end gap-2">
-                        <Badge variant="outline">{f.status}</Badge>
+                      <div className="md:col-span-3 flex items-center justify-end gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-white">{f.status}</Badge>
+                        <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => confirmDeleteRow(f.id)}>Delete</Button>
                         <Button size="sm" variant="outline" onClick={() => openEdit(f)} disabled={String(settings?.tournament?.status || "").toUpperCase() === "COMPLETED"}>Edit</Button>
                       </div>
                     </div>
                   )
                 })}
+                {fixtures.filter((f) => f.season === activeSeason).length === 0 && (
+                  <div className="px-4 py-6 text-sm text-[#9E9E9E]">No fixtures yet.</div>
+                )}
               </div>
             </div>
           </div>
@@ -249,7 +328,7 @@ export default function AdminFixturesPage() {
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm">Home Club/Player</Label>
-                  <PlayerSearch players={players} value={form.homeId} onChange={(id) => setForm({ ...form, homeId: id, /* autofill via preferred team if needed */ })} />
+                  <PlayerSearch players={players} value={form.homeId} onChange={(id) => setForm({ ...form, homeId: id })} />
                   {home && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-[#9E9E9E]">
                       <Image src={home.avatar_url || "/placeholder-user.jpg"} alt="avatar" width={20} height={20} className="rounded-full" />
@@ -275,7 +354,8 @@ export default function AdminFixturesPage() {
                 <div>
                   <Label className="text-sm">Date/Time</Label>
                   <div className="mt-1 flex items-center gap-2">
-                    <Input type="datetime-local" value={tbd ? "" : (form.date || "")} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={tbd} className="bg-transparent" />
+                    <DatePicker value={form.date || undefined} onChange={(iso) => { const cur = form.date ? new Date(form.date) : new Date(); const d = new Date(iso); const final = new Date(d.getFullYear(), d.getMonth(), d.getDate(), cur.getHours(), cur.getMinutes()); setForm({ ...form, date: final.toISOString() }); setTbd(false) }} />
+                    <TimePicker value={form.date ? toLocalInputValue(form.date).split("T")[1] : ""} onChange={(hhmm) => { if (!hhmm) { setForm({ ...form, date: null as any }); return } const cur = form.date ? new Date(form.date) : new Date(); const [h,m] = hhmm.split(":").map(Number); const final = new Date(cur); final.setHours(h||0, m||0, 0, 0); setForm({ ...form, date: final.toISOString() }); setTbd(false) }} disabled={tbd} />
                     <label className="text-sm text-[#9E9E9E] flex items-center gap-2"><input type="checkbox" checked={tbd} onChange={(e) => setTbd(e.target.checked)} /> TBD</label>
                   </div>
                 </div>
@@ -335,6 +415,33 @@ export default function AdminFixturesPage() {
                 {editId && <Button variant="outline" onClick={del} className="text-rose-400 border-rose-900 hover:bg-rose-900/20"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>}
                 <Button onClick={save}><Save className="h-4 w-4 mr-1" /> Save</Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirm delete dialog */}
+        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+            <DialogHeader>
+              <DialogTitle>Delete this fixture?</DialogTitle>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
+              <Button className="text-rose-400 border-rose-900 hover:bg-rose-900/20" variant="outline" onClick={performDelete}>Delete</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Clash warning dialog */}
+        <Dialog open={clashOpen} onOpenChange={setClashOpen}>
+          <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+            <DialogHeader>
+              <DialogTitle>Players already scheduled this day</DialogTitle>
+            </DialogHeader>
+            <div className="text-sm text-[#D1D1D1]">One or both players already have a fixture on that day. Continue anyway?</div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setClashOpen(false)}>Cancel</Button>
+              <Button onClick={() => { setClashOpen(false); setSkipClashCheck(true); save() }}>Proceed</Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -1,32 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { SiteLogo } from "@/components/site-logo"
+import { useState } from "react"
 
 export function Navbar() {
-  const user = null // Demo: no user authentication
-  const loading = false
-
+  const [open, setOpen] = useState(false)
   return (
-    <nav className="border-b border-gray-200 bg-white">
+    <nav className="sticky top-0 z-40 border-b border-[#1A1A1A] bg-[#050505]/95 backdrop-blur">
       <div className="container-5xl">
         <div className="flex justify-between items-center h-14">
-          <div className="flex items-center gap-3">
-            <SiteLogo />
-            <Link href="/" className="font-semibold text-gray-900">Weekend FC</Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/standings" className="text-sm text-gray-700 hover:text-gray-900">Standings</Link>
-            <Link href="/rules" className="text-sm text-gray-700 hover:text-gray-900">Rules</Link>
-            {!loading && (
-              <Link href={user ? "/dashboard" : "/auth/login"}>
-                <Button className="bg-primary hover:bg-primary/90 text-white">
-                  {user ? "Dashboard" : "Log in"}
-                </Button>
-              </Link>
-            )}
+          <Link href="/" className="font-heading font-extrabold tracking-wide text-white">Weekend FC</Link>
+          <button className="md:hidden text-[#D1D1D1]" onClick={() => setOpen((v) => !v)} aria-label="Toggle navigation">☰</button>
+          <div className={`md:flex items-center gap-6 text-sm uppercase ${open ? "flex" : "hidden"}`}>
+            <Link href="/standings" className="text-[#D1D1D1] hover:text-white">Standings</Link>
+            <Link href="/rules" className="text-[#D1D1D1] hover:text-white">Rules</Link>
           </div>
         </div>
       </div>
