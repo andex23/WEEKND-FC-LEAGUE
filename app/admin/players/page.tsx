@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useRouter, usePathname } from "next/navigation"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
+import { toast } from "sonner"
 
 // All persistence is via Supabase. Remove local storage to avoid duplicates.
 
@@ -19,6 +20,7 @@ export default function AdminPlayersPage() {
   const [edit, setEdit] = useState<any | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const load = async () => {
     const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] }))
@@ -43,34 +45,74 @@ export default function AdminPlayersPage() {
   }
 
   const importFromText = async (text: string) => {
-    const lines = text.split(/\r?\n/).filter(Boolean)
-    if (lines.length === 0) return
-    const header = lines[0].split(",").map((h) => h.replaceAll('"','').trim().toLowerCase())
-    const rows = lines.slice(1).map((line) => {
-      const cols = line.split(",").map((c) => c.replaceAll('"','').trim())
-      const obj: any = {}
-      header.forEach((h, i) => { obj[h] = cols[i] })
-      return obj
-    })
-    const toAdd = rows.map((r) => ({
-      name: r.name || "Unnamed",
-      gamer_tag: r.gamer_tag || r.gamertag || "",
-      console: (r.console || "PS5").toUpperCase(),
-      preferred_club: r.preferred_club || "",
-      location: r.location || "",
-      active: String(r.status || "active").toLowerCase() !== "inactive",
-    }))
-    await Promise.all(toAdd.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      action: "add",
-      name: p.name,
-      username: p.gamer_tag || null,
-      psn_name: p.gamer_tag || null,
-      console: p.console,
-      preferred_club: p.preferred_club,
-      location: p.location,
-      status: p.active ? "approved" : "pending"
-    }) }).catch(() => {})))
-    await load()
+    setImporting(true)
+    try {
+      const lines = text.split(/\r?\n/).filter(Boolean)
+      if (lines.length === 0) {
+        console.log("No data to import")
+        return
+      }
+      
+      const header = lines[0].split(",").map((h) => h.replaceAll('"','').trim().toLowerCase())
+      console.log("CSV Header:", header)
+      
+      const rows = lines.slice(1).map((line) => {
+        const cols = line.split(",").map((c) => c.replaceAll('"','').trim())
+        const obj: any = {}
+        header.forEach((h, i) => { obj[h] = cols[i] })
+        return obj
+      })
+      console.log("CSV Rows:", rows)
+      
+      const toAdd = rows.map((r) => ({
+        name: r.name || "Unnamed",
+        gamer_tag: r.gamer_tag || r.gamertag || "",
+        console: (r.console || "PS5").toUpperCase(),
+        preferred_club: r.preferred_club || "",
+        location: r.location || "",
+        active: String(r.status || "active").toLowerCase() !== "inactive",
+      }))
+      console.log("Players to add:", toAdd)
+      
+      const results = await Promise.allSettled(toAdd.map(async (p) => {
+        const response = await fetch("/api/admin/players", { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({
+            action: "add",
+            name: p.name,
+            username: p.gamer_tag || null,
+            psn_name: p.gamer_tag || null,
+            console: p.console,
+            preferred_club: p.preferred_club,
+            location: p.location,
+            status: p.active ? "approved" : "pending"
+          })
+        })
+        return response.json()
+      }))
+      
+      console.log("Import results:", results)
+      
+      const successful = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+      
+      if (successful > 0) {
+        console.log(`Successfully imported ${successful} players`)
+        toast.success(`Successfully imported ${successful} players`)
+      }
+      if (failed > 0) {
+        console.error(`Failed to import ${failed} players`)
+        toast.error(`Failed to import ${failed} players`)
+      }
+      
+      await load()
+    } catch (error) {
+      console.error("Error importing CSV:", error)
+      toast.error("Error importing CSV. Please check the format and try again.")
+    } finally {
+      setImporting(false)
+    }
   }
 
   const downloadTemplate = () => {
@@ -135,15 +177,20 @@ export default function AdminPlayersPage() {
 
             <div className="rounded-2xl border p-4 bg-[#141414] space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Import Players</div>
-                <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
+                <div className="text-sm font-semibold">Import Players {importing && "(Importing...)"}</div>
+                <Button variant="outline" onClick={downloadTemplate} disabled={importing}>Download CSV template</Button>
               </div>
               <div>
-                <input type="file" accept=".csv" onChange={async (e) => { const input = e.currentTarget; const f = input.files?.[0]; if (f) await importCsv(f); input.value = "" }} />
+                <input type="file" accept=".csv" disabled={importing} onChange={async (e) => { const input = e.currentTarget; const f = input.files?.[0]; if (f) await importCsv(f); input.value = "" }} />
               </div>
               <div>
                 <Label className="text-sm">Or paste CSV rows</Label>
-                <textarea className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" onBlur={async (e) => { const ta = e.currentTarget; const v = ta.value.trim(); if (v) { await importFromText(v); ta.value = "" } }} />
+                <textarea 
+                  className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" 
+                  placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" 
+                  disabled={importing}
+                  onBlur={async (e) => { const ta = e.currentTarget; const v = ta.value.trim(); if (v) { await importFromText(v); ta.value = "" } }} 
+                />
               </div>
             </div>
 
