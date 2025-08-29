@@ -38,7 +38,7 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.646 0.222 280.116 / 0.5);
 
-  --font-inter: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  --font-roboto: "Roboto", ui-sans-serif, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 .dark {
@@ -114,7 +114,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-roboto);
 }
 
 @layer base {
@@ -122,19 +122,21 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
     font-feature-settings: "tnum" 1, "lnum" 1; /* tabular numbers */
     font-family: "Courier New", Courier, monospace;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Times New Roman", Times, serif;
+    font-family: "Roboto", ui-sans-serif, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, "Noto Sans";
     text-transform: uppercase;
+    font-weight: 700;
   }
 
   .font-heading {
-    font-family: "Times New Roman", Times, serif;
+    font-family: "Roboto", ui-sans-serif, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, "Noto Sans";
     text-transform: uppercase;
+    font-weight: 700;
   }
 
   .tabular-nums {

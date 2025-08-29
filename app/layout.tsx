@@ -1,14 +1,15 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Roboto } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
 
-const inter = Inter({
+const roboto = Roboto({
   subsets: ["latin"],
+  weight: ["400", "500", "700", "900"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-roboto",
 })
 
 export const metadata: Metadata = {
@@ -23,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable}`}>
-      <body suppressHydrationWarning>
+    <html lang="en" className={`${roboto.variable}`}>
+      <body suppressHydrationWarning className="font-courier">
         <Navbar />
         <main>{children}</main>
         <Toaster position="top-right" richColors theme="dark" closeButton />
