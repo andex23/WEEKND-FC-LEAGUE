@@ -132,17 +132,17 @@ export async function POST(request: Request) {
       let error
       
       if (uuidLike.test(id)) {
-        console.log("Using UUID delete method with admin client")
-        const { error: deleteError } = await admin.from("players").delete().eq("id", id)
+        console.log("Using UUID delete method with regular client")
+        const { error: deleteError } = await client.from("players").delete().eq("id", id)
         error = deleteError
       } else {
-        console.log("Using fallback delete method with admin client")
+        console.log("Using fallback delete method with regular client")
         // Fallback: delete by username/psn_name and name if provided
         const name = data.name || null
         const username = data.username || null
         const psn = data.psn_name || null
         if (name && (username || psn)) {
-          const { error: deleteError } = await admin.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_name.eq.${psn}` : ""}`)
+          const { error: deleteError } = await client.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_name.eq.${psn}` : ""}`)
           error = deleteError
         } else {
           // As a last resort, do nothing to avoid accidental mass deletions
