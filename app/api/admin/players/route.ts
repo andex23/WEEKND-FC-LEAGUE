@@ -126,23 +126,36 @@ export async function POST(request: Request) {
 
     if (action === "delete") {
       const id = String(data.id || "")
+      console.log("Attempting to delete player with ID:", id)
+      
       const uuidLike = /^[0-9a-fA-F-]{36}$/
       let error
+      
       if (uuidLike.test(id)) {
-        ;({ error } = await admin.from("players").delete().eq("id", id))
+        console.log("Using UUID delete method with admin client")
+        const { error: deleteError } = await admin.from("players").delete().eq("id", id)
+        error = deleteError
       } else {
+        console.log("Using fallback delete method with admin client")
         // Fallback: delete by username/psn_name and name if provided
         const name = data.name || null
         const username = data.username || null
         const psn = data.psn_name || null
         if (name && (username || psn)) {
-          ;({ error } = await admin.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_name.eq.${psn}` : ""}`))
+          const { error: deleteError } = await admin.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_name.eq.${psn}` : ""}`)
+          error = deleteError
         } else {
           // As a last resort, do nothing to avoid accidental mass deletions
           return NextResponse.json({ error: "Missing identifiers" }, { status: 400 })
         }
       }
-      if (error) throw error
+      
+      if (error) {
+        console.error("Delete error:", error)
+        throw error
+      }
+      
+      console.log("Successfully deleted player")
       return NextResponse.json({ success: true })
     }
 
