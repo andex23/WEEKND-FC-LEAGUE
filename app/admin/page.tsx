@@ -31,6 +31,20 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Merge helpers to include local players (client) with API (server)
+  const LS_KEY = "admin_players"
+  const getLocalPlayers = () => {
+    try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
+  }
+  const mergePlayers = (a: any[], b: any[]) => {
+    const byId = new Map<string, any>()
+    ;[...a, ...b].forEach((p) => {
+      const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
+      byId.set(key, { ...byId.get(key), ...p })
+    })
+    return Array.from(byId.values())
+  }
   const activePlayersCount = useMemo(() => players.filter((p) => !!p.active).length, [players])
 
 
@@ -55,7 +69,8 @@ export default function AdminDashboard() {
       const statusData = await statusRes.json()
       const settingsData = settingsRes ? await settingsRes.json() : null
 
-      setPlayers(playersData.players || [])
+      const mergedPlayers = mergePlayers(getLocalPlayers(), playersData.players || [])
+      setPlayers(mergedPlayers)
       setStandings(standingsData.standings || [])
       // Scope fixtures to active tournament if set
       const activeIdScoped = (settingsData?.tournament?.active_tournament_id || null) as string | null
@@ -84,7 +99,7 @@ export default function AdminDashboard() {
         const stillEmpty = !mapped || (!mapped.topScorers?.length && !mapped.topAssists?.length && !mapped.discipline?.length)
         if (stillEmpty) {
           const goals = new Map<string, { name: string; team: string; goals: number }>()
-          const byId = new Map((playersData.players || []).map((p: any) => [String(p.id || p.player_id || p.user_id || p.registration_id || p.name), p]))
+          const byId = new Map(mergedPlayers.map((p: any) => [String(p.id || p.player_id || p.user_id || p.registration_id || p.name), p]))
           for (const fx of scopedFx) {
             const played = String(fx.status || "").toUpperCase() === "PLAYED"
             if (!played) continue

@@ -50,6 +50,14 @@ export default function TournamentSettingsPage() {
     toast.success("Cleared fixtures")
   }
 
+  const syncRoster = async () => {
+    if (!t) return
+    const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: t.id }) })
+    if (!res.ok) { toast.error("Failed to sync roster"); return }
+    const data = await res.json().catch(() => null)
+    toast.success(`Roster synced (${data?.count ?? 0} players)`) 
+  }
+
   if (!t) return (
     <div className="min-h-screen bg-[#0D0D0D] text-white"><div className="container-5xl section-pad"><Button variant="outline" onClick={() => router.push("/admin/tournaments")}>← Back</Button><div className="mt-6 text-sm text-[#9E9E9E]">Tournament not found.</div></div></div>
   )
@@ -103,6 +111,7 @@ export default function TournamentSettingsPage() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={generate}>Generate Fixtures</Button>
             <Button variant="outline" onClick={clearFixtures}>Clear Fixtures</Button>
+            <Button variant="outline" onClick={syncRoster}>Sync Roster</Button>
           </div>
         </div>
       </div>

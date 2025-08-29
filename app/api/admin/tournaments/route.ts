@@ -64,7 +64,11 @@ export async function POST(req: Request) {
     }
     // Remove tournament players snapshot if present
     if (g.__memTournamentPlayers) {
-      g.__memTournamentPlayers = (g.__memTournamentPlayers || []).filter((p: any) => String(p.tournamentId || p.tournament_id || "") !== String(id))
+      const snaps = g.__memTournamentPlayers
+      if (snaps && typeof snaps === "object") {
+        delete snaps[id]
+        g.__memTournamentPlayers = snaps
+      }
     }
     // Clear active tournament if it was this one
     if (g.__adminSettings?.tournament?.active_tournament_id === id) {
@@ -75,6 +79,9 @@ export async function POST(req: Request) {
   if (action === "sync_roster") {
     const { id } = body
     const after = syncTournamentPlayers(id)
+    // Update tournament visible players count to reflect latest snapshot
+    tournaments = tournaments.map((t) => (t.id === id ? { ...t, players: after.length } : t))
+    g.__memTournaments = tournaments
     return NextResponse.json({ ok: true, count: after.length })
   }
   if (action === "roster") {
