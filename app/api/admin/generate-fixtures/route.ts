@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateRoundRobinFixtures } from "@/lib/utils/fixtures"
-import { getTournamentPlayers, listPlayers } from "@/lib/mocks/players"
+import { getTournamentPlayers, listPlayers, syncTournamentPlayers, activePlayers } from "@/lib/mocks/players"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const g: any = globalThis as any
@@ -65,8 +65,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { rounds = 2, tournamentId } = body
 
-    const rosterIds = tournamentId ? getTournamentPlayers(String(tournamentId)) : []
-    const roster = rosterIds.map((id) => listPlayers().find((p) => p.id === id)).filter(Boolean) as any[]
+    let rosterIds = tournamentId ? getTournamentPlayers(String(tournamentId)) : []
+    // Auto-sync snapshot if too few players
+    if ((rosterIds?.length || 0) < 6 && tournamentId) {
+      rosterIds = syncTournamentPlayers(String(tournamentId))
+    }
+    let roster = rosterIds.map((id) => listPlayers().find((p) => p.id === id)).filter(Boolean) as any[]
+    // Fallback to current active players if snapshot still insufficient
+    if (roster.length < 6) {
+      roster = activePlayers()
+    }
     if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
     if (roster.length % 2 !== 0) return NextResponse.json({ error: "Even number required" }, { status: 400 })
 
