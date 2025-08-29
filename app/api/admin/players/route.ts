@@ -31,6 +31,16 @@ export async function POST(request: Request) {
     })
     
     // Use regular client for most operations, admin client only for destructive ops
+    try {
+      const client = await createClient()
+      console.log("Regular client created successfully")
+      const admin = createAdminClient()
+      console.log("Admin client created successfully")
+    } catch (clientError) {
+      console.error("Error creating clients:", clientError)
+      throw clientError
+    }
+    
     const client = await createClient()
     const admin = createAdminClient()
 
