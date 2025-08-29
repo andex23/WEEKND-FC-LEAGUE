@@ -14,15 +14,22 @@ export async function POST(req: Request) {
   const { action } = body
   if (action === "create") {
     const id = Math.random().toString(36).slice(2,10)
-    // Prefer reading active players from the players API (same lambda that owns the data)
-    let roster = activePlayers()
+    // Prefer explicit rosterIds/rosterRecords from client if provided
+    let roster: any[] = []
+    if (Array.isArray(body.rosterRecords) && body.rosterRecords.length) {
+      roster = body.rosterRecords
+    }
+    // Otherwise, read latest active players (try API first, then memory)
+    if (roster.length === 0) {
+      roster = activePlayers()
+    }
     try {
       const base = (process.env.NEXT_PUBLIC_SITE_URL || "").trim() || (new URL(req.url)).origin
       const res = await fetch(new URL("/api/admin/players", base))
       if (res.ok) {
         const data = await res.json()
         const apiPlayers = Array.isArray(data?.players) ? data.players : []
-        const act = apiPlayers.filter((p: any) => !!p.active)
+        const act = apiPlayers.filter((p: any) => !!p.active).map((p:any)=>({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
         if (act.length > roster.length) roster = act
       }
     } catch {}

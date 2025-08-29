@@ -83,6 +83,24 @@ export default function AdminTournamentsPage() {
     }
     // Ensure local players are synced into API before creating snapshot
     await syncLocalPlayersToApi()
+    // Compute active roster from merged local+API to send to API (serverless-safe)
+    try {
+      const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
+      const local = getLocalPlayers()
+      const merged = mergePlayers(local, api.players || [])
+      const activeRoster = merged.filter((p: any) => !!p.active).map((p: any) => ({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
+      const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null, rosterIds: activeRoster.map((r:any)=>r.id), rosterRecords: activeRoster }) })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err?.error || "Failed to create tournament")
+        return
+      }
+      const data = await res.json().catch(() => null)
+      toast.success(`Tournament created; ${data?.snapshotted ?? effectivePlayers} players snapshotted.`)
+      setName(""); setSeason(""); setRules(""); setStartAt(""); setEndAt("")
+      load()
+      return
+    } catch {}
     const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null }) })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
