@@ -265,8 +265,8 @@ export default function StandingsPage() {
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad space-y-6">
-        <header className="flex items-center justify-between">
+      <div className="container-5xl section-pad space-y-6 px-4 md:px-0">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-extrabold">Standings</h1>
             {activeTournament ? (
@@ -312,7 +312,7 @@ export default function StandingsPage() {
             <div className="text-xs text-[#9E9E9E]">{standings.length} players</div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[800px]">
               <thead className="text-[#9E9E9E] sticky top-0 z-10 bg-[#141414]">
                 <tr>
                   <th className="text-left px-3 py-2">Pos</th>
@@ -354,12 +354,12 @@ export default function StandingsPage() {
 
         {/* Fixtures list */}
         <section className="rounded-2xl border bg-[#141414] p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <button className={`px-2 py-0.5 rounded ${tab === "UPCOMING" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("UPCOMING")}>Upcoming ({upcoming.length})</button>
-              <button className={`px-2 py-0.5 rounded ml-1 ${tab === "COMPLETED" ? "bg-emerald-500 text-white" : ""}`} onClick={() => setTab("COMPLETED")}>Completed ({completed.length})</button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex flex-wrap gap-2">
+              <button className={`px-3 py-1 rounded text-sm ${tab === "UPCOMING" ? "bg-emerald-500 text-white" : "bg-[#1E1E1E] text-[#9E9E9E] hover:text-white"}`} onClick={() => setTab("UPCOMING")}>Upcoming ({upcoming.length})</button>
+              <button className={`px-3 py-1 rounded text-sm ${tab === "COMPLETED" ? "bg-emerald-500 text-white" : "bg-[#1E1E1E] text-[#9E9E9E] hover:text-white"}`} onClick={() => setTab("COMPLETED")}>Completed ({completed.length})</button>
             </div>
-            <button className="text-xs text-[#9E9E9E] underline" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "Show all"}</button>
+            <button className="text-xs text-[#9E9E9E] underline hover:text-white transition-colors" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "Show all"}</button>
           </div>
 
           {groups.length === 0 ? (
@@ -384,9 +384,9 @@ export default function StandingsPage() {
                             <div className="grid grid-cols-12 items-center gap-2">
                               <div className="col-span-5 flex items-center truncate">
                                 <TeamBadge team={f.homeTeam} />
-                                <span className="truncate">{f.homeLabel}</span>
+                                <span className="truncate text-sm sm:text-base">{f.homeLabel}</span>
                               </div>
-                              <div className="col-span-2 text-center font-semibold tabular-nums">
+                              <div className="col-span-2 text-center font-semibold tabular-nums text-sm sm:text-base">
                                 {isPlayed ? (
                                   <span>
                                     <span className={`${draw ? "text-yellow-300" : homeWin ? "text-emerald-400" : "text-[#9E9E9E]"}`}>{hs}</span>
@@ -398,7 +398,7 @@ export default function StandingsPage() {
                                 )}
                               </div>
                               <div className="col-span-5 flex items-center justify-end truncate">
-                                <span className="truncate">{f.awayLabel}</span>
+                                <span className="truncate text-sm sm:text-base">{f.awayLabel}</span>
                                 <TeamBadge team={f.awayTeam} />
                               </div>
                             </div>
@@ -428,7 +428,7 @@ export default function StandingsPage() {
         </section>
 
         {/* Stats widgets */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           <div className="rounded-2xl border bg-[#141414] p-4">
             <h3 className="text-sm font-semibold mb-3">Top Scorers</h3>
             <div className="divide-y divide-[#1E1E1E]">
