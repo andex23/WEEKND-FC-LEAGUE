@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       }
     } catch {}
     if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
-    if (roster.length % 2 !== 0) return NextResponse.json({ error: "Even number required" }, { status: 400 })
+    // Allow odd player counts; BYE is handled during fixture generation
     const t = {
       id,
       name: body.name || "New Tournament",

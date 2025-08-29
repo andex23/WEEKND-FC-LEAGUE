@@ -70,7 +70,9 @@ export default function AdminDashboard() {
       const settingsData = settingsRes ? await settingsRes.json() : null
 
       const mergedPlayers = mergePlayers(getLocalPlayers(), playersData.players || [])
-      setPlayers(mergedPlayers)
+      // Deduplicate by stable id
+      const dedup = Array.from(new Map(mergedPlayers.map((p: any) => [String(p.id), p])).values())
+      setPlayers(dedup)
       setStandings(standingsData.standings || [])
       // Scope fixtures to active tournament if set
       const activeIdScoped = (settingsData?.tournament?.active_tournament_id || null) as string | null

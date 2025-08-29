@@ -56,7 +56,8 @@ export default function AdminTournamentsPage() {
       }
       const api2 = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
       const merged = mergePlayers(local, api2.players || [])
-      const act = merged.filter((p: any) => !!p.active)
+      const dedup = Array.from(new Map(merged.map((p:any)=>[String(p.id), p])).values())
+      const act = dedup.filter((p: any) => !!p.active)
       setActiveCount(act.length)
       if (!overrideCount) setPlayers(act.length)
     } catch {}
@@ -69,7 +70,7 @@ export default function AdminTournamentsPage() {
   // Use effective player count even before async load completes
   const effectivePlayers = overrideCount ? players : (players || activeCount)
 
-  const validEven = effectivePlayers % 2 === 0
+  const validEven = true // allow odd counts; BYE will be added automatically
   const validMin = effectivePlayers >= 6
   const validDates = Boolean(startAt) && Boolean(endAt)
   const validRange = validDates ? new Date(endAt) >= new Date(startAt) : false
@@ -77,7 +78,7 @@ export default function AdminTournamentsPage() {
 
   const create = async () => {
     if (!canCreate) {
-      let msg = !validMin ? "Need at least 6 players" : !validEven ? "Even number required (no BYE)" : !validDates ? "Select start and end dates" : !validRange ? "End date must be after start date" : "Enter a league name"
+      let msg = !validMin ? "Need at least 6 players" : !validDates ? "Select start and end dates" : !validRange ? "End date must be after start date" : "Enter a league name"
       toast.error(msg)
       return
     }
@@ -88,7 +89,8 @@ export default function AdminTournamentsPage() {
       const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
       const local = getLocalPlayers()
       const merged = mergePlayers(local, api.players || [])
-      const activeRoster = merged.filter((p: any) => !!p.active).map((p: any) => ({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
+      const dedup = Array.from(new Map(merged.map((p:any)=>[String(p.id), p])).values())
+      const activeRoster = dedup.filter((p: any) => !!p.active).map((p: any) => ({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
       const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null, rosterIds: activeRoster.map((r:any)=>r.id), rosterRecords: activeRoster }) })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

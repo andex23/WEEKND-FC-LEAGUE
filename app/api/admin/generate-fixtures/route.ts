@@ -76,12 +76,18 @@ export async function POST(request: NextRequest) {
       roster = activePlayers()
     }
     if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
-    if (roster.length % 2 !== 0) return NextResponse.json({ error: "Even number required" }, { status: 400 })
 
-    const shaped = roster.map((p) => ({ id: p.id, name: p.name, assignedTeam: p.preferred_club || "" }))
+    let shaped = roster.map((p) => ({ id: String(p.id), name: p.name, assignedTeam: p.preferred_club || "" }))
+    // If odd number of players, add BYE placeholder so algorithm can pair
+    const byeId = `__BYE__${tournamentId || "GLOBAL"}`
+    if (shaped.length % 2 !== 0) {
+      shaped = [...shaped, { id: byeId, name: "BYE", assignedTeam: "" }]
+    }
     // Shuffle players to randomize fixture generation on each request
     const randomized = shuffle(shaped)
-    const fixtures = generateRoundRobinFixtures(randomized, rounds, 2)
+    const rawFixtures = generateRoundRobinFixtures(randomized, rounds, 2)
+    // Drop any BYE fixtures
+    const fixtures = rawFixtures.filter((f: any) => f.homePlayer !== byeId && f.awayPlayer !== byeId)
 
     const base = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "http://localhost:3000"
     const season = body.season || "2024/25"
