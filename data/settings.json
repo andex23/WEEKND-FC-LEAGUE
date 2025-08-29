@@ -1,0 +1,43 @@
+{
+  "league": {
+    "name": "Weekend FC League",
+    "season": "2024/25",
+    "status": "ACTIVE",
+    "startDate": "2024-09-01",
+    "endDate": "2025-05-31",
+    "rules": "Standard football rules apply. Matches are 6-a-side, 30 minutes each half.",
+    "matchLength": 6,
+    "matchdays": [
+      "Sat",
+      "Sun"
+    ]
+  },
+  "tournament": {
+    "active_tournament_id": "mwzct74j",
+    "type": "DOUBLE",
+    "rounds": 2,
+    "name": "WFC",
+    "status": "ACTIVE",
+    "season": "",
+    "format": "DOUBLE",
+    "matchdays": [
+      "Sat",
+      "Sun"
+    ],
+    "match_length": 8
+  },
+  "registration": {
+    "open": true,
+    "maxPlayers": 50,
+    "minAge": 16,
+    "maxAge": 65
+  },
+  "notifications": {
+    "email": true,
+    "sms": false,
+    "push": true
+  },
+  "branding": {
+    "league_name": "WFC"
+  }
+}

@@ -1,0 +1,14 @@
+
+> my-v0-project@0.1.0 start /Users/druu/FC WEEKNDS/WEEKND-FC-LEAGUE
+> next start --port 3111 --hostname 127.0.0.1
+
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use 127.0.0.1:3111
+    at <unknown> (Error: listen EADDRINUSE: address already in use 127.0.0.1:3111) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 3111
+}
+ ELIFECYCLE  Command failed with exit code 1.

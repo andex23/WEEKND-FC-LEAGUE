@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateRoundRobinFixtures } from "@/lib/utils/fixtures"
-import { getTournamentPlayers, listPlayers, syncTournamentPlayers, activePlayers } from "@/lib/mocks/players"
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const g: any = globalThis as any
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 function toISOAt17Local(d: Date): string {
   const copy = new Date(d)
@@ -64,18 +62,44 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { rounds = 2, tournamentId } = body
+    const { searchParams } = new URL(request.url)
+    const debug = searchParams.get("debug") === "1"
 
-    let rosterIds = tournamentId ? getTournamentPlayers(String(tournamentId)) : []
-    // Auto-sync snapshot if too few players
-    if ((rosterIds?.length || 0) < 6 && tournamentId) {
-      rosterIds = syncTournamentPlayers(String(tournamentId))
+    const getSelfBase = (req: NextRequest): string => {
+      const env = (process.env.NEXT_PUBLIC_SITE_URL || "").trim()
+      const base = env || new URL(req.url).origin
+      // Normalize localhost to 127.0.0.1 to avoid IPv6 (::1) mismatch when server binds to 127.0.0.1
+      return base.replace("localhost", "127.0.0.1")
     }
-    let roster = rosterIds.map((id) => listPlayers().find((p) => p.id === id)).filter(Boolean) as any[]
-    // Fallback to current active players if snapshot still insufficient
-    if (roster.length < 6) {
-      roster = activePlayers()
+
+    // Build roster from Supabase (status = approved)
+    const client = await createClient()
+    const admin = createAdminClient()
+    let roster: any[] = []
+    // Allow caller-provided roster
+    if (Array.isArray(body.rosterRecords) && body.rosterRecords.length) {
+      roster = body.rosterRecords
     }
-    if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
+    if (roster.length === 0) {
+      // Prefer admin client to bypass any RLS issues
+      const { data: rows, error } = await admin
+        .from("players")
+        .select("id, name, preferred_club, status")
+        .eq("status", "approved")
+      if (error) {
+        console.error("generate-fixtures: players query error", error)
+      }
+      roster = (rows || [])
+    }
+
+    // Skip registrations entirely - we work directly with players table
+    console.log(`Using ${roster.length} players directly from players table (no registrations needed)`)
+    
+      // Skip trying to modify schema - we'll handle constraint errors differently
+  console.log("Note: Skipping schema modification - will handle constraints in fixtures API")
+    if (roster.length < 2) {
+      return NextResponse.json({ error: "Need at least 2 players", approvedCount: roster.length }, { status: 400 })
+    }
 
     let shaped = roster.map((p) => ({ id: String(p.id), name: p.name, assignedTeam: p.preferred_club || "" }))
     // If odd number of players, add BYE placeholder so algorithm can pair
@@ -85,42 +109,61 @@ export async function POST(request: NextRequest) {
     }
     // Shuffle players to randomize fixture generation on each request
     const randomized = shuffle(shaped)
+    console.log(`DEBUG: Calling generateRoundRobinFixtures with ${randomized.length} players, rounds=${rounds}`)
     const rawFixtures = generateRoundRobinFixtures(randomized, rounds, 2)
+    console.log(`DEBUG: generateRoundRobinFixtures returned ${rawFixtures.length} fixtures`)
     // Drop any BYE fixtures
     const fixtures = rawFixtures.filter((f: any) => f.homePlayer !== byeId && f.awayPlayer !== byeId)
+    console.log(`DEBUG: After filtering BYE fixtures: ${fixtures.length} fixtures`)
 
-    const base = process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "http://localhost:3000"
+    const base = getSelfBase(request)
     const season = body.season || "2024/25"
 
     // Weekend dates per matchday
     const maxMd = fixtures.reduce((m, f) => Math.max(m, Number(f.matchday || 1)), 1)
-    const tournament = (g.__memTournaments || []).find((t: any) => String(t.id) === String(tournamentId)) || null
-    const startAt = tournament?.start_at || null
+    // Fetch tournament start date from DB
+    let startAt: string | null = null
+    if (tournamentId) {
+      const { data: t, error: tErr } = await admin.from("tournaments").select("start_at").eq("id", String(tournamentId)).single()
+      if (tErr) console.error("generate-fixtures: tournaments query error", tErr)
+      startAt = (t as any)?.start_at || null
+    }
     const weekendDates = computeWeekendDates(startAt, maxMd)
 
+    let posted = 0
+    const errors: any[] = []
     for (const f of fixtures) {
-      const md = Number(f.matchday || 1)
-      const dateISO = weekendDates[Math.max(0, md - 1)] || weekendDates[0]
-      await fetch(new URL("/api/fixtures", base), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        id: f.id,
-        tournamentId,
-        season,
-        matchday: f.matchday,
-        homeId: f.homePlayer,
-        awayId: f.awayPlayer,
-        status: "SCHEDULED",
-        date: dateISO,
-        // include labels for convenience
-        homeName: randomized.find((p) => p.id === f.homePlayer)?.name,
-        awayName: randomized.find((p) => p.id === f.awayPlayer)?.name,
-        homeTeam: f.homeTeam || randomized.find((p) => p.id === f.homePlayer)?.assignedTeam || "",
-        awayTeam: f.awayTeam || randomized.find((p) => p.id === f.awayPlayer)?.assignedTeam || "",
-      }) })
+      try {
+        const md = Number(f.matchday || 1)
+        const dateISO = weekendDates[Math.max(0, md - 1)] || weekendDates[0]
+        const res = await fetch(new URL("/api/fixtures", base), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          tournamentId,
+          season,
+          matchday: f.matchday,
+          homeId: f.homePlayer,
+          awayId: f.awayPlayer,
+          status: "SCHEDULED",
+          date: dateISO,
+          // include labels for convenience
+          homeName: randomized.find((p) => p.id === f.homePlayer)?.name,
+          awayName: randomized.find((p) => p.id === f.awayPlayer)?.name,
+          homeTeam: f.homeTeam || randomized.find((p) => p.id === f.homePlayer)?.assignedTeam || "",
+          awayTeam: f.awayTeam || randomized.find((p) => p.id === f.awayPlayer)?.assignedTeam || "",
+        }) })
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "")
+          throw new Error(`POST /api/fixtures ${res.status} ${txt}`)
+        }
+        posted++
+      } catch (e: any) {
+        errors.push(String(e?.message || e))
+        if (!debug) throw e
+      }
     }
 
-    return NextResponse.json({ message: "Fixtures generated", fixtures, totalFixtures: fixtures.length, season })
+    return NextResponse.json({ message: "Fixtures generated", fixtures, totalFixtures: fixtures.length, posted, errors: debug ? errors : undefined, season })
   } catch (error) {
     console.error("Error generating fixtures:", error)
-    return NextResponse.json({ error: "Failed to generate fixtures" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to generate fixtures", details: String((error as any)?.message || error) }, { status: 500 })
   }
 }

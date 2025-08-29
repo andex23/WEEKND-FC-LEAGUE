@@ -9,22 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useRouter, usePathname } from "next/navigation"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
 
-const LS_KEY = "admin_players"
-
-function getLocalPlayers(): any[] {
-  try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
-}
-function setLocalPlayers(rows: any[]) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(rows)) } catch {}
-}
-function mergePlayers(a: any[], b: any[]) {
-  const byId = new Map<string, any>()
-  ;[...a, ...b].forEach((p) => {
-    const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
-    byId.set(key, { ...byId.get(key), ...p })
-  })
-  return Array.from(byId.values())
-}
+// All persistence is via Supabase. Remove local storage to avoid duplicates.
 
 export default function AdminPlayersPage() {
   const router = useRouter()
@@ -36,23 +21,18 @@ export default function AdminPlayersPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const load = async () => {
-    try {
-      const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] }))
-      const local = getLocalPlayers()
-      setPlayers(mergePlayers(local, api.players || []))
-    } catch {
-      setPlayers(getLocalPlayers())
-    }
+    const api = await fetch("/api/admin/players").then((x) => x.json()).catch(() => ({ players: [] }))
+    setPlayers(api.players || [])
   }
   useEffect(() => { load() }, [])
 
-  const activeCount = useMemo(() => players.filter((p) => !!p.active).length, [players])
+  const activeCount = useMemo(() => players.filter((p) => String(p.status) === "approved").length, [players])
   const canCreateTournament = activeCount >= 6 && activeCount % 2 === 0
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
     if (!query) return players
-    return players.filter((p) => [p.name, p.gamer_tag, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query)))
+    return players.filter((p) => [p.name, p.username, (p as any).gamer_tag, p.psn_name, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query)))
   }, [players, q])
 
   const onAdded = () => load()
@@ -72,20 +52,25 @@ export default function AdminPlayersPage() {
       header.forEach((h, i) => { obj[h] = cols[i] })
       return obj
     })
-    const local = getLocalPlayers()
     const toAdd = rows.map((r) => ({
-      id: r.id || (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
       name: r.name || "Unnamed",
       gamer_tag: r.gamer_tag || r.gamertag || "",
       console: (r.console || "PS5").toUpperCase(),
       preferred_club: r.preferred_club || "",
       location: r.location || "",
       active: String(r.status || "active").toLowerCase() !== "inactive",
-      created_at: new Date().toISOString(),
     }))
-    setLocalPlayers(mergePlayers(local, toAdd))
-    Promise.all(toAdd.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
-      .finally(load)
+    await Promise.all(toAdd.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      action: "add",
+      name: p.name,
+      username: p.gamer_tag || null,
+      psn_name: p.gamer_tag || null,
+      console: p.console,
+      preferred_club: p.preferred_club,
+      location: p.location,
+      status: p.active ? "approved" : "pending"
+    }) }).catch(() => {})))
+    await load()
   }
 
   const downloadTemplate = () => {
@@ -198,15 +183,15 @@ export default function AdminPlayersPage() {
                   {filtered.map((p) => (
                     <tr key={p.id} className="border-t border-[#1E1E1E]">
                       <td className="px-3 py-2">{p.name}</td>
-                      <td className="px-3 py-2">{p.gamer_tag || "—"}</td>
+                      <td className="px-3 py-2">{p.username || p.psn_name || "—"}</td>
                       <td className="px-3 py-2">{p.preferred_club || "—"}</td>
                       <td className="px-3 py-2">{p.console}</td>
                       <td className="px-3 py-2">{p.location || "—"}</td>
-                      <td className="px-3 py-2">{p.active ? "Yes" : "No"}</td>
+                      <td className="px-3 py-2">{String(p.status) === "approved" ? "Yes" : "No"}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => setEdit(p)}>Edit</Button>
-                          <Button size="sm" variant="outline" onClick={async () => { const patch = { active: !p.active }; const locals = getLocalPlayers().map((x) => x.id === p.id ? { ...x, ...patch } : x); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, patch }) }); load() }}>{p.active ? "Deactivate" : "Activate"}</Button>
+                          <Button size="sm" variant="outline" onClick={async () => { const nextActive = String(p.status) !== "approved"; await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, status: nextActive ? "approved" : "pending" }) }); load() }}>{String(p.status) === "approved" ? "Deactivate" : "Activate"}</Button>
                           <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={async () => { setConfirmDeleteId(p.id) }}>Delete</Button>
                         </div>
                       </td>
@@ -228,8 +213,24 @@ export default function AdminPlayersPage() {
         setConfirmClear={setConfirmClear}
         confirmDeleteId={confirmDeleteId}
         setConfirmDeleteId={setConfirmDeleteId}
-        onCleared={async () => { setLocalPlayers([]); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}
-        onDeleted={async () => { if (confirmDeleteId) { const locals = getLocalPlayers().filter((x) => x.id !== confirmDeleteId); setLocalPlayers(locals); await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id: confirmDeleteId }) }); load() } }}
+        onCleared={async () => { await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear" }) }); load() }}
+        onDeleted={async () => {
+          if (confirmDeleteId) {
+            const target = players.find((x: any) => String(x.id) === String(confirmDeleteId))
+            await fetch("/api/admin/players", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "delete",
+                id: confirmDeleteId,
+                name: target?.name,
+                username: target?.username || target?.psn_name || null,
+                psn_name: target?.psn_name || target?.username || null,
+              })
+            })
+            load()
+          }
+        }}
       />
     </div>
   )
@@ -251,7 +252,17 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
     try {
       const locals = getLocalPlayers()
       setLocalPlayers(mergePlayers(locals, [payload]))
-      await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...payload }) })
+      await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        action: "add",
+        id: payload.id,
+        name: payload.name,
+        username: payload.gamer_tag || null,
+        psn_name: payload.gamer_tag || null,
+        console: payload.console,
+        preferred_club: payload.preferred_club,
+        location: payload.location,
+        status: payload.active ? "approved" : "pending"
+      }) })
       setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
       onAdded()
     } finally { setLoading(false) }

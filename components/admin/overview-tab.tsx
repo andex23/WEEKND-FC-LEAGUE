@@ -3,24 +3,53 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Calendar, Trophy, TrendingUp } from "lucide-react"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
-
-// Mock data - will be replaced with real data
-const leagueStats = {
-  totalPlayers: 16,
-  status: "DRAFT" as const,
-  startDate: new Date("2024-01-15"),
-  endDate: new Date("2024-03-15"),
-  totalFixtures: 240,
-  completedFixtures: 0,
-}
-
-const consoleData = [
-  { name: "PS5", value: 8, color: "hsl(var(--chart-1))" },
-  { name: "Xbox", value: 5, color: "hsl(var(--chart-2))" },
-  { name: "PC", value: 3, color: "hsl(var(--chart-3))" },
-]
+import { useState, useEffect } from "react"
 
 export function OverviewTab() {
+  const [stats, setStats] = useState({
+    totalPlayers: 0,
+    status: "DRAFT",
+    startDate: new Date(),
+    endDate: new Date(),
+    totalFixtures: 0,
+    completedFixtures: 0,
+  });
+  const [consoleData, setConsoleData] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/stats").then(x => x.json());
+        const tournaments = await fetch("/api/admin/tournaments").then(x => x.json());
+        const latestTournament = tournaments[0] || {};
+        const f = await fetch(`/api/fixtures?tournamentId=${latestTournament.id}`).then(x => x.json());
+        const playersRes = await fetch("/api/admin/players").then(x => x.json());
+        const players = playersRes.players || [];
+
+        // Compute console distribution
+        const consoleCounts = players.reduce((acc, p) => {
+          acc[p.console] = (acc[p.console] || 0) + 1;
+          return acc;
+        }, {});
+        const consoleArray = Object.entries(consoleCounts).map(([name, value], index) => ({
+          name,
+          value,
+          color: `hsl(var(--chart-${index + 1}))`,
+        }));
+
+        setStats({
+          totalPlayers: players.length,
+          status: latestTournament.status || "DRAFT",
+          startDate: new Date(latestTournament.start_at || Date.now()),
+          endDate: new Date(latestTournament.end_at || Date.now()),
+          totalFixtures: f.totalFixtures || 0,
+          completedFixtures: f.fixtures.filter(fixt => fixt.status === "COMPLETE").length,
+        });
+        setConsoleData(consoleArray);
+      } catch {}
+    })();
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "DRAFT":
@@ -44,7 +73,7 @@ export function OverviewTab() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leagueStats.totalPlayers}</div>
+            <div className="text-2xl font-bold">{stats.totalPlayers}</div>
             <p className="text-xs text-muted-foreground">of 20 maximum</p>
           </CardContent>
         </Card>
@@ -55,8 +84,8 @@ export function OverviewTab() {
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Badge variant={getStatusColor(leagueStats.status)} className="text-sm">
-              {leagueStats.status}
+            <Badge variant={getStatusColor(stats.status)} className="text-sm">
+              {stats.status}
             </Badge>
             <p className="text-xs text-muted-foreground mt-2">Current phase</p>
           </CardContent>
@@ -68,7 +97,7 @@ export function OverviewTab() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leagueStats.startDate.toLocaleDateString()}</div>
+            <div className="text-2xl font-bold">{stats.startDate.toLocaleDateString()}</div>
             <p className="text-xs text-muted-foreground">League begins</p>
           </CardContent>
         </Card>
@@ -80,7 +109,7 @@ export function OverviewTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {leagueStats.completedFixtures}/{leagueStats.totalFixtures}
+              {stats.completedFixtures}/{stats.totalFixtures}
             </div>
             <p className="text-xs text-muted-foreground">Fixtures completed</p>
           </CardContent>
@@ -95,11 +124,10 @@ export function OverviewTab() {
         </CardHeader>
         <CardContent>
           <ChartContainer
-            config={{
-              ps5: { label: "PS5", color: "hsl(var(--chart-1))" },
-              xbox: { label: "Xbox", color: "hsl(var(--chart-2))" },
-              pc: { label: "PC", color: "hsl(var(--chart-3))" },
-            }}
+            config={consoleData.reduce((acc, item, index) => {
+              acc[item.name.toLowerCase()] = { label: item.name, color: item.color };
+              return acc;
+            }, {})}
             className="h-[300px]"
           >
             <ResponsiveContainer width="100%" height="100%">

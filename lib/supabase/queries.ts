@@ -336,3 +336,69 @@ export async function upsertTournamentConfig(config: any, setActive?: boolean) {
     await client.from("league_settings").update({ status: setActive ? "ACTIVE" : "DRAFT" }).neq("id", "")
   } catch {}
 }
+
+// Tournament queries
+export async function getTournaments() {
+  const client = await createClient()
+  const { data, error } = client.from("league").select("*").order("created_at", { ascending: false })
+  if (error) return []
+  return data || []
+}
+
+export async function createTournament(tournamentData: any) {
+  const client = await createClient()
+  const { data, error } = await client.from("tournaments").insert([tournamentData]).select().single()
+  if (error) {
+    console.error("Error creating tournament:", error)
+    throw error
+  }
+  return data
+}
+
+export async function updateTournament(id: string, patch: any) {
+  const client = await createClient()
+  const { data, error } = await client.from("tournaments").update(patch).eq("id", id).select().single()
+  if (error) {
+    console.error("Error updating tournament:", error)
+    throw error
+  }
+  return data
+}
+
+export async function deleteTournament(id: string) {
+  const client = await createClient()
+  const { error } = await client.from("tournaments").delete().eq("id", id)
+  if (error) {
+    console.error("Error deleting tournament:", error)
+    throw error
+  }
+  return true
+}
+
+export async function getActiveTournamentId() {
+  const client = await createClient()
+  const { data, error } = await client.from("tournaments").select("id").eq("is_active", true).single()
+  if (error) {
+    console.error("Error fetching active tournament:", error)
+    return null
+  }
+  return data?.id || null
+}
+
+export async function setActiveTournament(id: string) {
+  const client = await createClient()
+  // Deactivate all first
+  await client.from("tournaments").update({ is_active: false }).eq("is_active", true)
+  // Activate the new one
+  const { data, error } = await client.from("tournaments").update({ is_active: true, status: "ACTIVE" }).eq("id", id).select().single()
+  if (error) {
+    console.error("Error activating tournament:", error)
+    throw error
+  }
+  return data
+}
+
+export async function deactivateTournament() {
+  const client = await createClient()
+  await client.from("tournaments").update({ is_active: false, status: "DRAFT" }).eq("is_active", true)
+}

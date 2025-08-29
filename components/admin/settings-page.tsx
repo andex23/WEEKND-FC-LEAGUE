@@ -30,18 +30,28 @@ export function SettingsPage() {
   }, [])
 
   const seasonChip = useMemo(() => {
+    if (!data) return "Loading..."
     const name = data?.tournament?.name || data?.branding?.league_name || "Weekend FC"
     const status = (data?.tournament?.status || "DRAFT").toUpperCase()
     return `${name} (${status})`
   }, [data])
 
-  const update = (section: string, patch: any) => { setData((prev: any) => ({ ...prev, [section]: { ...prev[section], ...patch } })); setDirty(true) }
+  const update = (section: string, patch: any) => { 
+    setData((prev: any) => ({ 
+      ...prev, 
+      [section]: { 
+        ...(prev?.[section] || {}), 
+        ...patch 
+      } 
+    })); 
+    setDirty(true) 
+  }
 
   const save = async (section: string) => { setSaving(true); await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section, data: (data as any)[section] }) }); setSaving(false); setDirty(false) }
   const discard = () => { window.location.reload() }
 
   const toggleMatchday = (day: string) => {
-    const md = new Set<string>(data.tournament.matchdays || [])
+    const md = new Set<string>(data?.tournament?.matchdays || [])
     md.has(day) ? md.delete(day) : md.add(day)
     update("tournament", { matchdays: Array.from(md) })
   }
@@ -62,7 +72,7 @@ export function SettingsPage() {
     } catch (e) { toast.error("Failed to delete") }
   }
   const deleteTournament = () => {
-    const st = (data.tournament.status || "DRAFT").toUpperCase()
+    const st = (data?.tournament?.status || "DRAFT").toUpperCase()
     if (!(st === "DRAFT" || st === "COMPLETED")) { toast.error("You can only delete when Draft or Completed."); return }
     setConfirmType("delete")
   }
@@ -85,7 +95,7 @@ export function SettingsPage() {
 
   const testDiscord = async () => {
     // Simulate send; in real system we'd POST to webhook
-    toast.info(data.integrations.discord_webhook_url ? "Test message sent (simulated)." : "Add a webhook URL first.")
+    toast.info(data?.integrations?.discord_webhook_url ? "Test message sent (simulated)." : "Add a webhook URL first.")
   }
 
   const exportFixturesCsv = async () => {
@@ -139,11 +149,11 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Tournament Name</label>
-                    <Input className="mt-1 bg-transparent" value={data.tournament.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} disabled={isCompleted} />
+                    <Input className="mt-1 bg-transparent" value={data?.tournament?.name || ""} onChange={(e) => update("tournament", { name: e.target.value })} disabled={isCompleted} />
                   </div>
                   <div>
                     <label className="text-sm">Status</label>
-                    <Select value={data.tournament.status} onValueChange={(v) => update("tournament", { status: v })}>
+                    <Select value={data?.tournament?.status || "DRAFT"} onValueChange={(v) => update("tournament", { status: v })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="DRAFT">Draft</SelectItem>
@@ -155,13 +165,13 @@ export function SettingsPage() {
                   <div className="md:col-span-2">
                     <label className="text-sm">Matchdays</label>
                     <div className="mt-2 flex items-center gap-4 text-sm">
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sat")} onChange={() => toggleMatchday("Sat")} disabled={isCompleted} /> Sat</label>
-                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data.tournament.matchdays || []).includes("Sun")} onChange={() => toggleMatchday("Sun")} disabled={isCompleted} /> Sun</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data?.tournament?.matchdays || []).includes("Sat")} onChange={() => toggleMatchday("Sat")} disabled={isCompleted} /> Sat</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data?.tournament?.matchdays || []).includes("Sun")} onChange={() => toggleMatchday("Sun")} disabled={isCompleted} /> Sun</label>
                     </div>
                   </div>
                   <div>
                     <label className="text-sm">Match Length</label>
-                    <Select value={String(data.tournament.match_length)} onValueChange={(v) => update("tournament", { match_length: Number(v) })}>
+                    <Select value={String(data?.tournament?.match_length || 6)} onValueChange={(v) => update("tournament", { match_length: Number(v) })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[6,8,10].map((n) => (<SelectItem key={n} value={String(n)}>{n} mins</SelectItem>))}
@@ -194,16 +204,16 @@ export function SettingsPage() {
                     <label className="text-sm">League Logo</label>
                     <div className="mt-1 flex items-center gap-2">
                       <input ref={fileRef} type="file" accept="image/*" onChange={(e) => { const f = e.currentTarget.files?.[0]; if (f) uploadLogo(f); e.currentTarget.value = "" }} />
-                      {data.branding.logo_url && (<img src={data.branding.logo_url} alt="logo" className="h-10 w-10 rounded-full border" />)}
+                      {data?.branding?.logo_url && (<img src={data.branding.logo_url} alt="logo" className="h-10 w-10 rounded-full border" />)}
                     </div>
                   </div>
                   <div>
                     <label className="text-sm">Primary Color</label>
-                    <input type="color" className="mt-1 h-10 w-16 p-0 border rounded" value={data.branding.accent_color || "#00C853"} onChange={(e) => update("branding", { accent_color: e.target.value })} />
+                    <input type="color" className="mt-1 h-10 w-16 p-0 border rounded" value={data?.branding?.accent_color || "#00C853"} onChange={(e) => update("branding", { accent_color: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-sm">Dark Mode</label>
-                    <div className="mt-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!data.branding.dark_mode} onChange={(e) => update("branding", { dark_mode: e.target.checked })} /> Default to dark</label></div>
+                    <div className="mt-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!data?.branding?.dark_mode} onChange={(e) => update("branding", { dark_mode: e.target.checked })} /> Default to dark</label></div>
                   </div>
                 </div>
               </div>
@@ -212,11 +222,11 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Rules PDF URL</label>
-                    <Input className="mt-1 bg-transparent" value={data.branding.rules_url || ""} onChange={(e) => update("branding", { rules_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data?.branding?.rules_url || ""} onChange={(e) => update("branding", { rules_url: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-sm">Discord Invite URL</label>
-                    <Input className="mt-1 bg-transparent" value={data.branding.discord_invite_url || ""} onChange={(e) => update("branding", { discord_invite_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data?.branding?.discord_invite_url || ""} onChange={(e) => update("branding", { discord_invite_url: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -231,7 +241,7 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <div>
                     <label className="text-sm">Webhook URL</label>
-                    <Input className="mt-1 bg-transparent" value={data.integrations.discord_webhook_url || ""} onChange={(e) => update("integrations", { discord_webhook_url: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data?.integrations?.discord_webhook_url || ""} onChange={(e) => update("integrations", { discord_webhook_url: e.target.value })} />
                   </div>
                   <div>
                     <Button onClick={testDiscord}>Send Test Message</Button>
@@ -243,11 +253,11 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">From Name</label>
-                    <Input className="mt-1 bg-transparent" value={data.integrations.email_from_name || ""} onChange={(e) => update("integrations", { email_from_name: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data?.integrations?.email_from_name || ""} onChange={(e) => update("integrations", { email_from_name: e.target.value })} />
                   </div>
                   <div>
                     <label className="text-sm">From Address</label>
-                    <Input className="mt-1 bg-transparent" value={data.integrations.email_from_address || ""} onChange={(e) => update("integrations", { email_from_address: e.target.value })} />
+                    <Input className="mt-1 bg-transparent" value={data?.integrations?.email_from_address || ""} onChange={(e) => update("integrations", { email_from_address: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -275,7 +285,7 @@ export function SettingsPage() {
           <div className="rounded-2xl border p-4 sticky top-4 bg-[#141414]">
             <div className="text-sm font-semibold mb-2">Help</div>
             <div className="text-xs text-[#9E9E9E]">Settings let you tweak basics and connect Discord/Email. You can sync roster from approved players and finish or delete a tournament here.</div>
-            <div className="mt-2 text-xs"><a className="underline" href={data.branding.rules_url || "#"} target="_blank">Rules PDF</a> · <a className="underline" href={data.branding.discord_invite_url || "#"} target="_blank">Discord</a></div>
+            <div className="mt-2 text-xs"><a className="underline" href={data?.branding?.rules_url || "#"} target="_blank">Rules PDF</a> · <a className="underline" href={data?.branding?.discord_invite_url || "#"} target="_blank">Discord</a></div>
           </div>
         </div>
       </div>

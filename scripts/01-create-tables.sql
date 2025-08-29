@@ -1,22 +1,27 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Create enum types
 CREATE TYPE console_type AS ENUM ('PS5', 'XBOX', 'PC');
 CREATE TYPE league_status AS ENUM ('DRAFT', 'ACTIVE', 'COMPLETE');
 CREATE TYPE fixture_status AS ENUM ('SCHEDULED', 'PLAYED', 'CANCELLED');
 CREATE TYPE player_role AS ENUM ('PLAYER', 'ADMIN');
+CREATE TYPE player_status AS ENUM ('pending', 'approved');
 
 -- Create players table
 CREATE TABLE players (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    location VARCHAR(255) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    username TEXT,
+    name TEXT NOT NULL,
+    psn_name TEXT,
+    location TEXT,
     console console_type NOT NULL,
-    preferred_club VARCHAR(100) NOT NULL,
-    assigned_club VARCHAR(100),
+    preferred_club TEXT NOT NULL,
+    assigned_club TEXT,
     role player_role DEFAULT 'PLAYER',
+    status player_status DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -30,13 +35,14 @@ CREATE TABLE league_settings (
     teams_locked BOOLEAN DEFAULT FALSE,
     rounds INTEGER DEFAULT 2,
     matchdays_per_weekend INTEGER DEFAULT 3,
+    active_tournament_id UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create fixtures table
 CREATE TABLE fixtures (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     home_player_id UUID REFERENCES players(id) ON DELETE CASCADE,
     away_player_id UUID REFERENCES players(id) ON DELETE CASCADE,
     home_club VARCHAR(100) NOT NULL,
@@ -47,6 +53,8 @@ CREATE TABLE fixtures (
     status fixture_status DEFAULT 'SCHEDULED',
     home_confirmed BOOLEAN DEFAULT FALSE,
     away_confirmed BOOLEAN DEFAULT FALSE,
+    tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
+    scheduled_date TIMESTAMP WITH TIME ZONE,
     played_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -100,6 +108,26 @@ LEFT JOIN fixtures f ON (f.home_player_id = p.id OR f.away_player_id = p.id)
 WHERE p.assigned_club IS NOT NULL
 GROUP BY p.id, p.name, p.assigned_club, p.console
 ORDER BY points DESC, goal_difference DESC, goals_for DESC;
+
+-- Create tournaments table
+CREATE TYPE tournament_status AS ENUM ('DRAFT', 'ACTIVE', 'COMPLETE');
+CREATE TYPE tournament_type AS ENUM ('SINGLE', 'DOUBLE');
+CREATE TABLE tournaments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  status tournament_status DEFAULT 'DRAFT',
+  season VARCHAR(50),
+  type tournament_type DEFAULT 'DOUBLE',
+  players INTEGER NOT NULL,
+  rules TEXT,
+  match_length INTEGER DEFAULT 6,
+  matchdays JSONB DEFAULT '["Sat","Sun"]'::JSONB,
+  start_at TIMESTAMP WITH TIME ZONE,
+  end_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_active BOOLEAN DEFAULT FALSE
+);
 
 -- Create indexes for better performance
 CREATE INDEX idx_players_user_id ON players(user_id);

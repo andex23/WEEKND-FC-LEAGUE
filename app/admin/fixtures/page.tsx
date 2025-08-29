@@ -49,12 +49,11 @@ export default function AdminFixturesPage() {
   const [tbd, setTbd] = useState(false)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [settings, setSettings] = useState<any>(null)
+  const [activeTournamentId, setActiveTournamentId] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [clashOpen, setClashOpen] = useState(false)
   const [skipClashCheck, setSkipClashCheck] = useState(false)
-
-  const activeTournamentId = String(settings?.tournament?.active_tournament_id || "")
 
   useEffect(() => {
     ;(async () => {
@@ -68,9 +67,11 @@ export default function AdminFixturesPage() {
   }, [])
 
   const reloadFixtures = async (tid?: string) => {
+    console.log("Fixtures page: Reloading fixtures for tournament:", tid)
     const qs = tid ? `?tournamentId=${encodeURIComponent(tid)}` : ""
     const res = await fetch(`/api/fixtures${qs}`)
     const data = await res.json()
+    console.log("Fixtures page: Received fixtures data:", data.fixtures?.length || 0)
     const rows: Fixture[] = (data.fixtures || []).map((f: any) => ({
       id: String(f.id || newId()),
       season: f.season || "2024/25",
@@ -96,12 +97,38 @@ export default function AdminFixturesPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        await reloadFixtures(activeTournamentId)
+        // Load settings first
+        const s = await fetch("/api/admin/settings").then((r) => r.json()).catch(() => ({}))
+        setSettings(s)
+        
+        // Get active tournament ID
+        let tournamentId = s?.tournament?.active_tournament_id
+        if (!tournamentId) {
+          try {
+            const tournamentsRes = await fetch("/api/admin/tournaments").then((r) => r.json()).catch(() => ({ tournaments: [] }))
+            const activeTournament = tournamentsRes.tournaments?.find((t: any) => t.status === "ACTIVE")
+            tournamentId = activeTournament?.id
+            console.log("Fixtures page: Found active tournament:", tournamentId)
+          } catch (e) {
+            console.error("Error fetching active tournament:", e)
+          }
+        }
+        
+        setActiveTournamentId(tournamentId || "")
+        
+        // Load fixtures for the active tournament
+        await reloadFixtures(tournamentId)
       } catch { setFixtures([]) }
       setLoading(false)
     })()
-    fetch("/api/admin/settings").then((r) => r.json()).then((s) => setSettings(s)).catch(() => null)
   }, [])
+
+  // Reload fixtures when active tournament changes
+  useEffect(() => {
+    if (activeTournamentId) {
+      reloadFixtures(activeTournamentId)
+    }
+  }, [activeTournamentId])
 
   const clearTournament = async () => {
     if (!activeTournamentId) { toast.error("No active tournament set"); return }
@@ -113,7 +140,7 @@ export default function AdminFixturesPage() {
   // Matchday counts for current season
   const mdCounts = useMemo(() => {
     const map = new Map<number, number>()
-    for (const f of fixtures.filter((x) => x.season === activeSeason)) {
+    for (const f of fixtures.filter((x) => x.season === activeSeason || x.season === null)) {
       map.set(f.matchday, (map.get(f.matchday) || 0) + 1)
     }
     return map
@@ -231,7 +258,9 @@ export default function AdminFixturesPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-[28px] md:text-[32px] font-extrabold">Fixtures</h1>
-            <p className="text-sm text-[#9E9E9E]">Create and manage fixtures</p>
+            <p className="text-sm text-[#9E9E9E]">
+              {activeTournamentId ? "Active Tournament Fixtures" : "Create and manage fixtures"}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <AdminOverlayNav />
@@ -245,7 +274,15 @@ export default function AdminFixturesPage() {
           <div className="mb-6 rounded-2xl p-3 border bg-[#141414] text-[#D1D1D1] text-sm">Tournament is completed. Adding or editing fixtures is disabled.</div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {!activeTournamentId && (
+          <div className="rounded-2xl border p-8 bg-[#141414] text-center">
+            <div className="text-lg font-semibold mb-2">No Active Tournament</div>
+            <div className="text-sm text-[#9E9E9E]">All tournaments are currently inactive. Activate a tournament to manage fixtures.</div>
+          </div>
+        )}
+
+        {activeTournamentId && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-9">
             <div className="rounded-2xl border overflow-hidden bg-[#141414]">
               <div className="px-4 py-2 border-b border-[#1E1E1E] flex items-center gap-3">
@@ -259,7 +296,7 @@ export default function AdminFixturesPage() {
               </div>
 
               <div className="divide-y divide-[#1E1E1E]">
-                {fixtures.filter((f) => f.season === activeSeason).map((f) => {
+                {fixtures.filter((f) => f.season === activeSeason || f.season === null).map((f) => {
                   const h = playerById(f.homeId)
                   const a = playerById(f.awayId)
                   return (
@@ -281,7 +318,7 @@ export default function AdminFixturesPage() {
                     </div>
                   )
                 })}
-                {fixtures.filter((f) => f.season === activeSeason).length === 0 && (
+                {fixtures.filter((f) => f.season === activeSeason || f.season === null).length === 0 && (
                   <div className="px-4 py-6 text-sm text-[#9E9E9E]">No fixtures yet.</div>
                 )}
               </div>
@@ -294,6 +331,7 @@ export default function AdminFixturesPage() {
             </div>
           </div>
         </div>
+        )}
 
         <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
           <DialogContent className="sm:max-w-2xl bg-[#141414] text-white border">

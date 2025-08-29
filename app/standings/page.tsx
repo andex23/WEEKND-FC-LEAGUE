@@ -63,15 +63,43 @@ export default function StandingsPage() {
   const [consoleFilter, setConsoleFilter] = useState("all")
   const [tab, setTab] = useState<"UPCOMING" | "COMPLETED">("UPCOMING")
   const [activeTournamentId, setActiveTournamentId] = useState<string | null | undefined>(undefined)
+  const [activeTournament, setActiveTournament] = useState<any>(null)
   const [showAll, setShowAll] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadActive = async () => {
       try {
+        // First try to get from settings
         const s = await fetch("/api/admin/settings").then((r) => r.json())
-        setActiveTournamentId(s?.tournament?.active_tournament_id ?? null)
-      } catch { setActiveTournamentId(null) }
+        let tournamentId = s?.tournament?.active_tournament_id
+        
+        // If not found in settings, get active tournament directly
+        if (!tournamentId) {
+          try {
+            const tournamentsRes = await fetch("/api/admin/tournaments").then((r) => r.json()).catch(() => ({ tournaments: [] }))
+            const activeTournament = tournamentsRes.tournaments?.find((t: any) => t.status === "ACTIVE")
+            tournamentId = activeTournament?.id
+            setActiveTournament(activeTournament || null)
+            console.log("Standings page: Found active tournament:", tournamentId)
+          } catch (e) {
+            console.error("Error fetching active tournament:", e)
+          }
+        } else {
+          // If we have tournamentId from settings, get the tournament details
+          try {
+            const tournamentsRes = await fetch("/api/admin/tournaments").then((r) => r.json()).catch(() => ({ tournaments: [] }))
+            const tournament = tournamentsRes.tournaments?.find((t: any) => t.id === tournamentId)
+            setActiveTournament(tournament || null)
+          } catch (e) {
+            console.error("Error fetching tournament details:", e)
+          }
+        }
+        
+        setActiveTournamentId(tournamentId ?? null)
+      } catch { 
+        setActiveTournamentId(null) 
+      }
     }
     loadActive()
   }, [])
@@ -85,6 +113,7 @@ export default function StandingsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      console.log("Standings page: Fetching data for tournament:", activeTournamentId)
       const qs = activeTournamentId ? `?tournamentId=${encodeURIComponent(String(activeTournamentId))}` : ""
       const standingsUrl = consoleFilter === "all" ? `/api/standings${qs}` : `/api/standings${qs ? `${qs}&` : "?"}console=${consoleFilter}`
       const playerStatsUrl = `/api/player-stats${qs}`
@@ -95,10 +124,12 @@ export default function StandingsPage() {
         fetch(fixturesUrl),
       ])
 
+      // Also fetch players for team names
       let byId: Map<string, any> = new Map()
       try {
-        if ((playersResponse as any)?.ok) {
-          const pj = await (playersResponse as any).json()
+        const playersResponse = await fetch("/api/admin/players")
+        if (playersResponse.ok) {
+          const pj = await playersResponse.json()
           byId = new Map((pj.players || []).map((p: any) => [String(p.id), p]))
         }
       } catch {}
@@ -106,6 +137,7 @@ export default function StandingsPage() {
 
       if (standingsResponse.ok) {
         const data = await standingsResponse.json()
+        console.log("Standings page: Standings data:", data)
         const rows = (data.standings || []).map((s: any) => {
           const id = s.playerId || s.id || ""
           const fallbackTeam = byId.get(String(id))?.preferred_club || s.club || s.preferred_club || s.assigned_club || "-"
@@ -124,6 +156,7 @@ export default function StandingsPage() {
           } as StandingRow
         })
         setStandings(rows)
+        console.log("Standings page: Mapped standings rows:", rows.length)
       }
 
       if (statsResponse.ok) {
@@ -138,13 +171,27 @@ export default function StandingsPage() {
 
       if (fixturesResponse.ok) {
         const f = await fixturesResponse.json()
-        const allFixtures = (f.fixtures || []).map((fx: any) => ({
-          ...fx,
-          // Ensure names/teams always present for UI
-          homeLabel: `${fx.homeName || fx.homePlayer}${fx.homeTeam ? ` (${fx.homeTeam})` : ""}`,
-          awayLabel: `${fx.awayName || fx.awayPlayer}${fx.awayTeam ? ` (${fx.awayTeam})` : ""}`,
-        }))
+        console.log("Standings page: Fixtures data:", f.fixtures?.length || 0)
+        
+        // Map player IDs to names using the players data
+        const allFixtures = (f.fixtures || []).map((fx: any) => {
+          const homePlayer = byId.get(String(fx.homePlayer))
+          const awayPlayer = byId.get(String(fx.awayPlayer))
+          
+          return {
+            ...fx,
+            // Map player IDs to names
+            homeName: homePlayer?.name || fx.homePlayer,
+            awayName: awayPlayer?.name || fx.awayPlayer,
+            homeTeam: homePlayer?.preferred_club || "-",
+            awayTeam: awayPlayer?.preferred_club || "-",
+            // Ensure names/teams always present for UI
+            homeLabel: `${homePlayer?.name || fx.homePlayer}${homePlayer?.preferred_club ? ` (${homePlayer.preferred_club})` : ""}`,
+            awayLabel: `${awayPlayer?.name || fx.awayPlayer}${awayPlayer?.preferred_club ? ` (${awayPlayer.preferred_club})` : ""}`,
+          }
+        })
         setFixtures(allFixtures)
+        console.log("Standings page: Mapped fixtures with player names:", allFixtures.length)
         try {
           const goals = new Map<string, { name: string; team: string; goals: number }>()
           for (const fx of allFixtures) {
@@ -182,8 +229,17 @@ export default function StandingsPage() {
     }
   }
 
-  const upcoming = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() !== "PLAYED"), [fixtures])
-  const completed = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED"), [fixtures])
+  const completed = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED"), [fixtures]);
+
+  const lastCompleted = useMemo(() => {
+    const completedMds = completed.map(f => f.matchday).filter(Boolean);
+    return completedMds.length > 0 ? Math.max(...completedMds) : 0;
+  }, [completed]);
+
+  const upcoming = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() !== "PLAYED"), [fixtures]);
+
+  console.log("Standings page: Fixture counts - Total:", fixtures.length, "Completed:", completed.length, "Upcoming:", upcoming.length, "Last completed matchday:", lastCompleted)
+
   const shownRaw = tab === "UPCOMING" ? upcoming : completed
   const shown = showAll ? shownRaw : shownRaw.slice(0, 8)
 
@@ -213,7 +269,17 @@ export default function StandingsPage() {
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-extrabold">Standings</h1>
-            <p className="text-sm text-[#9E9E9E]">Weekend FC League</p>
+            {activeTournament ? (
+              <div className="text-sm text-[#9E9E9E]">
+                <div className="font-medium text-white">{activeTournament.name}</div>
+                <div>
+                  {activeTournament.start_at && new Date(activeTournament.start_at).toLocaleDateString()} 
+                  {activeTournament.end_at && ` → ${new Date(activeTournament.end_at).toLocaleDateString()}`}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#9E9E9E]">Weekend FC League</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Select value={consoleFilter} onValueChange={setConsoleFilter}>
@@ -230,8 +296,17 @@ export default function StandingsPage() {
           </div>
         </header>
 
-        {/* League table */}
-        <section className="rounded-2xl border bg-[#141414] overflow-hidden">
+        {!activeTournamentId && (
+          <div className="rounded-2xl border p-8 bg-[#141414] text-center">
+            <div className="text-lg font-semibold mb-2">No Active Tournament</div>
+            <div className="text-sm text-[#9E9E9E]">All tournaments are currently inactive. Check back when a tournament is active.</div>
+          </div>
+        )}
+
+        {activeTournamentId && (
+          <>
+            {/* League table */}
+            <section className="rounded-2xl border bg-[#141414] overflow-hidden">
           <div className="px-4 py-3 border-b border-[#1E1E1E] flex items-center justify-between">
             <h2 className="text-sm font-semibold">League Table</h2>
             <div className="text-xs text-[#9E9E9E]">{standings.length} players</div>
@@ -421,6 +496,9 @@ export default function StandingsPage() {
             </div>
           </div>
         </section>
+
+            </>
+          )}
 
         <div className="text-center text-xs text-[#9E9E9E]">Sorted by points, goal difference, goals scored</div>
       </div>

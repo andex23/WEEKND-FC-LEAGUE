@@ -6,7 +6,7 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
   const fixtures: Fixture[] = []
   let fixtureId = 1
 
-  // Circle method for round-robin scheduling
+  // For round robin, we need an even number of teams
   const teams = [...players]
   if (teams.length % 2 === 1) {
     // Add a "bye" team for odd number of players
@@ -17,64 +17,53 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
   const numRounds = numTeams - 1
   const matchesPerRound = numTeams / 2
 
-  const pairKey = (a: string, b: string) => [a, b].sort().join("-")
+  console.log(`DEBUG: ${players.length} players, ${numTeams} teams, ${numRounds} rounds, ${matchesPerRound} matches per round, ${rounds} total rounds`)
+  console.log(`DEBUG: Expected fixtures: ${numRounds} × ${matchesPerRound} × ${rounds} = ${numRounds * matchesPerRound * rounds}`)
 
-  // Track duplicate pairings per leg (so two legs are allowed for DOUBLE)
-  const seenPairsPerLeg: Array<Set<string>> = Array.from({ length: Math.max(1, rounds) }, () => new Set<string>())
-
+  // Generate fixtures for each round
   for (let round = 0; round < rounds; round++) {
+    const roundTeams = [...teams];
+    if (round === 1) {
+      roundTeams.reverse();
+    }
+
     for (let matchday = 0; matchday < numRounds; matchday++) {
-      const roundFixtures: Fixture[] = []
+      const pairings = [];
+      const fixed = roundTeams[0];
+      for (let i = 1; i < numTeams / 2; i++) {
+        const homeIndex = i;
+        const awayIndex = numTeams - i;
+        pairings.push([roundTeams[homeIndex], roundTeams[awayIndex]]);
+      }
+      pairings.push([fixed, roundTeams[numTeams / 2]]);
 
-      for (let match = 0; match < matchesPerRound; match++) {
-        let home: number, away: number
-
-        if (match === 0) {
-          // First match: team 0 vs team at position matchday + 1
-          home = 0
-          away = matchday + 1
-        } else {
-          // Other matches: calculate positions using circle method
-          home = ((numRounds - matchday + match - 1) % numRounds) + 1
-          away = ((matchday - match + numRounds) % numRounds) + 1
+      for (let [homePlayer, awayPlayer] of pairings) {
+        if (homePlayer.id === "bye" || awayPlayer.id === "bye" || String(homePlayer.id) === String(awayPlayer.id)) {
+          console.log(`DEBUG: Skipping invalid match on matchday ${matchday} round ${round}: home=${homePlayer.id}, away=${awayPlayer.id}`);
+          continue;
         }
 
-        const homePlayer = teams[home]
-        const awayPlayer = teams[away]
-
-        // Skip if either player is "bye" or same player
-        if (homePlayer.id === "bye" || awayPlayer.id === "bye" || String(homePlayer.id) === String(awayPlayer.id)) continue
-
-        // For second leg, swap home/away
-        const isSecondRound = round === 1
-        const finalHome = isSecondRound ? awayPlayer : homePlayer
-        const finalAway = isSecondRound ? homePlayer : awayPlayer
-
-        // Avoid duplicate pairings WITHIN the same leg only
-        const key = pairKey(String(finalHome.id), String(finalAway.id))
-        const seenForLeg = seenPairsPerLeg[round] || seenPairsPerLeg[0]
-        if (seenForLeg.has(key)) continue
-        seenForLeg.add(key)
-
-        roundFixtures.push({
+        fixtures.push({
           id: fixtureId.toString(),
           matchday: matchday + 1 + round * numRounds,
-          homePlayer: finalHome.id,
-          awayPlayer: finalAway.id,
-          homeTeam: finalHome.assignedTeam || finalHome.preferredClub,
-          awayTeam: finalAway.assignedTeam || finalAway.preferredClub,
+          homePlayer: homePlayer.id,
+          awayPlayer: awayPlayer.id,
+          homeTeam: homePlayer.assignedTeam || homePlayer.preferredClub,
+          awayTeam: awayPlayer.assignedTeam || awayPlayer.preferredClub,
           status: "SCHEDULED",
-          scheduledDate: new Date(Date.now() + (matchday + round * numRounds) * 7 * 24 * 60 * 60 * 1000), // Weekly intervals
-        })
-
-        fixtureId++
+          scheduledDate: new Date(Date.now() + (matchday + round * numRounds) * 7 * 24 * 60 * 60 * 1000),
+        });
+        fixtureId++;
       }
 
-      fixtures.push(...roundFixtures)
+      // Rotate for next matchday
+      const last = roundTeams.pop();
+      roundTeams.splice(1, 0, last);
     }
   }
 
-  return fixtures
+  console.log(`DEBUG: Generated ${fixtures.length} fixtures`);
+  return fixtures;
 }
 
 export function assignTeamsAutomatically(players: any[], teamsLocked = false): any[] {

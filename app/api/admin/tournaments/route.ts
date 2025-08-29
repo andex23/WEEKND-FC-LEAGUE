@@ -1,110 +1,152 @@
 import { NextResponse } from "next/server"
-import { activePlayers, snapshotTournamentPlayers, syncTournamentPlayers, getTournamentPlayers } from "@/lib/mocks/players"
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
-// Globalize tournaments store to persist during dev
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const g: any = globalThis as any
-if (!g.__memTournaments) g.__memTournaments = [] as any[]
-let tournaments: any[] = g.__memTournaments
-
-export async function GET() { return NextResponse.json({ tournaments }) }
+export async function GET() {
+  try {
+    const client = await createClient()
+    const { data, error } = await client.from("tournaments").select("*").order("created_at", { ascending: false })
+    if (error) throw error
+    return NextResponse.json({ tournaments: data || [] })
+  } catch (error) {
+    console.error("Error loading tournaments:", error)
+    return NextResponse.json({ tournaments: [] })
+  }
+}
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({}))
-  const { action } = body
-  if (action === "create") {
-    const id = Math.random().toString(36).slice(2,10)
-    // Prefer explicit rosterIds/rosterRecords from client if provided
-    let roster: any[] = []
-    if (Array.isArray(body.rosterRecords) && body.rosterRecords.length) {
-      roster = body.rosterRecords
-    }
-    // Otherwise, read latest active players (try API first, then memory)
-    if (roster.length === 0) {
-      roster = activePlayers()
-    }
-    try {
-      const base = (process.env.NEXT_PUBLIC_SITE_URL || "").trim() || (new URL(req.url)).origin
-      const res = await fetch(new URL("/api/admin/players", base))
-      if (res.ok) {
-        const data = await res.json()
-        const apiPlayers = Array.isArray(data?.players) ? data.players : []
-        const act = apiPlayers.filter((p: any) => !!p.active).map((p:any)=>({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
-        if (act.length > roster.length) roster = act
+  try {
+    const client = await createClient()
+    const admin = createAdminClient()
+    const body = await req.json()
+    const { action, ...data } = body
+
+    if (action === "create") {
+      // Primary shape (newer schema)
+      const insertData: any = {
+        name: data.name,
+        status: data.status || "DRAFT",
+        season: data.season || "2024/25",
+        type: data.type || "DOUBLE",
+        players: data.players || 0,
+        rules: data.rules || "",
+        match_length: data.match_length || 6,
+        matchdays: data.matchdays || ["Sat", "Sun"],
+        start_at: data.start_at || null,
+        end_at: data.end_at || null,
+        is_active: !!data.is_active,
       }
-    } catch {}
-    if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
-    // Allow odd player counts; BYE is handled during fixture generation
-    const t = {
-      id,
-      name: body.name || "New Tournament",
-      status: body.status || "DRAFT",
-      season: body.season || "",
-      type: (body.type || "DOUBLE").toUpperCase(),
-      players: roster.length,
-      rules: body.rules || "",
-      match_length: body.match_length || 6,
-      matchdays: body.matchdays || ["Sat","Sun"],
-      start_at: body.start_at || null,
-      end_at: body.end_at || null,
-      created_at: new Date().toISOString(),
-    }
-    tournaments = [t, ...tournaments]
-    g.__memTournaments = tournaments
-    snapshotTournamentPlayers(id)
-    // If created as ACTIVE, set as active in settings
-    if (String(t.status).toUpperCase() === "ACTIVE") {
-      if (!g.__adminSettings) g.__adminSettings = {}
-      g.__adminSettings.tournament = {
-        ...(g.__adminSettings.tournament || {}),
-        name: t.name,
-        status: "ACTIVE",
-        active_tournament_id: t.id,
-        season: t.season,
-        format: t.type,
+      // Try admin insert (bypass RLS). Fallback to minimal schema if needed.
+      let created: any | null = null
+      try {
+        const { data: row, error } = await admin.from("tournaments").insert([insertData]).select().single()
+        if (error) throw error
+        created = row
+      } catch (e: any) {
+        // Retry with lowercase status for older schemas with lowercase CHECK
+        try {
+          const lowered = { name: String(data.name || ""), status: String(data.status || "draft").toLowerCase() }
+          const { data: row2, error: err2 } = await admin.from("tournaments").insert([lowered]).select().single()
+          if (err2) throw err2
+          created = row2
+        } catch (e2) {
+          console.error("create tournament fallback failed", e2)
+          throw e2
+        }
       }
+      return NextResponse.json({ success: true, tournament: created })
     }
-    return NextResponse.json({ ok:true, tournament: t, snapshotted: roster.length })
-  }
-  if (action === "update") {
-    const { id, patch } = body
-    tournaments = tournaments.map((t) => (t.id === id ? { ...t, ...patch } : t))
-    g.__memTournaments = tournaments
-    return NextResponse.json({ ok:true })
-  }
-  if (action === "delete") {
-    const { id } = body
-    tournaments = tournaments.filter((t) => t.id !== id)
-    g.__memTournaments = tournaments
-    // Remove fixtures for this tournament
-    if (g.__memoryFixtures) {
-      g.__memoryFixtures = (g.__memoryFixtures || []).filter((f: any) => String(f.tournamentId || "") !== String(id))
+
+    if (action === "update") {
+      // Accept either flat fields or { patch } wrapper
+      const src: any = typeof (data as any).patch === 'object' ? (data as any).patch : data
+      const patch: any = {}
+      if (typeof src.name !== 'undefined') patch.name = src.name
+      if (typeof src.season !== 'undefined') patch.season = src.season
+      if (typeof src.type !== 'undefined') patch.type = src.type
+      if (typeof src.status !== 'undefined') patch.status = src.status
+      if (typeof src.players !== 'undefined') patch.players = src.players
+      if (typeof src.rules !== 'undefined') patch.rules = src.rules
+      if (typeof src.match_length !== 'undefined') patch.match_length = src.match_length
+      if (typeof src.matchdays !== 'undefined') patch.matchdays = src.matchdays
+      if (typeof src.start_at !== 'undefined') patch.start_at = src.start_at
+      if (typeof src.end_at !== 'undefined') patch.end_at = src.end_at
+      patch.updated_at = new Date().toISOString()
+
+      const { data: updated, error } = await admin
+        .from("tournaments")
+        .update(patch)
+        .eq("id", String(data.id))
+        .select()
+        .single()
+      if (error) throw error
+      return NextResponse.json({ success: true, tournament: updated })
     }
-    // Remove tournament players snapshot if present
-    if (g.__memTournamentPlayers) {
-      const snaps = g.__memTournamentPlayers
-      if (snaps && typeof snaps === "object") {
-        delete snaps[id]
-        g.__memTournamentPlayers = snaps
-      }
+
+    if (action === "delete") {
+      const { error } = await admin.from("tournaments").delete().eq("id", String(data.id))
+      if (error) throw error
+      return NextResponse.json({ success: true })
     }
-    // Clear active tournament if it was this one
-    if (g.__adminSettings?.tournament?.active_tournament_id === id) {
-      g.__adminSettings.tournament = { ...(g.__adminSettings.tournament || {}), status: "INACTIVE", active_tournament_id: null }
+
+    if (action === "sync_roster") {
+      // Best-effort: count approved players
+      const { count, error: cntErr } = await admin
+        .from("players")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved")
+      if (cntErr) throw cntErr
+
+      // Try to persist into tournaments.players if the column exists; otherwise, just return the count
+      let persisted = false
+      try {
+        const { error: upErr } = await admin
+          .from("tournaments")
+          .update({ players: count || 0, updated_at: new Date().toISOString() })
+          .eq("id", String(data.id))
+        if (!upErr) persisted = true
+      } catch {}
+
+      return NextResponse.json({ success: true, count: count || 0, persisted })
     }
-    return NextResponse.json({ ok:true })
+
+    if (action === "activate") {
+      // Deactivate all
+      await admin.from("tournaments").update({ is_active: false, status: "DRAFT" }).eq("is_active", true)
+      // Activate target
+      const { data: activated, error } = await admin
+        .from("tournaments")
+        .update({ is_active: true, status: "ACTIVE", updated_at: new Date().toISOString() })
+        .eq("id", String(data.id))
+        .select()
+        .single()
+      if (error) throw error
+      // Best-effort update of league_settings
+      try {
+        await admin.from("league_settings").update({ active_tournament_id: activated.id, status: "ACTIVE" }).neq("id", "")
+      } catch {}
+      return NextResponse.json({ success: true, tournament: activated })
+    }
+
+    if (action === "deactivate") {
+      // Deactivate target tournament
+      const { data: deactivated, error } = await admin
+        .from("tournaments")
+        .update({ is_active: false, status: "DRAFT", updated_at: new Date().toISOString() })
+        .eq("id", String(data.id))
+        .select()
+        .single()
+      if (error) throw error
+      // Best-effort update of league_settings
+      try {
+        await admin.from("league_settings").update({ active_tournament_id: null, status: "INACTIVE" }).neq("id", "")
+      } catch {}
+      return NextResponse.json({ success: true, tournament: deactivated })
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+  } catch (error) {
+    console.error("Error with tournaments:", error)
+    return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
   }
-  if (action === "sync_roster") {
-    const { id } = body
-    const after = syncTournamentPlayers(id)
-    // Update tournament visible players count to reflect latest snapshot
-    tournaments = tournaments.map((t) => (t.id === id ? { ...t, players: after.length } : t))
-    g.__memTournaments = tournaments
-    return NextResponse.json({ ok: true, count: after.length })
-  }
-  if (action === "roster") {
-    const { id } = body
-    return NextResponse.json({ players: getTournamentPlayers(id) })
-  }
-  return NextResponse.json({ ok:false, error:"unknown action" }, { status:400 })
 }

@@ -32,20 +32,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Merge helpers to include local players (client) with API (server)
-  const LS_KEY = "admin_players"
-  const getLocalPlayers = () => {
-    try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
-  }
-  const mergePlayers = (a: any[], b: any[]) => {
-    const byId = new Map<string, any>()
-    ;[...a, ...b].forEach((p) => {
-      const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
-      byId.set(key, { ...byId.get(key), ...p })
-    })
-    return Array.from(byId.values())
-  }
-  const activePlayersCount = useMemo(() => players.filter((p) => !!p.active).length, [players])
+  // Removed local storage; use Supabase only
+  const activePlayersCount = useMemo(() => players.filter((p) => String(p.status) === "approved").length, [players])
 
 
   useEffect(() => {
@@ -55,33 +43,49 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [playersRes, standingsRes, fixturesRes, statusRes, settingsRes] = await Promise.all([
+      const [playersRes, standingsRes, statusRes, settingsRes, tournamentsRes] = await Promise.all([
         fetch("/api/admin/players"),
         fetch("/api/standings"),
-        fetch("/api/fixtures"),
         fetch("/api/league/status"),
         fetch("/api/admin/settings").catch(() => null),
+        fetch("/api/admin/tournaments").catch(() => null),
       ])
 
       const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
-      const fixturesData = await fixturesRes.json()
       const statusData = await statusRes.json()
       const settingsData = settingsRes ? await settingsRes.json() : null
+      const tournamentsData = tournamentsRes ? await tournamentsRes.json() : null
 
-      const mergedPlayers = mergePlayers(getLocalPlayers(), playersData.players || [])
-      // Deduplicate by stable id
-      const dedup = Array.from(new Map(mergedPlayers.map((p: any) => [String(p.id), p])).values())
-      setPlayers(dedup)
+      setPlayers(playersData.players || [])
       setStandings(standingsData.standings || [])
-      // Scope fixtures to active tournament if set
-      const activeIdScoped = (settingsData?.tournament?.active_tournament_id || null) as string | null
-      const allFx = fixturesData.fixtures || []
-      const scopedFx = activeIdScoped ? allFx.filter((f: any) => String(f.tournamentId || "") === String(activeIdScoped)) : []
-      setFixtures(scopedFx)
-      setLeagueSettings(settingsData?.tournament ? { ...(statusData || {}), name: settingsData.branding?.league_name || settingsData.tournament?.name, status: settingsData.tournament?.status || (statusData?.status || "DRAFT") } : (statusData || {}))
+      
+      // Update league settings to include tournament info
+      const tournaments = tournamentsData?.tournaments || []
+      const activeTournament = tournaments.find((t: any) => t.status === "ACTIVE") || null
+      
+      // Fetch fixtures specifically for active tournament
+      let activeTournamentFixtures: any[] = []
+      if (activeTournament) {
+        try {
+          const fixturesRes = await fetch(`/api/fixtures?tournamentId=${encodeURIComponent(String(activeTournament.id))}`)
+          const fixturesData = await fixturesRes.json()
+          activeTournamentFixtures = fixturesData.fixtures || []
+        } catch (e) {
+          console.error("Error fetching tournament fixtures:", e)
+        }
+      }
+      setFixtures(activeTournamentFixtures)
+      setLeagueSettings({
+        ...(statusData || {}), 
+        name: settingsData?.branding?.league_name || activeTournament?.name || settingsData?.tournament?.name || "Weekend FC League",
+        status: activeTournament?.status || settingsData?.tournament?.status || (statusData?.status || "DRAFT"),
+        tournaments: tournaments.length,
+        activeTournament
+      })
       try {
         // Fetch player stats with tournament context
+        const activeIdScoped = activeTournament?.id || null
         const statsResScoped = await fetch(`/api/player-stats${activeIdScoped ? `?tournamentId=${encodeURIComponent(String(activeIdScoped))}` : ""}`)
         const apiStats = await statsResScoped.json().catch(() => null)
         let mapped = apiStats || null as any
@@ -97,12 +101,13 @@ export default function AdminDashboard() {
             }
           }
         }
-        // If still empty, compute from fixtures (scopedFx)
+        // If still empty, compute from fixtures (activeTournamentFixtures)
         const stillEmpty = !mapped || (!mapped.topScorers?.length && !mapped.topAssists?.length && !mapped.discipline?.length)
         if (stillEmpty) {
           const goals = new Map<string, { name: string; team: string; goals: number }>()
+          const mergedPlayers = [...players, ...standings.map((s: any) => ({ id: s.playerId, name: s.playerName, team: s.team }))]
           const byId = new Map(mergedPlayers.map((p: any) => [String(p.id || p.player_id || p.user_id || p.registration_id || p.name), p]))
-          for (const fx of scopedFx) {
+          for (const fx of activeTournamentFixtures) {
             const played = String(fx.status || "").toUpperCase() === "PLAYED"
             if (!played) continue
             const hid = String(fx.homePlayer || fx.homeId)
@@ -414,17 +419,7 @@ export default function AdminDashboard() {
   const [messageQuery, setMessageQuery] = useState("")
   const [messageType, setMessageType] = useState<"all" | "broadcast" | "direct">("all")
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_messages")
-      if (raw) setMessages(JSON.parse(raw))
-    } catch {}
-  }, [])
-  useEffect(() => {
-    try {
-      localStorage.setItem("admin_messages", JSON.stringify(messages))
-    } catch {}
-  }, [messages])
+  // Messaging persistence is in-memory only for now
 
   const filteredMessages = useMemo(() => {
     const q = messageQuery.trim().toLowerCase()
@@ -472,7 +467,7 @@ export default function AdminDashboard() {
 
   const goSetup = () => router.push("/admin/setup")
 
-  const leagueActive = (leagueSettings?.status || "DRAFT").toUpperCase() === "ACTIVE"
+  const leagueActive = (leagueSettings?.status || "DRAFT").toUpperCase() === "ACTIVE" && leagueSettings?.activeTournament
 
   if (loading) {
     return (
@@ -544,18 +539,22 @@ export default function AdminDashboard() {
           <section className="flex-1">
             {section === "overview" && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Players (Active / Total)</div>
                     <div className="text-2xl font-bold tabular-nums text-[#00C853]">{activePlayersCount} / {players.length}</div>
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
+                    <div className="text-xs text-[#9E9E9E]">Tournaments</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.tournaments || 0}</div>
+                  </div>
+                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Fixtures Created</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{fixtures.length}</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.activeTournament ? fixtures.length : 0}</div>
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Matches Played</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{matchesPlayed}</div>
+                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.activeTournament ? matchesPlayed : 0}</div>
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Pending Approval</div>
@@ -563,9 +562,16 @@ export default function AdminDashboard() {
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">League Status</div>
-                    <div className="text-sm font-semibold">{leagueSettings?.status || "DRAFT"}</div>
+                    <div className="text-sm font-semibold">{leagueSettings?.activeTournament ? (leagueSettings?.status || "DRAFT") : "NO ACTIVE TOURNAMENT"}</div>
                   </div>
                 </div>
+
+                {!leagueSettings?.activeTournament && (
+                  <div className="rounded-2xl border p-4 bg-[#141414] text-center">
+                    <div className="text-sm text-[#9E9E9E] mb-2">No Active Tournament</div>
+                    <div className="text-xs text-[#9E9E9E]">All tournaments are currently inactive. Activate a tournament to see live data.</div>
+                  </div>
+                )}
 
                 {leagueActive && fixtures.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -595,8 +601,34 @@ export default function AdminDashboard() {
                             ))}
                           </tbody>
                         </table>
+                      ) : players && players.length > 0 ? (
+                        <div>
+                          <div className="text-xs text-[#9E9E9E] mb-2">Active Players (no matches played yet)</div>
+                          <table className="w-full text-sm">
+                            <thead className="text-[#9E9E9E]">
+                              <tr>
+                                <th className="text-left px-3 py-2">Player</th>
+                                <th className="text-left px-3 py-2">Club</th>
+                                <th className="text-right px-3 py-2">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {players.filter((p: any) => p.status === "approved").slice(0, 5).map((p: any) => (
+                                <tr key={p.id} className="border-t border-[#1E1E1E]">
+                                  <td className="px-3 py-2">{p.name}</td>
+                                  <td className="px-3 py-2">{p.preferred_club || "-"}</td>
+                                  <td className="px-3 py-2 text-right">
+                                    <span className="text-xs bg-green-900/20 text-green-400 px-2 py-1 rounded">
+                                      {p.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
-                        <div className="text-sm text-[#9E9E9E]">Standings unavailable.</div>
+                        <div className="text-sm text-[#9E9E9E]">No players found.</div>
                       )}
                     </div>
 
@@ -1023,3 +1055,4 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
     </div>
   )
 }
+

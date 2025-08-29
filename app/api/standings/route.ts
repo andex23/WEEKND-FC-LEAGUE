@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { calculateStandings } from "@/lib/utils/standings"
 import { activePlayers, getTournamentPlayers } from "@/lib/mocks/players"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,29 +20,78 @@ export async function GET(request: NextRequest) {
       if (active) tournamentId = String(active)
     }
 
-    // Filter fixtures to tournament (required for live data correctness)
-    const allFixtures = (g.__memoryFixtures as any[]) || []
-    const fixtures = tournamentId
-      ? allFixtures.filter((f) => String(f.tournamentId || "") === String(tournamentId))
-      : []
-
-    // Build players list: prefer tournament snapshot, else active players, else players seen in fixtures
-    let playerIds: string[] = []
+    // Fetch fixtures from database for tournament
+    let fixtures: any[] = []
     if (tournamentId) {
-      try { playerIds = getTournamentPlayers(String(tournamentId)) } catch { playerIds = [] }
-    }
-    let players: any[]
-    if (playerIds.length > 0) {
-      const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
-      players = playerIds.map((id) => byId.get(String(id))).filter(Boolean)
-    } else {
-      players = activePlayers()
-      if (players.length === 0) {
-        const seen = new Set<string>()
-        for (const f of fixtures) { seen.add(String(f.homePlayer)); seen.add(String(f.awayPlayer)) }
-        const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
-        players = Array.from(seen).map((id) => byId.get(id)).filter(Boolean)
+      try {
+        const admin = createAdminClient()
+        const { data: dbFixtures, error } = await admin
+          .from("fixtures")
+          .select("id, tournament_id, matchday, home_player_id, away_player_id, home_score, away_score, status, scheduled_date")
+          .eq("tournament_id", tournamentId)
+        
+        if (!error && dbFixtures) {
+          // Transform database fixtures to expected format
+          fixtures = dbFixtures.map((f: any) => ({
+            id: f.id,
+            tournamentId: f.tournament_id,
+            matchday: f.matchday,
+            homePlayer: f.home_player_id,
+            awayPlayer: f.away_player_id,
+            homeScore: f.home_score,
+            awayScore: f.away_score,
+            status: f.status,
+            scheduledDate: f.scheduled_date
+          }))
+          console.log(`Standings: Using ${fixtures.length} fixtures from database`)
+        }
+      } catch (e) {
+        console.log("Standings: Could not fetch fixtures from database, falling back to in-memory")
+        // Fallback to in-memory fixtures
+        const allFixtures = (g.__memoryFixtures as any[]) || []
+        fixtures = allFixtures.filter((f) => String(f.tournamentId || "") === String(tournamentId))
       }
+    }
+
+    // Build players list: try Supabase first, then fallback to in-memory stores
+    let players: any[] = []
+    
+    // First, try to get players from Supabase
+    try {
+      const admin = createAdminClient()
+      const { data: supabasePlayers, error } = await admin
+        .from("players")
+        .select("id, name, preferred_club, console, status")
+        .eq("status", "approved")
+      
+      if (!error && supabasePlayers && supabasePlayers.length > 0) {
+        players = supabasePlayers
+        console.log(`Standings: Using ${players.length} players from Supabase`)
+      }
+    } catch (e) {
+      console.log("Standings: Could not fetch from Supabase, falling back to in-memory")
+    }
+    
+    // Fallback to in-memory stores if Supabase failed or returned no data
+    if (players.length === 0) {
+      let playerIds: string[] = []
+      if (tournamentId) {
+        try { playerIds = getTournamentPlayers(String(tournamentId)) } catch { playerIds = [] }
+      }
+      
+      if (playerIds.length > 0) {
+        const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
+        players = playerIds.map((id) => byId.get(String(id))).filter(Boolean)
+      } else {
+        players = activePlayers()
+        if (players.length === 0) {
+          const seen = new Set<string>()
+          for (const f of fixtures) { seen.add(String(f.homePlayer)); seen.add(String(f.awayPlayer)) }
+          const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
+          players = Array.from(seen).map((id) => byId.get(id)).filter(Boolean)
+        }
+      }
+      console.log(`Standings: Using ${players.length} players from in-memory stores`)
     }
 
     // Optional console filter

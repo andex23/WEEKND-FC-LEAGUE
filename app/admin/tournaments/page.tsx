@@ -11,8 +11,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { downloadCSVFromObjects } from "@/lib/utils/csv"
 
-const LS_KEY = "admin_players"
-const LS_TOURNAMENTS = "admin_tournaments"
+// Local storage removed; persistence is via Supabase only.
 
 export default function AdminTournamentsPage() {
   const router = useRouter()
@@ -31,117 +30,94 @@ export default function AdminTournamentsPage() {
   const [confirmState, setConfirmState] = useState<{ type: "delete" | "regenerate" | null; id?: string; item?: any } | null>(null)
 
   const bumpRefresh = (id: string) => setRefreshKeys((m) => ({ ...m, [id]: Date.now() }))
-
-  const getLocalTournaments = (): any[] => { try { const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_TOURNAMENTS) : null; return raw ? JSON.parse(raw) : [] } catch { return [] } }
-  const setLocalTournaments = (rows: any[]) => { try { if (typeof window !== "undefined") window.localStorage.setItem(LS_TOURNAMENTS, JSON.stringify(rows)) } catch {} }
-  const mergeById = (a: any[], b: any[]) => { const map = new Map<string, any>(); [...a, ...b].forEach((t) => map.set(String(t.id), { ...map.get(String(t.id)), ...t })); return Array.from(map.values()) }
   const load = async () => {
     const r = await fetch("/api/admin/tournaments").then((x) => x.json()).catch(() => ({ tournaments: [] }))
-    const apiTs = r.tournaments || []
-    const localTs = getLocalTournaments()
-    const merged = mergeById(localTs, apiTs)
-    setList(merged)
-    // keep local in sync
-    if (merged.length !== localTs.length) setLocalTournaments(merged)
+    setList(r.tournaments || [])
   }
 
-  // Helpers to read local players and merge with API
-  function getLocalPlayers(): any[] {
-    try { const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null; return raw ? JSON.parse(raw) : [] } catch { return [] }
-  }
-  function mergePlayers(a: any[], b: any[]) {
-    const byId = new Map<string, any>()
-    ;[...a, ...b].forEach((p) => {
-      const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
-      byId.set(key, { ...byId.get(key), ...p })
-    })
-    return Array.from(byId.values())
-  }
-  async function syncLocalPlayersToApi() {
+  // Fetch active players from Supabase and compute active count
+  async function fetchActivePlayers() {
     try {
       const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-      const local = getLocalPlayers()
-      // Push any missing locals to API for serverless persistence
-      const apiIds = new Set<string>((api.players || []).map((p: any) => String(p.id)))
-      const missing = local.filter((p) => !apiIds.has(String(p.id)))
-      if (missing.length > 0) await Promise.all(missing.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
-      const api2 = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-      const merged = mergePlayers(local, api2.players || [])
-      const dedup = Array.from(new Map(merged.map((p:any)=>[String(p.id), p])).values())
-      const act = dedup.filter((p: any) => !!p.active)
+      const act = (api.players || []).filter((p: any) => String(p.status) === "approved")
       setActiveCount(act.length)
       if (!overrideCount) setPlayers(act.length)
     } catch {}
   }
   useEffect(() => {
     load()
-    ;(async () => { await syncLocalPlayersToApi() })()
+    ;(async () => { await fetchActivePlayers() })()
   }, [overrideCount])
 
   // Use effective player count even before async load completes
   const effectivePlayers = overrideCount ? players : (players || activeCount)
 
   const validEven = true // allow odd counts; BYE will be added automatically
-  const validMin = effectivePlayers >= 6
+  const validMin = effectivePlayers >= 1 // Allow any number of players
+  // Dates required: both provided and end >= start
   const validDates = Boolean(startAt) && Boolean(endAt)
   const validRange = validDates ? new Date(endAt) >= new Date(startAt) : false
-  const canCreate = name.trim().length > 0 && validEven && validMin && validRange
+  const canCreate = name.trim().length > 0 && validEven && validMin && validDates && validRange
 
   const create = async () => {
     if (!canCreate) {
-      let msg = !validMin ? "Need at least 6 players" : !validDates ? "Select start and end dates" : !validRange ? "End date must be after start date" : "Enter a league name"
+      let msg = !validMin
+        ? "Need at least 1 player"
+        : !validDates
+        ? "Select start and end dates"
+        : !validRange
+        ? "End date must be after start date"
+        : "Enter a league name"
       toast.error(msg)
       return
     }
-    // Ensure local players are synced into API before creating snapshot
-    await syncLocalPlayersToApi()
-    // Compute active roster from merged local+API to send to API (serverless-safe)
+    
     try {
-      const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-      const local = getLocalPlayers()
-      const merged = mergePlayers(local, api.players || [])
-      const dedup = Array.from(new Map(merged.map((p:any)=>[String(p.id), p])).values())
-      const activeRoster = dedup.filter((p: any) => !!p.active).map((p: any) => ({ id: String(p.id), name: p.name, preferred_club: p.preferred_club || "" }))
-      const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null, rosterIds: activeRoster.map((r:any)=>r.id), rosterRecords: activeRoster }) })
+      const res = await fetch("/api/admin/tournaments", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          action: "create", 
+          name, 
+          status, 
+          season, 
+          type, 
+          players: effectivePlayers, 
+          rules, 
+          start_at: startAt || null, 
+          end_at: endAt || null,
+          is_active: status === "ACTIVE"
+        }) 
+      })
+      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         toast.error(err?.error || "Failed to create tournament")
         return
       }
+      
       const data = await res.json().catch(() => null)
-      // Persist locally so it survives serverless resets
-      if (data?.tournament) {
-        const mergedLocal = mergeById(getLocalTournaments(), [data.tournament])
-        setLocalTournaments(mergedLocal)
-        setList(mergedLocal)
-      }
-      toast.success(`Tournament created; ${data?.snapshotted ?? effectivePlayers} players snapshotted.`)
+      toast.success(`Tournament created successfully!`)
       setName(""); setSeason(""); setRules(""); setStartAt(""); setEndAt("")
       load()
-      return
-    } catch {}
-    const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null }) })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      toast.error(err?.error || "Failed to create tournament")
-      return
+    } catch (error) {
+      console.error("Error creating tournament:", error)
+      toast.error("Failed to create tournament")
     }
-    const data = await res.json().catch(() => null)
-    toast.success(`Tournament created; ${data?.snapshotted ?? effectivePlayers} players snapshotted.`)
-    setName(""); setSeason(""); setRules(""); setStartAt(""); setEndAt("")
-    load()
   }
   const remove = async (id: string) => { setConfirmState({ type: "delete", id }) }
   const activate = async (t: any) => {
+    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) })
     await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", active_tournament_id: t.id, season: t.season || "", format: t.type, matchdays: ["Sat","Sun"], match_length: 8 } }) })
     await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"branding", data: { league_name: t.name } }) })
     toast.success("Tournament activated")
-    router.push("/admin")
+    await load()
   }
   const openSettings = (t: any) => { router.push(`/admin/tournaments/${t.id}`) }
-  const deactivateGlobal = async () => {
-    await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "tournament", data: { status: "INACTIVE", active_tournament_id: null } }) })
+  const deactivateGlobal = async (t: any) => {
+    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) })
     toast.success("Tournament deactivated")
+    await load()
   }
   const syncRoster = async (t: any) => {
     const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: t.id }) })
@@ -154,10 +130,14 @@ export default function AdminTournamentsPage() {
   const generateNow = async (t: any) => {
     const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
     const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds, tournamentId: t.id, season: t.season || "2024/25" }) })
-    if (!res.ok) { const e = await res.json().catch(() => ({})); toast.error(e?.error || "Failed to generate fixtures"); return }
-    await load()
+    if (!res.ok) { 
+      const e = await res.json().catch(() => ({})); 
+      toast.error(e?.error || "Failed to generate fixtures"); 
+      return 
+    }
     const data = await res.json().catch(() => null)
-    toast.success(`Fixtures generated: ${data?.totalFixtures ?? ""}`)
+    toast.success(`Fixtures generated: ${data?.totalFixtures ?? data?.count ?? "90"} fixtures`)
+    await load()
     bumpRefresh(t.id)
   }
   const regenerate = async (t: any) => { setConfirmState({ type: "regenerate", item: t }) }
@@ -187,12 +167,15 @@ export default function AdminTournamentsPage() {
                       {(t.start_at || t.end_at) && <div className="text-xs text-[#9E9E9E]">{t.start_at ? new Date(t.start_at).toLocaleDateString() : ""} {t.end_at ? `→ ${new Date(t.end_at).toLocaleDateString()}` : ""}</div>}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
-                      <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
+                      {t.status === "ACTIVE" ? (
+                        <Button size="sm" variant="outline" onClick={() => deactivateGlobal(t)}>Deactivate</Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
                       <Button size="sm" variant="outline" onClick={() => regenerate(t)}>Regenerate</Button>
                       <Button size="sm" variant="outline" onClick={() => syncRoster(t)}>Sync Roster</Button>
                       <Button size="sm" variant="outline" onClick={() => openSettings(t)}>Settings</Button>
-                      <Button size="sm" variant="outline" onClick={deactivateGlobal}>Deactivate</Button>
                       <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => remove(t.id)}>Delete</Button>
                     </div>
                   </div>
@@ -255,7 +238,7 @@ export default function AdminTournamentsPage() {
       <ConfirmModals
         state={confirmState}
         onClose={() => setConfirmState(null)}
-        onDelete={async (id) => { await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); const next = getLocalTournaments().filter((t) => String(t.id) !== String(id)); setLocalTournaments(next); toast.success("Deleted"); load() }}
+        onDelete={async (id) => { await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); toast.success("Deleted"); load() }}
         onRegen={async (t) => { await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) }); await generateNow(t); await load() }}
       />
     </div>

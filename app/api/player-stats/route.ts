@@ -11,6 +11,72 @@ export async function GET(req: Request) {
     let topAssists: any[] = []
     let discipline: any[] = []
 
+    // If tournamentId is provided, compute stats from fixtures
+    if (tournamentId) {
+      try {
+        // Fetch fixtures for the tournament
+        const { data: fixtures, error: fixturesError } = await supabase
+          .from("fixtures")
+          .select("id, home_player_id, away_player_id, home_score, away_score, status")
+          .eq("tournament_id", tournamentId)
+          .eq("status", "PLAYED")
+
+        if (!fixturesError && fixtures && fixtures.length > 0) {
+          // Fetch players for names
+          const { data: players, error: playersError } = await supabase
+            .from("players")
+            .select("id, name, preferred_club")
+            .eq("status", "approved")
+
+          if (!playersError && players) {
+            const playerMap = new Map(players.map((p: any) => [p.id, p]))
+            
+            // Compute goals from fixtures
+            const goalsMap = new Map<string, { name: string; team: string; goals: number }>()
+            
+            for (const fixture of fixtures) {
+              if (fixture.home_score !== null && fixture.away_score !== null) {
+                const homePlayer = playerMap.get(fixture.home_player_id)
+                const awayPlayer = playerMap.get(fixture.away_player_id)
+                
+                if (homePlayer) {
+                  const current = goalsMap.get(fixture.home_player_id) || { 
+                    name: homePlayer.name, 
+                    team: homePlayer.preferred_club || "-", 
+                    goals: 0 
+                  }
+                  current.goals += fixture.home_score
+                  goalsMap.set(fixture.home_player_id, current)
+                }
+                
+                if (awayPlayer) {
+                  const current = goalsMap.get(fixture.away_player_id) || { 
+                    name: awayPlayer.name, 
+                    team: awayPlayer.preferred_club || "-", 
+                    goals: 0 
+                  }
+                  current.goals += fixture.away_score
+                  goalsMap.set(fixture.away_player_id, current)
+                }
+              }
+            }
+            
+            // Convert to top scorers array
+            topScorers = Array.from(goalsMap.values())
+              .sort((a, b) => b.goals - a.goals)
+              .map((player, index) => ({
+                rank: index + 1,
+                name: player.name,
+                team: player.team,
+                goals: player.goals
+              }))
+          }
+        }
+      } catch (e) {
+        console.log("Could not compute stats from fixtures:", e)
+      }
+    }
+
     const maybeFilter = (query: any) => (tournamentId ? query.eq("tournament_id", tournamentId) : query)
 
     // 0) Primary: player_stats table if it exists
