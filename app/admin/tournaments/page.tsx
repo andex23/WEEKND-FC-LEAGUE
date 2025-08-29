@@ -32,30 +32,38 @@ export default function AdminTournamentsPage() {
   const bumpRefresh = (id: string) => setRefreshKeys((m) => ({ ...m, [id]: Date.now() }))
 
   const load = async () => { const r = await fetch("/api/admin/tournaments").then((x) => x.json()); setList(r.tournaments || []) }
+
+  // Helpers to read local players and merge with API
+  function getLocalPlayers(): any[] {
+    try { const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null; return raw ? JSON.parse(raw) : [] } catch { return [] }
+  }
+  function mergePlayers(a: any[], b: any[]) {
+    const byId = new Map<string, any>()
+    ;[...a, ...b].forEach((p) => {
+      const key = String(p.id || `${(p.name || "").toLowerCase()}-${(p.gamer_tag || "").toLowerCase()}`)
+      byId.set(key, { ...byId.get(key), ...p })
+    })
+    return Array.from(byId.values())
+  }
+  async function syncLocalPlayersToApi() {
+    try {
+      const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
+      const local = getLocalPlayers()
+      const apiById = new Set<string>((api.players || []).map((p: any) => String(p.id)))
+      const missing = local.filter((p) => !apiById.has(String(p.id)))
+      if (missing.length > 0) {
+        await Promise.all(missing.map((p) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
+      }
+      const api2 = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
+      const merged = mergePlayers(local, api2.players || [])
+      const act = merged.filter((p: any) => !!p.active)
+      setActiveCount(act.length)
+      if (!overrideCount) setPlayers(act.length)
+    } catch {}
+  }
   useEffect(() => {
     load()
-    ;(async () => {
-      try {
-        // Try API first
-        const api = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-        let act = (api.players || []).filter((p: any) => !!p.active)
-        // If API empty but local has data, push local to API and reload
-        if (act.length === 0) {
-          try {
-            const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_KEY) : null
-            const local = raw ? JSON.parse(raw) : []
-            if (Array.isArray(local) && local.length > 0) {
-              await Promise.all(local.map((p: any) => fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", ...p }) }).catch(() => {})))
-              const api2 = await fetch("/api/admin/players").then((r) => r.json()).catch(() => ({ players: [] }))
-              act = (api2.players || []).filter((p: any) => !!p.active)
-            }
-          } catch {}
-        }
-        const count = act.length
-        setActiveCount(count)
-        if (!overrideCount) setPlayers(count)
-      } catch {}
-    })()
+    ;(async () => { await syncLocalPlayersToApi() })()
   }, [overrideCount])
 
   // Use effective player count even before async load completes
@@ -73,6 +81,8 @@ export default function AdminTournamentsPage() {
       toast.error(msg)
       return
     }
+    // Ensure local players are synced into API before creating snapshot
+    await syncLocalPlayersToApi()
     const res = await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"create", name, status, season, type, players: effectivePlayers, rules, start_at: startAt || null, end_at: endAt || null }) })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
