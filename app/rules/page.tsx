@@ -25,7 +25,10 @@ export default function RulesPage() {
         <header className="space-y-1">
           <h1 className="text-xl font-extrabold">FC WEEKEND — League Rules</h1>
           <p className="text-sm text-[#9E9E9E]">Last updated: {lastUpdated}</p>
-          <p className="text-sm text-[#9E9E9E]">Telegram: <a className="underline text-white" href="https://t.me/+17bCG-bp5XI0NmFl" target="_blank" rel="noopener noreferrer">Join WFC Channel</a></p>
+          <div className="flex flex-wrap gap-4 text-sm text-[#9E9E9E]">
+            <p>Telegram: <a className="underline text-white hover:text-emerald-400 transition-colors" href="https://t.me/+17bCG-bp5XI0NmFl" target="_blank" rel="noopener noreferrer">Join WFC Channel</a></p>
+            <p>Discord: <a className="underline text-white hover:text-emerald-400 transition-colors" href="https://discord.gg/YZumc42p" target="_blank" rel="noopener noreferrer">Join WFC Server</a></p>
+          </div>
         </header>
 
         <div className="space-y-4">
@@ -41,7 +44,7 @@ export default function RulesPage() {
 
           <Section title="2) Scheduling">
             <ul className="space-y-1">
-              <li>• Fixtures are posted on the site. Players coordinate exact kick-off in Discord.</li>
+              <li>• Fixtures are posted on the site. Players coordinate exact kick-off in <a className="underline text-white hover:text-emerald-400 transition-colors" href="https://discord.gg/YZumc42p" target="_blank" rel="noopener noreferrer">Discord</a>.</li>
               <li>• Be on time. Grace period: 10 minutes. After that, opponent may claim a forfeit (admin decides).</li>
             </ul>
           </Section>
@@ -66,9 +69,14 @@ export default function RulesPage() {
 
           <Section title="5) Reporting Results">
             <ul className="space-y-1">
-              <li>• After each match, one player must submit the score via the site or #report-scores in Discord with a screenshot.</li>
-              <li>• Opponent should confirm.</li>
+              <li>• After each match, results must be reported through one of these channels:</li>
+              <li className="ml-4">- <strong>Website:</strong> Submit via the admin dashboard</li>
+              <li className="ml-4">- <strong>Discord:</strong> Post in #report-scores channel with screenshot</li>
+              <li className="ml-4">- <strong>Telegram:</strong> Send to admin or post in WFC channel</li>
+              <li>• Include match screenshot as proof of result.</li>
+              <li>• Opponent should confirm the reported score.</li>
               <li>• Results are official only after Admin approval.</li>
+              <li>• Failure to report results within 24 hours may result in forfeit.</li>
             </ul>
           </Section>
 
@@ -126,7 +134,7 @@ export default function RulesPage() {
               <ul className="space-y-1">
                 <li>• Sat/Sun, clubs only, 6-min halves.</li>
                 <li>• <strong>DC <span aria-label="less than">&lt;</span>20’</strong> → 0–0 restart. <strong>DC ≥20’</strong> → restart, leader keeps a goal-difference advantage.</li>
-                <li>• Report with screenshot, admin confirms.</li>
+                <li>• Report results via Website/Discord/Telegram with screenshot, admin confirms.</li>
                 <li>• Win 3 / Draw 1 / Loss 0; tiebreakers: Pts → GD → GF → H2H.</li>
                 <li>• Meet up IRL to avoid lag; be respectful or get benched.</li>
               </ul>
