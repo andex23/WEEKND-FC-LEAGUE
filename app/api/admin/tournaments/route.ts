@@ -14,7 +14,18 @@ export async function POST(req: Request) {
   const { action } = body
   if (action === "create") {
     const id = Math.random().toString(36).slice(2,10)
-    const roster = activePlayers()
+    // Prefer reading active players from the players API (same lambda that owns the data)
+    let roster = activePlayers()
+    try {
+      const base = (process.env.NEXT_PUBLIC_SITE_URL || "").trim() || (new URL(req.url)).origin
+      const res = await fetch(new URL("/api/admin/players", base))
+      if (res.ok) {
+        const data = await res.json()
+        const apiPlayers = Array.isArray(data?.players) ? data.players : []
+        const act = apiPlayers.filter((p: any) => !!p.active)
+        if (act.length > roster.length) roster = act
+      }
+    } catch {}
     if (roster.length < 6) return NextResponse.json({ error: "Need at least 6 players" }, { status: 400 })
     if (roster.length % 2 !== 0) return NextResponse.json({ error: "Even number required" }, { status: 400 })
     const t = {
