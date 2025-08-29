@@ -21,7 +21,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { action, ...data } = body
-    // Use admin client for destructive ops to bypass RLS if needed
+    
+    // Debug environment variables
+    console.log("Environment check:", {
+      hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      action: action
+    })
+    
+    // Use regular client for most operations, admin client only for destructive ops
+    const client = await createClient()
     const admin = createAdminClient()
 
     if (action === "clear") {
@@ -49,8 +59,13 @@ export async function POST(request: Request) {
         role: data.role || 'PLAYER',
         status: (data.status || 'pending')
       }
-      const { data: created, error } = await admin.from("players").insert([insertData]).select().single()
-      if (error) throw error
+      console.log("Attempting to insert player:", insertData)
+      const { data: created, error } = await client.from("players").insert([insertData]).select().single()
+      if (error) {
+        console.error("Database error:", error)
+        throw error
+      }
+      console.log("Successfully created player:", created)
       return NextResponse.json({ success: true, player: created })
     }
 
@@ -135,6 +150,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   } catch (error) {
     console.error("Error with players:", error)
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    return NextResponse.json({ error: "Failed to process request", details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
