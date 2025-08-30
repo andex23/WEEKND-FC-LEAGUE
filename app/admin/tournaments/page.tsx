@@ -326,7 +326,7 @@ function MiniStandings({ tournamentId }: { tournamentId: string }) {
       <div className="divide-y divide-[#1E1E1E]">
         {rows.length === 0 ? (
           <div className="p-3 text-xs text-[#9E9E9E]">No standings yet.</div>
-        ) : rows.slice(0, 10).map((r: any, i: number) => (
+        ) : rows.map((r: any, i: number) => (
           <div key={r.playerId || i} className="px-3 py-2 text-sm flex items-center justify-between">
             <div>
               <span className="text-[#9E9E9E] mr-2">{i + 1}</span>
