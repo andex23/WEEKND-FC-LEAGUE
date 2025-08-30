@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         status: (data.status || 'pending')
       }
       console.log("Attempting to insert player:", insertData)
-      const { data: created, error } = await client.from("players").insert([insertData]).select().single()
+      const { data: created, error } = await admin.from("players").insert([insertData]).select().single()
       if (error) {
         console.error("Database error:", error)
         throw error
