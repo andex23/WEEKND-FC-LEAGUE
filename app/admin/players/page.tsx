@@ -71,7 +71,7 @@ export default function AdminPlayersPage() {
         preferred_club: r.preferred_club || "",
         location: r.location || "",
         active: String(r.status || "active").toLowerCase() !== "inactive",
-      }))
+      })).filter(p => p.name && p.name !== "Unnamed") // Filter out rows without names
       console.log("Players to add:", toAdd)
       
       const results = await Promise.allSettled(toAdd.map(async (p) => {
@@ -89,13 +89,24 @@ export default function AdminPlayersPage() {
             status: p.active ? "approved" : "pending"
           })
         })
-        return response.json()
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
+        }
+        
+        const result = await response.json()
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown error')
+        }
+        
+        return result
       }))
       
       console.log("Import results:", results)
       
-      const successful = results.filter(r => r.status === 'fulfilled').length
-      const failed = results.filter(r => r.status === 'rejected').length
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value?.success).length
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value?.success)).length
       
       if (successful > 0) {
         console.log(`Successfully imported ${successful} players`)
@@ -103,7 +114,9 @@ export default function AdminPlayersPage() {
       }
       if (failed > 0) {
         console.error(`Failed to import ${failed} players`)
-        toast.error(`Failed to import ${failed} players`)
+        const failedResults = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value?.success))
+        console.error("Failed results:", failedResults)
+        toast.error(`Failed to import ${failed} players. Check console for details.`)
       }
       
       await load()
