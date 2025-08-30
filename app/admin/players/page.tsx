@@ -237,7 +237,25 @@ export default function AdminPlayersPage() {
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex flex-wrap gap-1 sm:gap-2">
                           <Button size="sm" variant="outline" onClick={() => setEdit(p)} className="text-xs sm:text-sm">Edit</Button>
-                          <Button size="sm" variant="outline" onClick={async () => { const nextActive = String(p.status) !== "approved"; await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: p.id, status: nextActive ? "approved" : "pending" }) }); load() }} className="text-xs sm:text-sm">{String(p.status) === "approved" ? "Deactivate" : "Activate"}</Button>
+                          <Button size="sm" variant="outline" onClick={async () => { 
+                            try {
+                              const nextActive = String(p.status) !== "approved"; 
+                              const response = await fetch("/api/admin/players", { 
+                                method: "POST", 
+                                headers: { "Content-Type": "application/json" }, 
+                                body: JSON.stringify({ action: "update", id: p.id, status: nextActive ? "approved" : "pending" }) 
+                              }); 
+                              if (response.ok) {
+                                toast.success(`Player ${nextActive ? 'activated' : 'deactivated'} successfully`)
+                                load()
+                              } else {
+                                throw new Error('Failed to update status')
+                              }
+                            } catch (error) {
+                              console.error("Error updating player status:", error)
+                              toast.error("Failed to update player status")
+                            }
+                          }} className="text-xs sm:text-sm">{String(p.status) === "approved" ? "Deactivate" : "Activate"}</Button>
                           <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20 text-xs sm:text-sm" onClick={async () => { setConfirmDeleteId(p.id) }}>Delete</Button>
                         </div>
                       </td>
@@ -292,26 +310,45 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) {
+      toast.error("Name is required")
+      return
+    }
     setLoading(true)
-    const payload = { id: crypto?.randomUUID?.() || Math.random().toString(36).slice(2), name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location, active, created_at: new Date().toISOString() }
     try {
-      const locals = getLocalPlayers()
-      setLocalPlayers(mergePlayers(locals, [payload]))
-      await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        action: "add",
-        id: payload.id,
-        name: payload.name,
-        username: payload.gamer_tag || null,
-        psn_name: payload.gamer_tag || null,
-        console: payload.console,
-        preferred_club: payload.preferred_club,
-        location: payload.location,
-        status: payload.active ? "approved" : "pending"
-      }) })
-      setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
-      onAdded()
-    } finally { setLoading(false) }
+      const response = await fetch("/api/admin/players", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({
+          action: "add",
+          name: name,
+          username: gamerTag || null,
+          psn_name: gamerTag || null,
+          console: consoleType,
+          preferred_club: club,
+          location: location,
+          status: active ? "approved" : "pending"
+        }) 
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to add player: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      if (result.success) {
+        toast.success("Player added successfully")
+        setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
+        onAdded()
+      } else {
+        throw new Error(result.error || "Failed to add player")
+      }
+    } catch (error) {
+      console.error("Error adding player:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to add player")
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   return (
@@ -358,16 +395,59 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
 }
 
 function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState<any>(player)
-  useEffect(() => { setForm(player) }, [player])
+  const [form, setForm] = useState<any>(null)
+  useEffect(() => { 
+    if (player) {
+      setForm({
+        ...player,
+        gamer_tag: player.username || player.psn_name || ""
+      })
+    }
+  }, [player])
   if (!player) return null
 
+  const [saving, setSaving] = useState(false)
+
   const save = async () => {
-    const patch = { name: form.name, gamer_tag: form.gamer_tag, console: form.console, preferred_club: form.preferred_club, location: form.location, active: !!form.active }
-    const locals = getLocalPlayers().map((x) => x.id === form.id ? { ...x, ...patch } : x)
-    setLocalPlayers(locals)
-    await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: form.id, patch }) })
-    onSaved(); onClose()
+    if (!form?.name?.trim()) {
+      toast.error("Name is required")
+      return
+    }
+    
+    setSaving(true)
+    try {
+      const patch = { 
+        name: form.name, 
+        psn_name: form.gamer_tag, 
+        console: form.console, 
+        preferred_club: form.preferred_club, 
+        location: form.location, 
+        status: form.active ? "approved" : "pending" 
+      }
+      const response = await fetch("/api/admin/players", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ action: "update", id: form.id, ...patch }) 
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update player: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      if (result.success) {
+        toast.success("Player updated successfully")
+        onSaved()
+        onClose()
+      } else {
+        throw new Error(result.error || "Failed to update player")
+      }
+    } catch (error) {
+      console.error("Error updating player:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to update player")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -410,7 +490,7 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
           </div>
         </div>
         <div className="flex justify-end mt-4">
-          <Button onClick={save}>Save</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
         </div>
       </DialogContent>
     </Dialog>
