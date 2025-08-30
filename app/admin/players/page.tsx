@@ -396,6 +396,8 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
 
 function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  
   useEffect(() => { 
     if (player) {
       setForm({
@@ -404,9 +406,8 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
       })
     }
   }, [player])
+  
   if (!player) return null
-
-  const [saving, setSaving] = useState(false)
 
   const save = async () => {
     if (!form?.name?.trim()) {
