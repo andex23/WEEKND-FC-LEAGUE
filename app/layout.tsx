@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Roboto } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
@@ -25,6 +26,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${roboto.variable}`}>
+      <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-F1DCSXWT0Q"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-F1DCSXWT0Q');
+          `}
+        </Script>
+      </head>
       <body suppressHydrationWarning className="font-courier">
         <Navbar />
         <main>{children}</main>
