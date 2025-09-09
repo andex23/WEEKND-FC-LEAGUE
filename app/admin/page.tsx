@@ -246,7 +246,6 @@ export default function AdminDashboard() {
   // demo seeding removed
 
   const matchesPlayed = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "PLAYED").length, [fixtures])
-  const matchesCancelled = useMemo(() => fixtures.filter((f) => (f.status || f.Status || f.status)?.toUpperCase?.() === "CANCELLED").length, [fixtures])
   const matchesPendingApproval = useMemo(() => resultsQueue.filter((r) => (r.status || "").toUpperCase() !== "APPROVED").length, [resultsQueue])
 
   const recentReports7d = useMemo(() => {
@@ -565,7 +564,7 @@ export default function AdminDashboard() {
           <section className="flex-1">
             {section === "overview" && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Players (Active / Total)</div>
                     <div className="text-2xl font-bold tabular-nums text-[#00C853]">{activePlayersCount} / {players.length}</div>
@@ -585,10 +584,6 @@ export default function AdminDashboard() {
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">Pending Approval</div>
                     <div className="text-2xl font-bold tabular-nums text-[#00C853]">{matchesPendingApproval}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Cancelled Fixtures</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#FF5722]">{leagueSettings?.activeTournament ? matchesCancelled : 0}</div>
                   </div>
                   <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
                     <div className="text-xs text-[#9E9E9E]">League Status</div>
@@ -670,18 +665,6 @@ export default function AdminDashboard() {
                         <div className="text-sm text-[#9E9E9E]">No players found.</div>
                       )}
                     </div>
-
-                    {matchesCancelled > 0 && (
-                      <div className="rounded-2xl p-4 border bg-[#141414]">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="text-sm font-semibold">Cancelled Fixtures</div>
-                          <div className="text-xs text-[#FF5722]">{matchesCancelled} cancelled</div>
-                        </div>
-                        <div className="text-sm text-[#9E9E9E]">
-                          {matchesCancelled} fixture{matchesCancelled !== 1 ? 's' : ''} have been cancelled due to player deactivation.
-                        </div>
-                      </div>
-                    )}
 
                     <div className="rounded-2xl p-4 border bg-[#141414]">
                       <div className="flex items-center justify-between mb-3">
