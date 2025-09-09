@@ -98,6 +98,17 @@ export async function POST(request: Request) {
       const uuidLike = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
       if (uuidLike.test(id)) {
+        // Check if player is being deactivated (status changing from approved to pending)
+        const { data: currentPlayer, error: fetchError } = await admin
+          .from("players")
+          .select("status")
+          .eq("id", id)
+          .single()
+        
+        if (fetchError) throw fetchError
+        
+        const isBeingDeactivated = currentPlayer?.status === "approved" && src.status === "pending"
+        
         const { data: updated, error } = await admin
           .from("players")
           .update(patch)
@@ -105,6 +116,30 @@ export async function POST(request: Request) {
           .select()
           .single()
         if (error) throw error
+
+        // If player is being deactivated, cancel all their fixtures
+        if (isBeingDeactivated) {
+          console.log(`Player ${id} is being deactivated, cancelling all fixtures...`)
+          
+          // Cancel all fixtures where this player is either home or away
+          const { error: fixturesError } = await admin
+            .from("fixtures")
+            .update({ 
+              status: "CANCELLED", 
+              updated_at: new Date().toISOString(),
+              notes: "Player deactivated"
+            })
+            .or(`home_player_id.eq.${id},away_player_id.eq.${id}`)
+            .neq("status", "CANCELLED") // Only update non-cancelled fixtures
+          
+          if (fixturesError) {
+            console.error("Error cancelling fixtures:", fixturesError)
+            // Don't throw error here, just log it - player update was successful
+          } else {
+            console.log(`Successfully cancelled fixtures for deactivated player ${id}`)
+          }
+        }
+
         return NextResponse.json({ success: true, player: updated })
       } else {
         // Fallback: update by name + (username or psn_name) when id isn't a UUID

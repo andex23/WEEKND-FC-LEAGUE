@@ -253,13 +253,18 @@ export default function AdminPlayersPage() {
                           <Button size="sm" variant="outline" onClick={async () => { 
                             try {
                               const nextActive = String(p.status) !== "approved"; 
+                              const isDeactivating = String(p.status) === "approved" && !nextActive;
                               const response = await fetch("/api/admin/players", { 
                                 method: "POST", 
                                 headers: { "Content-Type": "application/json" }, 
                                 body: JSON.stringify({ action: "update", id: p.id, status: nextActive ? "approved" : "pending" }) 
                               }); 
                               if (response.ok) {
-                                toast.success(`Player ${nextActive ? 'activated' : 'deactivated'} successfully`)
+                                if (isDeactivating) {
+                                  toast.success(`Player deactivated successfully. All fixtures have been cancelled.`)
+                                } else {
+                                  toast.success(`Player activated successfully`)
+                                }
                                 load()
                               } else {
                                 throw new Error('Failed to update status')
