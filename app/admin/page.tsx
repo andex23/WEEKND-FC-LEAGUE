@@ -35,6 +35,28 @@ export default function AdminDashboard() {
   // Removed local storage; use Supabase only
   const activePlayersCount = useMemo(() => players.filter((p) => String(p.status) === "approved").length, [players])
 
+  // Refresh data when page becomes visible (e.g., when returning from players page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && section === "overview") {
+        fetchAllData()
+      }
+    }
+
+    const handleFocus = () => {
+      if (section === "overview") {
+        fetchAllData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [section])
 
   useEffect(() => {
     fetchAllData()
@@ -578,7 +600,12 @@ export default function AdminDashboard() {
                     <div className="rounded-2xl p-4 border bg-[#141414]">
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-sm font-semibold">League Standings (Top 5)</div>
-                        <Button variant="outline" size="sm" onClick={() => router.push("/admin/stats")}>Open Stats</Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}>
+                            {loading ? "Refreshing..." : "Refresh"}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => router.push("/admin/stats")}>Open Stats</Button>
+                        </div>
                       </div>
                       {standings && standings.length > 0 ? (
                         <table className="w-full text-sm">
