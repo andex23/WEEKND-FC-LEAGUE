@@ -61,7 +61,7 @@ function shuffle<T>(input: T[]): T[] {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { rounds = 2, tournamentId } = body
+    const { rounds = 2, matchdaysPerWeekend = 2, tournamentId } = body
     const { searchParams } = new URL(request.url)
     const debug = searchParams.get("debug") === "1"
 
@@ -93,12 +93,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Skip registrations entirely - we work directly with players table
-    console.log(`Using ${roster.length} players directly from players table (no registrations needed)`)
+    // Using ${roster.length} players from database
     
-      // Skip trying to modify schema - we'll handle constraint errors differently
-  console.log("Note: Skipping schema modification - will handle constraints in fixtures API")
+      // Handle constraint errors in fixtures API
     if (roster.length < 2) {
-      return NextResponse.json({ error: "Need at least 2 players", approvedCount: roster.length }, { status: 400 })
+      return NextResponse.json({ 
+        error: "Need at least 2 players", 
+        message: `Only ${roster.length} approved players found`,
+        approvedCount: roster.length,
+        suggestion: "Please approve more players before generating fixtures"
+      }, { status: 400 })
     }
 
     let shaped = roster.map((p) => ({ id: String(p.id), name: p.name, assignedTeam: p.preferred_club || "" }))
@@ -109,12 +113,9 @@ export async function POST(request: NextRequest) {
     }
     // Shuffle players to randomize fixture generation on each request
     const randomized = shuffle(shaped)
-    console.log(`DEBUG: Calling generateRoundRobinFixtures with ${randomized.length} players, rounds=${rounds}`)
-    const rawFixtures = generateRoundRobinFixtures(randomized, rounds, 2)
-    console.log(`DEBUG: generateRoundRobinFixtures returned ${rawFixtures.length} fixtures`)
+    const rawFixtures = generateRoundRobinFixtures(randomized, rounds, matchdaysPerWeekend)
     // Drop any BYE fixtures
     const fixtures = rawFixtures.filter((f: any) => f.homePlayer !== byeId && f.awayPlayer !== byeId)
-    console.log(`DEBUG: After filtering BYE fixtures: ${fixtures.length} fixtures`)
 
     const base = getSelfBase(request)
     const season = body.season || "2024/25"

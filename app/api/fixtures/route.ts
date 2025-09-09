@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use upsert to handle both new and existing records reliably
-    console.log("Attempting to save fixture:", JSON.stringify(row, null, 2))
+    // Saving fixture to database
     
     try {
       const { data: saved, error } = await admin
@@ -134,11 +134,10 @@ export async function POST(request: NextRequest) {
         throw error
       }
       
-      console.log("Fixture saved successfully:", saved)
+      // Fixture saved successfully
       return NextResponse.json({ ok: true, fixture: saved, message: "Fixture saved successfully" })
     } catch (dbError) {
       console.error("Exception during database operation:", dbError)
-      console.error("Row data that failed:", JSON.stringify(row, null, 2))
       throw dbError
     }
       } catch (error) {

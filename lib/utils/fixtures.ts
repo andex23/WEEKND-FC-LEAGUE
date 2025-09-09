@@ -17,8 +17,7 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
   const numRounds = numTeams - 1
   const matchesPerRound = numTeams / 2
 
-  console.log(`DEBUG: ${players.length} players, ${numTeams} teams, ${numRounds} rounds, ${matchesPerRound} matches per round, ${rounds} total rounds`)
-  console.log(`DEBUG: Expected fixtures: ${numRounds} × ${matchesPerRound} × ${rounds} = ${numRounds * matchesPerRound * rounds}`)
+  // Round-robin fixture generation for ${players.length} players, ${rounds} rounds
 
   // Generate fixtures for each round
   for (let round = 0; round < rounds; round++) {
@@ -39,8 +38,7 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
 
       for (let [homePlayer, awayPlayer] of pairings) {
         if (homePlayer.id === "bye" || awayPlayer.id === "bye" || String(homePlayer.id) === String(awayPlayer.id)) {
-          console.log(`DEBUG: Skipping invalid match on matchday ${matchday} round ${round}: home=${homePlayer.id}, away=${awayPlayer.id}`);
-          continue;
+          continue; // Skip invalid matches (bye or self-match)
         }
 
         fixtures.push({
@@ -62,7 +60,6 @@ export function generateRoundRobinFixtures(players: any[], rounds = 2, matchdays
     }
   }
 
-  console.log(`DEBUG: Generated ${fixtures.length} fixtures`);
   return fixtures;
 }
 

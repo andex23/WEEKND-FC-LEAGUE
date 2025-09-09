@@ -5,15 +5,49 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Settings, Play } from "lucide-react"
+import { Calendar, Settings, Play, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 export function SchedulerTab() {
   const [rounds, setRounds] = useState("2")
   const [matchdaysPerWeekend, setMatchdaysPerWeekend] = useState("2")
+  const [generating, setGenerating] = useState(false)
 
-  const handleGenerateFixtures = () => {
-    // TODO: Implement round-robin fixture generation using circle method
-    console.log("Generating fixtures with:", { rounds, matchdaysPerWeekend })
+  const handleGenerateFixtures = async () => {
+    try {
+      setGenerating(true)
+      
+      const response = await fetch("/api/admin/generate-fixtures", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rounds: parseInt(rounds),
+          matchdaysPerWeekend: parseInt(matchdaysPerWeekend),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        const errorMessage = result.message || result.error || "Failed to generate fixtures"
+        const suggestion = result.suggestion || ""
+        throw new Error(`${errorMessage}${suggestion ? ` - ${suggestion}` : ""}`)
+      }
+
+      const fixtureCount = result.fixtures?.length || 0
+      toast.success(`Successfully generated ${fixtureCount} fixtures!`)
+      
+      // Refresh the page to show new fixtures
+      window.location.reload()
+    } catch (error) {
+      console.error("Error generating fixtures:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate fixtures"
+      toast.error(errorMessage)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -73,9 +107,17 @@ export function SchedulerTab() {
             </ul>
           </div>
 
-          <Button onClick={handleGenerateFixtures} className="w-full bg-accent hover:bg-accent/90">
-            <Play className="h-4 w-4 mr-2" />
-            Generate League Fixtures (Round-Robin)
+          <Button 
+            onClick={handleGenerateFixtures} 
+            disabled={generating}
+            className="w-full bg-accent hover:bg-accent/90"
+          >
+            {generating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
+            )}
+            {generating ? "Generating Fixtures..." : "Generate League Fixtures (Round-Robin)"}
           </Button>
         </CardContent>
       </Card>

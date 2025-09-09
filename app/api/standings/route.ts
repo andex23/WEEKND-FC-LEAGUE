@@ -43,10 +43,9 @@ export async function GET(request: NextRequest) {
             status: f.status,
             scheduledDate: f.scheduled_date
           }))
-          console.log(`Standings: Using ${fixtures.length} fixtures from database`)
+          // Using ${fixtures.length} fixtures from database
         }
       } catch (e) {
-        console.log("Standings: Could not fetch fixtures from database, falling back to in-memory")
         // Fallback to in-memory fixtures
         const allFixtures = (g.__memoryFixtures as any[]) || []
         fixtures = allFixtures.filter((f) => String(f.tournamentId || "") === String(tournamentId))
@@ -66,10 +65,10 @@ export async function GET(request: NextRequest) {
       
       if (!error && supabasePlayers && supabasePlayers.length > 0) {
         players = supabasePlayers
-        console.log(`Standings: Using ${players.length} players from Supabase`)
+        // Using ${players.length} players from Supabase
       }
     } catch (e) {
-      console.log("Standings: Could not fetch from Supabase, falling back to in-memory")
+      // Fallback to in-memory stores
     }
     
     // Fallback to in-memory stores if Supabase failed or returned no data
@@ -91,7 +90,7 @@ export async function GET(request: NextRequest) {
           players = Array.from(seen).map((id) => byId.get(id)).filter(Boolean)
         }
       }
-      console.log(`Standings: Using ${players.length} players from in-memory stores`)
+      // Using ${players.length} players from in-memory stores
     }
 
     // Optional console filter
