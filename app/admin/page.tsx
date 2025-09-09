@@ -65,32 +65,36 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [playersRes, standingsRes, statusRes, settingsRes, tournamentsRes] = await Promise.all([
+      
+      // First get tournaments to find active tournament
+      const tournamentsRes = await fetch("/api/admin/tournaments").catch(() => null)
+      const tournamentsData = tournamentsRes ? await tournamentsRes.json() : null
+      const tournaments = tournamentsData?.tournaments || []
+      const activeTournament = tournaments.find((t: any) => t.status === "ACTIVE") || null
+      
+      // Build query string for tournament-specific data
+      const tournamentQuery = activeTournament ? `?tournamentId=${encodeURIComponent(String(activeTournament.id))}` : ""
+      
+      const [playersRes, standingsRes, statusRes, settingsRes] = await Promise.all([
         fetch("/api/admin/players"),
-        fetch("/api/standings"),
+        fetch(`/api/standings${tournamentQuery}`),
         fetch("/api/league/status"),
         fetch("/api/admin/settings").catch(() => null),
-        fetch("/api/admin/tournaments").catch(() => null),
       ])
 
       const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
       const statusData = await statusRes.json()
       const settingsData = settingsRes ? await settingsRes.json() : null
-      const tournamentsData = tournamentsRes ? await tournamentsRes.json() : null
 
       setPlayers(playersData.players || [])
       setStandings(standingsData.standings || [])
-      
-      // Update league settings to include tournament info
-      const tournaments = tournamentsData?.tournaments || []
-      const activeTournament = tournaments.find((t: any) => t.status === "ACTIVE") || null
       
       // Fetch fixtures specifically for active tournament
       let activeTournamentFixtures: any[] = []
       if (activeTournament) {
         try {
-          const fixturesRes = await fetch(`/api/fixtures?tournamentId=${encodeURIComponent(String(activeTournament.id))}`)
+          const fixturesRes = await fetch(`/api/fixtures${tournamentQuery}`)
           const fixturesData = await fixturesRes.json()
           activeTournamentFixtures = fixturesData.fixtures || []
         } catch (e) {
@@ -107,8 +111,7 @@ export default function AdminDashboard() {
       })
       try {
         // Fetch player stats with tournament context
-        const activeIdScoped = activeTournament?.id || null
-        const statsResScoped = await fetch(`/api/player-stats${activeIdScoped ? `?tournamentId=${encodeURIComponent(String(activeIdScoped))}` : ""}`)
+        const statsResScoped = await fetch(`/api/player-stats${tournamentQuery}`)
         const apiStats = await statsResScoped.json().catch(() => null)
         let mapped = apiStats || null as any
         const hasLeaders = Boolean(mapped?.topScorers?.length || mapped?.topAssists?.length || mapped?.discipline?.length)
