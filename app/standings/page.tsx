@@ -229,7 +229,10 @@ export default function StandingsPage() {
     }
   }
 
-  const completed = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "PLAYED"), [fixtures]);
+  const completed = useMemo(() => fixtures.filter((f: any) => {
+    const status = String(f.status || "").toUpperCase();
+    return status === "PLAYED" || status === "FORFEIT";
+  }), [fixtures]);
 
   const lastCompleted = useMemo(() => {
     const completedMds = completed.map(f => f.matchday).filter(Boolean);
@@ -238,11 +241,12 @@ export default function StandingsPage() {
 
   const upcoming = useMemo(() => fixtures.filter((f: any) => {
     const status = String(f.status || "").toUpperCase();
-    return status !== "PLAYED" && status !== "CANCELLED";
+    return status !== "PLAYED" && status !== "CANCELLED" && status !== "FORFEIT";
   }), [fixtures]);
 
   const cancelled = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "CANCELLED"), [fixtures]);
-  console.log("Standings page: Fixture counts - Total:", fixtures.length, "Completed:", completed.length, "Upcoming:", upcoming.length, "Cancelled:", cancelled.length, "Last completed matchday:", lastCompleted)
+  const forfeit = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "FORFEIT"), [fixtures]);
+  console.log("Standings page: Fixture counts - Total:", fixtures.length, "Completed:", completed.length, "Upcoming:", upcoming.length, "Cancelled:", cancelled.length, "Forfeit:", forfeit.length, "Last completed matchday:", lastCompleted)
 
   const shownRaw = tab === "UPCOMING" ? upcoming : completed
   const shown = showAll ? shownRaw : shownRaw.slice(0, 8)
