@@ -104,6 +104,33 @@ export async function GET(req: Request) {
       try { let q = supabase.from("v_discipline").select("*"); q = maybeFilter(q); const { data, error } = await q; if (!error && Array.isArray(data)) discipline = data } catch {}
     }
 
+    // Try to get real discipline data from stats table
+    if (!discipline.length) {
+      try {
+        const { data: statsData, error: statsError } = await supabase
+          .from("stats")
+          .select(`
+            user_id,
+            yellows,
+            reds,
+            players!inner(name, preferred_club)
+          `)
+          .gt("yellows", 0)
+          .or("reds.gt.0")
+        
+        if (!statsError && statsData && statsData.length > 0) {
+          discipline = statsData.map((stat: any) => ({
+            name: stat.players?.name || "Unknown",
+            team: stat.players?.preferred_club || "-",
+            yellow_cards: stat.yellows || 0,
+            red_cards: stat.reds || 0,
+          }))
+        }
+      } catch (e) {
+        console.log("Could not fetch discipline from stats table:", e)
+      }
+    }
+
     // 2) Fallback to standings_view if still empty
     const needScorers = !topScorers?.length
     const needAssists = !topAssists?.length
