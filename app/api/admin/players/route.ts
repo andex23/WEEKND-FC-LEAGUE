@@ -55,6 +55,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, deleted: ids.length })
     }
 
+    if (action === "cleanup_deactivated_fixtures") {
+      // Remove fixtures for all currently deactivated players
+      console.log("Cleaning up fixtures for deactivated players...")
+      
+      // Get all deactivated players
+      const { data: deactivatedPlayers, error: playersError } = await admin
+        .from("players")
+        .select("id, name")
+        .eq("status", "pending")
+      
+      if (playersError) throw playersError
+      
+      if (!deactivatedPlayers || deactivatedPlayers.length === 0) {
+        return NextResponse.json({ success: true, message: "No deactivated players found" })
+      }
+      
+      // Remove fixtures for each deactivated player
+      let totalFixturesRemoved = 0
+      const errors: string[] = []
+      
+      for (const player of deactivatedPlayers) {
+        const { error: fixturesError } = await admin
+          .from("fixtures")
+          .delete()
+          .or(`home_player_id.eq.${player.id},away_player_id.eq.${player.id}`)
+        
+        if (fixturesError) {
+          errors.push(`Failed to remove fixtures for ${player.name}: ${fixturesError.message}`)
+        } else {
+          totalFixturesRemoved++
+        }
+      }
+      
+      console.log(`Cleaned up fixtures for ${totalFixturesRemoved} deactivated players`)
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `Cleaned up fixtures for ${totalFixturesRemoved} deactivated players`,
+        playersProcessed: totalFixturesRemoved,
+        errors: errors.length > 0 ? errors : undefined
+      })
+    }
+
     if (action === "add") {
       // Only include columns that exist in DB schema
       const insertData: any = {
@@ -117,26 +160,23 @@ export async function POST(request: Request) {
           .single()
         if (error) throw error
 
-        // If player is being deactivated, cancel all their fixtures
+        // If player is being deactivated, remove ALL their fixtures (including played ones)
+        // This ensures standings are recalculated with only active players
         if (isBeingDeactivated) {
-          console.log(`Player ${id} is being deactivated, cancelling all fixtures...`)
-          
-          // Cancel all fixtures where this player is either home or away
+          console.log(`Player ${id} is being deactivated, removing all fixtures to recalculate standings...`)
+
+          // Delete ALL fixtures where this player is either home or away
+          // This includes played fixtures to ensure scores are recalculated for active players only
           const { error: fixturesError } = await admin
             .from("fixtures")
-            .update({ 
-              status: "CANCELLED", 
-              updated_at: new Date().toISOString(),
-              notes: "Player deactivated"
-            })
+            .delete()
             .or(`home_player_id.eq.${id},away_player_id.eq.${id}`)
-            .neq("status", "CANCELLED") // Only update non-cancelled fixtures
-          
+
           if (fixturesError) {
-            console.error("Error cancelling fixtures:", fixturesError)
+            console.error("Error removing fixtures:", fixturesError)
             // Don't throw error here, just log it - player update was successful
           } else {
-            console.log(`Successfully cancelled fixtures for deactivated player ${id}`)
+            console.log(`Successfully removed all fixtures for deactivated player ${id} - standings will be recalculated`)
           }
         }
 

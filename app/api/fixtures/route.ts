@@ -24,11 +24,17 @@ export async function GET(request: NextRequest) {
       if (!tournamentId) return NextResponse.json({ fixtures: [], totalFixtures: 0 })
     }
 
-    // Select base columns - only use player_id columns, no registration columns
+    // Select base columns - only use player_id columns, and ensure both players are approved
     let query = client
       .from("fixtures")
-      .select("id,tournament_id,matchday,home_player_id,away_player_id,home_score,away_score,status,scheduled_date,notes")
+      .select(`
+        id,tournament_id,matchday,home_player_id,away_player_id,home_score,away_score,status,scheduled_date,notes,
+        home_player:players!fixtures_home_player_id_fkey(id,status),
+        away_player:players!fixtures_away_player_id_fkey(id,status)
+      `)
       .eq("tournament_id", tournamentId)
+      .eq("home_player.status", "approved")
+      .eq("away_player.status", "approved")
       .order("matchday", { ascending: true })
 
     if (matchday && matchday !== "all") query = query.eq("matchday", Number(matchday))

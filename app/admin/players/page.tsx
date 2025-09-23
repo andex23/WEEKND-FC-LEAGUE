@@ -181,6 +181,24 @@ export default function AdminPlayersPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <AdminOverlayNav />
                 <Button variant="outline" onClick={() => router.push("/admin")}>Back to Admin</Button>
+                <Button variant="outline" onClick={async () => { 
+                  try {
+                    const response = await fetch("/api/admin/players", { 
+                      method: "POST", 
+                      headers: { "Content-Type": "application/json" }, 
+                      body: JSON.stringify({ action: "cleanup_deactivated_fixtures" }) 
+                    })
+                    const result = await response.json()
+                    if (result.success) {
+                      toast.success(result.message)
+                    } else {
+                      toast.error(result.error || "Cleanup failed")
+                    }
+                  } catch (error) {
+                    console.error("Error cleaning up fixtures:", error)
+                    toast.error("Failed to cleanup fixtures")
+                  }
+                }}>Cleanup Deactivated Fixtures</Button>
                 <Button variant="outline" onClick={async () => { setConfirmClear(true) }}>Clear Players</Button>
               </div>
             </header>
@@ -261,7 +279,7 @@ export default function AdminPlayersPage() {
                               }); 
                               if (response.ok) {
                                 if (isDeactivating) {
-                                  toast.success(`Player deactivated successfully. All fixtures have been cancelled.`)
+                                  toast.success(`Player deactivated successfully. All fixtures removed and standings recalculated for active players only.`)
                                 } else {
                                   toast.success(`Player activated successfully`)
                                 }

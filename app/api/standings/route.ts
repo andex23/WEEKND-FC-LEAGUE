@@ -27,8 +27,14 @@ export async function GET(request: NextRequest) {
         const admin = createAdminClient()
         const { data: dbFixtures, error } = await admin
           .from("fixtures")
-          .select("id, tournament_id, matchday, home_player_id, away_player_id, home_score, away_score, status, scheduled_date")
+          .select(`
+            id, tournament_id, matchday, home_player_id, away_player_id, home_score, away_score, status, scheduled_date,
+            home_player:players!fixtures_home_player_id_fkey(id,status),
+            away_player:players!fixtures_away_player_id_fkey(id,status)
+          `)
           .eq("tournament_id", tournamentId)
+          .eq("home_player.status", "approved")
+          .eq("away_player.status", "approved")
         
         if (!error && dbFixtures) {
           // Transform database fixtures to expected format
