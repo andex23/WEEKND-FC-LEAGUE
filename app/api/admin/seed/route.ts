@@ -29,6 +29,7 @@ export async function POST() {
         {
           id: data.user.id,
           username: u.username,
+          email: `${u.username}@weekndfc.local`,
           name: u.name,
           console: u.console,
           location: u.location,

@@ -33,20 +33,29 @@ export async function POST(request: NextRequest) {
   }
 
   const username = data.username.toLowerCase()
+  const email = data.email.toLowerCase()
 
-  // Username must be unique.
-  const { data: existing } = await supabase
+  // Username and email must be unique.
+  const { data: existingUsername } = await supabase
     .from("players")
     .select("id")
     .eq("username", username)
     .maybeSingle()
-  if (existing) {
+  if (existingUsername) {
     return NextResponse.json({ error: "That username is already taken." }, { status: 409 })
   }
+  const { data: existingEmail } = await supabase
+    .from("players")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle()
+  if (existingEmail) {
+    return NextResponse.json({ error: "That email is already registered." }, { status: 409 })
+  }
 
-  // Create the auth user. The email is synthetic and keyed on the username.
+  // Create the auth user with the player's real email address.
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: `${username}@weekndfc.local`,
+    email,
     password: data.password,
     options: { data: { username, name: data.name } },
   })
@@ -63,6 +72,7 @@ export async function POST(request: NextRequest) {
   const { error: playerError } = await admin.from("players").insert({
     id: authData.user.id,
     username,
+    email,
     name: data.name,
     psn_id: data.psnName,
     location: data.location,

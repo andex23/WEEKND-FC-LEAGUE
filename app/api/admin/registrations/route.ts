@@ -10,7 +10,7 @@ export async function GET() {
 
   const { data, error } = await createAdminClient()
     .from("players")
-    .select("id,name,username,console,location,preferred_club,status,created_at")
+    .select("id,name,username,email,console,location,preferred_club,status,created_at")
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -22,6 +22,7 @@ export async function GET() {
     id: p.id,
     name: p.name,
     username: p.username,
+    email: p.email,
     console: p.console,
     location: p.location,
     preferred_team: p.preferred_club,

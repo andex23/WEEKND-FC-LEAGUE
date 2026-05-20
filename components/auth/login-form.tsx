@@ -73,15 +73,20 @@ export default function LoginForm() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="username" className="block text-sm font-medium">
-                Username/Nickname
+              <label htmlFor="email" className="block text-sm font-medium">
+                Email
               </label>
-              <Input id="username" name="username" type="text" placeholder="Your username" required className="h-12" />
+              <Input id="email" name="email" type="email" placeholder="you@example.com" required className="h-12" />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium">
+                  Password
+                </label>
+                <Link href="/auth/forgot-password" className="text-sm text-accent hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <Input id="password" name="password" type="password" required className="h-12" />
             </div>
           </div>

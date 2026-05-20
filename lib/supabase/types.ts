@@ -12,6 +12,7 @@ export type Database = {
         Row: {
           id: string
           username: string | null
+          email: string | null
           name: string
           psn_id: string | null
           location: string | null
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           id: string
           username?: string | null
+          email?: string | null
           name: string
           psn_id?: string | null
           location?: string | null

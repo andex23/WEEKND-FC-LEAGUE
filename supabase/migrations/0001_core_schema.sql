@@ -55,6 +55,7 @@ ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS updated_at timestamptz D
 CREATE TABLE IF NOT EXISTS public.players (
   id              uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username        text UNIQUE,
+  email           text,
   name            text NOT NULL,
   psn_id          text,
   location        text,
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS public.players (
 );
 
 ALTER TABLE public.players ADD COLUMN IF NOT EXISTS username text;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE public.players ADD COLUMN IF NOT EXISTS psn_id text;
 ALTER TABLE public.players ADD COLUMN IF NOT EXISTS assigned_club text;
 ALTER TABLE public.players ADD COLUMN IF NOT EXISTS role text DEFAULT 'PLAYER';

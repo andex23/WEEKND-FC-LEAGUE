@@ -23,6 +23,7 @@ export function RegistrationForm() {
     resolver: zodResolver(registrationSchema),
     defaultValues: {
       username: "",
+      email: "",
       name: "",
       psnName: "",
       location: "",
@@ -77,6 +78,20 @@ export function RegistrationForm() {
                   <FormLabel>Username</FormLabel>
                   <FormControl>
                     <Input placeholder="Choose a username for signing in" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="you@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
