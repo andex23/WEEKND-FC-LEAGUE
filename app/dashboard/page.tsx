@@ -10,6 +10,7 @@ import KpiCard from "./_components/KpiCard"
 import FixtureList from "./_components/FixtureList"
 import PersonalStats from "./_components/PersonalStats"
 import LeagueTable from "./_components/LeagueTable"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type PlayerFixture = {
   id: string
@@ -36,6 +37,31 @@ function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center px-6 text-center">
       {children}
+    </div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
+      <div className="container-5xl section-pad space-y-6">
+        <Skeleton className="h-7 w-40" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-3 space-y-6">
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
+          </div>
+          <div className="lg:col-span-6 space-y-6">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+          <div className="lg:col-span-3 space-y-6">
+            <Skeleton className="h-44 w-full rounded-2xl" />
+            <Skeleton className="h-44 w-full rounded-2xl" />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -90,7 +116,7 @@ export default function DashboardPage() {
     }
   }, [])
 
-  if (loading) return <Centered>Loading your dashboard…</Centered>
+  if (loading) return <DashboardSkeleton />
   if (error) {
     return (
       <Centered>

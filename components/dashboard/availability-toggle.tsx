@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -34,8 +35,10 @@ export function AvailabilityToggle({ playerId, initialAvailability }: Availabili
       }
 
       setAvailable(checked)
+      toast.success(checked ? "Marked as available this weekend" : "Marked as unavailable")
     } catch (error) {
       console.error("Error updating availability:", error)
+      toast.error("Couldn't update your availability. Please try again.")
     } finally {
       setIsUpdating(false)
     }
