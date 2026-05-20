@@ -1,0 +1,46 @@
+name: Apply database migrations
+
+# Runs supabase/apply-all.sql against the Supabase database.
+# Requires a repository secret named SUPABASE_DB_URL containing the
+# Postgres connection string (use the Supabase "Session pooler" string,
+# with the database password embedded).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/improve-code-quality-edtuL]
+    paths: ['.github/workflows/db-migrate.yml']
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply supabase/apply-all.sql
+        id: apply
+        env:
+          PGCONN: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$PGCONN" ]; then
+            echo "::error::Repository secret SUPABASE_DB_URL is not set. Add it under Settings -> Secrets and variables -> Actions, then re-run this workflow."
+            exit 1
+          fi
+          psql "$PGCONN" -v ON_ERROR_STOP=1 -f supabase/apply-all.sql
+
+      - name: Comment result on PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ steps.apply.outcome }}" = "success" ]; then
+            MSG="Database migrations applied successfully via \`supabase/apply-all.sql\`."
+          else
+            MSG="Database migration run failed — check the workflow logs."
+          fi
+          gh pr comment 1 --repo "${{ github.repository }}" --body "$MSG ($RUN_URL)" || true
