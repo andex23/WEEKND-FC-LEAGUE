@@ -1,40 +1,86 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { registrationSchema } from "@/lib/validations"
-import { createPlayer, getLeagueSettings } from "@/lib/supabase/queries"
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: NextRequest) {
+  let body: unknown
   try {
-    const body = await request.json()
-
-    // Validate the request body
-    const validatedData = registrationSchema.parse(body)
-
-    const leagueSettings = await getLeagueSettings()
-    if (leagueSettings?.status !== "DRAFT") {
-      return NextResponse.json({ error: "Registration is closed. League has already started." }, { status: 400 })
-    }
-
-    const player = await createPlayer({
-      name: validatedData.name,
-      location: validatedData.location,
-      console: validatedData.console,
-      preferred_club: validatedData.preferredClub,
-    })
-
-    return NextResponse.json(
-      {
-        message: "Registration successful! You'll be notified when teams are assigned.",
-        data: player,
-      },
-      { status: 201 },
-    )
-  } catch (error) {
-    console.error("Registration error:", error)
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: "Registration failed", details: error.message }, { status: 400 })
-    }
-
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
+
+  const parsed = registrationSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message || "Invalid registration details" },
+      { status: 400 },
+    )
+  }
+  const data = parsed.data
+
+  const supabase = await createClient()
+
+  // Registration must be open.
+  const { data: settings } = await supabase
+    .from("league_settings")
+    .select("registration_open")
+    .limit(1)
+    .maybeSingle()
+  if (settings && settings.registration_open === false) {
+    return NextResponse.json({ error: "Registration is currently closed." }, { status: 400 })
+  }
+
+  const username = data.username.toLowerCase()
+
+  // Username must be unique.
+  const { data: existing } = await supabase
+    .from("players")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle()
+  if (existing) {
+    return NextResponse.json({ error: "That username is already taken." }, { status: 409 })
+  }
+
+  // Create the auth user. The email is synthetic and keyed on the username.
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: `${username}@weekndfc.local`,
+    password: data.password,
+    options: { data: { username, name: data.name } },
+  })
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { error: authError?.message || "Could not create your account." },
+      { status: 400 },
+    )
+  }
+
+  // Create the player profile. The service-role client bypasses RLS for this
+  // initial insert.
+  const admin = createAdminClient()
+  const { error: playerError } = await admin.from("players").insert({
+    id: authData.user.id,
+    username,
+    name: data.name,
+    psn_id: data.psnName,
+    location: data.location,
+    console: data.console,
+    preferred_club: data.preferredClub,
+    role: "PLAYER",
+    status: "pending",
+  })
+  if (playerError) {
+    console.error("Player profile creation failed:", playerError)
+    return NextResponse.json(
+      { error: "Account created but profile setup failed. Please contact an admin." },
+      { status: 500 },
+    )
+  }
+
+  return NextResponse.json(
+    { message: "Registration submitted. An admin will review your account." },
+    { status: 201 },
+  )
 }

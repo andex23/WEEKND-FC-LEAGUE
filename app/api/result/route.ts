@@ -1,63 +1,78 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { fixtureId, homeScore, awayScore, evidenceUrl, notes, screenshot, reportedByPlayerId } = body
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
 
-    if (!fixtureId || homeScore === undefined || awayScore === undefined || !reportedByPlayerId) {
+    const body = await request.json().catch(() => ({}))
+    const { fixtureId, homeScore, awayScore, evidenceUrl, notes } = body
+    if (!fixtureId || homeScore === undefined || awayScore === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Try Supabase persistence; fall back to no-op success if unavailable
-    try {
-      const sb = await createClient()
+    const { data: fixture, error: fetchError } = await supabase
+      .from("fixtures")
+      .select("id, home_player_id, away_player_id, reported_home_score, reported_away_score")
+      .eq("id", fixtureId)
+      .maybeSingle()
+    if (fetchError) throw fetchError
+    if (!fixture) {
+      return NextResponse.json({ error: "Fixture not found" }, { status: 404 })
+    }
 
-      // Fetch existing fixture
-      const { data: fixture, error: fetchError } = await sb.from("fixtures").select("id, reported_home_score, reported_away_score, reported_by_player_id, report_status").eq("id", fixtureId).maybeSingle()
-      if (fetchError) throw fetchError
+    // Only a participant in the fixture may report its result.
+    if (fixture.home_player_id !== user.id && fixture.away_player_id !== user.id) {
+      return NextResponse.json({ error: "You are not part of this fixture" }, { status: 403 })
+    }
 
-      // Conflict detection: if an existing report exists and differs from this one
-      if (fixture && (fixture.reported_home_score != null || fixture.reported_away_score != null)) {
-        const conflict = fixture.reported_home_score !== homeScore || fixture.reported_away_score !== awayScore
-        if (conflict) {
-          await sb.from("fixtures").update({
-            reported_home_score: homeScore,
-            reported_away_score: awayScore,
-            reported_by_player_id: reportedByPlayerId,
-            report_evidence_url: evidenceUrl || null,
-            report_notes: notes || null,
-            report_status: "CONFLICT",
-          }).eq("id", fixtureId)
+    const hasExisting =
+      fixture.reported_home_score != null || fixture.reported_away_score != null
+    const conflict =
+      hasExisting &&
+      (fixture.reported_home_score !== homeScore || fixture.reported_away_score !== awayScore)
 
-          // Try to notify admins (broadcast)
-          await sb.from("notifications").insert({ title: "Result conflict", body: `Fixture ${fixtureId} has conflicting reports.`, user_id: null })
-
-          return NextResponse.json({ message: "Conflict detected", status: "CONFLICT" })
-        }
-      }
-
-      // Upsert reported fields as pending
-      await sb.from("fixtures").update({
+    const { error: updateError } = await supabase
+      .from("fixtures")
+      .update({
         reported_home_score: homeScore,
         reported_away_score: awayScore,
-        reported_by_player_id: reportedByPlayerId,
+        reported_by_player_id: user.id,
         report_evidence_url: evidenceUrl || null,
         report_notes: notes || null,
-        report_status: "PENDING",
-      }).eq("id", fixtureId)
+        report_status: conflict ? "CONFLICT" : "PENDING",
+      })
+      .eq("id", fixtureId)
+    if (updateError) throw updateError
 
-      // Optional: store screenshot in a storage bucket later
+    // Notify admins (service-role client: players cannot insert notifications).
+    await createAdminClient()
+      .from("notifications")
+      .insert({
+        user_id: null,
+        title: conflict ? "Result conflict" : "New result report",
+        body: conflict
+          ? `Fixture ${fixtureId} has conflicting reports and needs admin review.`
+          : `Fixture ${fixtureId} reported and is pending approval.`,
+      })
 
-      // Notify admins of new report
-      await sb.from("notifications").insert({ title: "New result report", body: `Fixture ${fixtureId} reported and pending approval.`, user_id: null })
-
-      return NextResponse.json({ message: "Result submitted. Pending admin approval.", status: "PENDING" })
-    } catch (e) {
-      console.warn("Supabase unavailable, returning mock success:", e)
-      return NextResponse.json({ message: "Result submitted. Pending admin approval.", status: "PENDING" })
+    if (conflict) {
+      return NextResponse.json({
+        message: "Opponent reported a different score. An admin will resolve it.",
+        status: "CONFLICT",
+      })
     }
+    return NextResponse.json({
+      message: "Result submitted. Pending admin approval.",
+      status: "PENDING",
+    })
   } catch (error) {
     console.error("Error submitting result:", error)
     return NextResponse.json({ error: "Failed to submit result" }, { status: 500 })

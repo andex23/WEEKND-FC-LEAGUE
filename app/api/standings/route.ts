@@ -1,124 +1,61 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { calculateStandings } from "@/lib/utils/standings"
-import { activePlayers, getTournamentPlayers } from "@/lib/mocks/players"
+import type { Fixture } from "@/lib/types"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(request: NextRequest) {
   try {
-    // Global in-memory stores
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const g: any = globalThis as any
-    if (!g.__memoryFixtures) g.__memoryFixtures = []
-    if (!g.__memPlayers) g.__memPlayers = []
-
     const { searchParams } = new URL(request.url)
     const consoleFilter = searchParams.get("console")
-    let tournamentId = searchParams.get("tournamentId")
+    const tournamentId = searchParams.get("tournamentId")
 
-    if (!tournamentId) {
-      const active = g.__adminSettings?.tournament?.active_tournament_id || null
-      if (active) tournamentId = String(active)
-    }
+    const admin = createAdminClient()
 
-    // Fetch fixtures from database for tournament
-    let fixtures: any[] = []
-    if (tournamentId) {
-      try {
-        const admin = createAdminClient()
-        const { data: dbFixtures, error } = await admin
-          .from("fixtures")
-          .select(`
-            id, tournament_id, matchday, home_player_id, away_player_id, home_score, away_score, status, scheduled_date,
-            home_player:players!fixtures_home_player_id_fkey(id,status),
-            away_player:players!fixtures_away_player_id_fkey(id,status)
-          `)
-          .eq("tournament_id", tournamentId)
-          .eq("home_player.status", "approved")
-          .eq("away_player.status", "approved")
-        
-        if (!error && dbFixtures) {
-          // Transform database fixtures to expected format
-          fixtures = dbFixtures.map((f: any) => ({
-            id: f.id,
-            tournamentId: f.tournament_id,
-            matchday: f.matchday,
-            homePlayer: f.home_player_id,
-            awayPlayer: f.away_player_id,
-            homeScore: f.home_score,
-            awayScore: f.away_score,
-            status: f.status,
-            scheduledDate: f.scheduled_date
-          }))
-          // Using ${fixtures.length} fixtures from database
-        }
-      } catch (e) {
-        // Fallback to in-memory fixtures
-        const allFixtures = (g.__memoryFixtures as any[]) || []
-        fixtures = allFixtures.filter((f) => String(f.tournamentId || "") === String(tournamentId))
-      }
-    }
+    // Approved players only.
+    const { data: players, error: playersError } = await admin
+      .from("players")
+      .select("id,name,preferred_club,assigned_club,console,status")
+      .eq("status", "approved")
+    if (playersError) throw playersError
 
-    // Build players list: try Supabase first, then fallback to in-memory stores
-    let players: any[] = []
-    
-    // First, try to get players from Supabase
-    try {
-      const admin = createAdminClient()
-      const { data: supabasePlayers, error } = await admin
-        .from("players")
-        .select("id, name, preferred_club, console, status")
-        .eq("status", "approved")
-      
-      if (!error && supabasePlayers && supabasePlayers.length > 0) {
-        players = supabasePlayers
-        // Using ${players.length} players from Supabase
-      }
-    } catch (e) {
-      // Fallback to in-memory stores
-    }
-    
-    // Fallback to in-memory stores if Supabase failed or returned no data
-    if (players.length === 0) {
-      let playerIds: string[] = []
-      if (tournamentId) {
-        try { playerIds = getTournamentPlayers(String(tournamentId)) } catch { playerIds = [] }
-      }
-      
-      if (playerIds.length > 0) {
-        const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
-        players = playerIds.map((id) => byId.get(String(id))).filter(Boolean)
-      } else {
-        players = activePlayers()
-        if (players.length === 0) {
-          const seen = new Set<string>()
-          for (const f of fixtures) { seen.add(String(f.homePlayer)); seen.add(String(f.awayPlayer)) }
-          const byId = new Map((g.__memPlayers as any[]).map((p: any) => [String(p.id), p]))
-          players = Array.from(seen).map((id) => byId.get(id)).filter(Boolean)
-        }
-      }
-      // Using ${players.length} players from in-memory stores
-    }
+    // Fixtures, optionally scoped to one tournament.
+    let fixturesQuery = admin
+      .from("fixtures")
+      .select(
+        "id,tournament_id,matchday,home_player_id,away_player_id,home_score,away_score,status,scheduled_date",
+      )
+    if (tournamentId) fixturesQuery = fixturesQuery.eq("tournament_id", tournamentId)
+    const { data: fixtures, error: fixturesError } = await fixturesQuery
+    if (fixturesError) throw fixturesError
 
-    // Optional console filter
-    if (consoleFilter && consoleFilter !== "all") {
-      players = players.filter((p) => String(p.console || "").toUpperCase() === String(consoleFilter).toUpperCase())
-    }
-
-    // Shape players to what calculateStandings expects
-    const shapedPlayers = players.map((p) => ({
+    let shapedPlayers = (players ?? []).map((p) => ({
       id: String(p.id),
       name: p.name,
-      assignedTeam: p.preferred_club || undefined,
+      assignedTeam: p.assigned_club || p.preferred_club || undefined,
       preferredClub: p.preferred_club || undefined,
       console: p.console,
     }))
+    if (consoleFilter && consoleFilter !== "all") {
+      shapedPlayers = shapedPlayers.filter(
+        (p) => String(p.console || "").toUpperCase() === consoleFilter.toUpperCase(),
+      )
+    }
 
-    const standings = calculateStandings(fixtures as any, shapedPlayers)
+    const shapedFixtures = (fixtures ?? []).map((f) => ({
+      id: f.id,
+      tournamentId: f.tournament_id,
+      matchday: f.matchday,
+      homePlayer: String(f.home_player_id),
+      awayPlayer: String(f.away_player_id),
+      homeScore: f.home_score,
+      awayScore: f.away_score,
+      status: f.status,
+      scheduledDate: f.scheduled_date,
+    }))
 
-    return NextResponse.json({
-      standings,
-      totalPlayers: shapedPlayers.length,
-    })
+    const standings = calculateStandings(shapedFixtures as unknown as Fixture[], shapedPlayers)
+
+    return NextResponse.json({ standings, totalPlayers: shapedPlayers.length })
   } catch (error) {
     console.error("Error fetching standings:", error)
     return NextResponse.json({ error: "Failed to fetch standings" }, { status: 500 })

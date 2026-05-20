@@ -39,7 +39,7 @@ export default function LoginForm() {
 
   useEffect(() => {
     if (state?.success) {
-      router.push("/")
+      router.push("/dashboard")
     }
   }, [state, router])
 
@@ -89,7 +89,7 @@ export default function LoginForm() {
         <SubmitButton />
 
           <div className="text-center text-muted-foreground">
-            Don't have an account? <Link href="/auth/signup" className="text-accent hover:underline font-medium">Sign up</Link>
+            Don't have an account? <Link href="/register" className="text-accent hover:underline font-medium">Register</Link>
           </div>
         </form>
       </CardContent>

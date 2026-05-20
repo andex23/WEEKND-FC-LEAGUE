@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -14,11 +16,13 @@ import { FIFA_CLUBS, CONSOLE_OPTIONS } from "@/lib/constants"
 import { Loader2, Trophy } from "lucide-react"
 
 export function RegistrationForm() {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
+      username: "",
       name: "",
       psnName: "",
       location: "",
@@ -34,20 +38,20 @@ export function RegistrationForm() {
     try {
       const response = await fetch("/api/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
 
+      const result = await response.json().catch(() => ({}))
+
       if (!response.ok) {
-        throw new Error("Registration failed")
+        throw new Error(result?.error || "Registration failed. Please try again.")
       }
 
-      // Handle success - could redirect or show success message
-      console.log("Registration successful")
+      toast.success("Registration submitted! Sign in once an admin approves your account.")
+      router.push("/auth/login")
     } catch (error) {
-      console.error("Registration error:", error)
+      toast.error(error instanceof Error ? error.message : "Registration failed.")
     } finally {
       setIsSubmitting(false)
     }
@@ -65,6 +69,20 @@ export function RegistrationForm() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Choose a username for signing in" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="name"

@@ -1,14 +1,14 @@
 import Link from "next/link"
 
 export default function HomePage() {
-  const user = null
-  const disabled = true
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
       <div className="container-5xl section-pad space-y-10">
         <section className="text-center">
           <h1 className="text-[36px] md:text-[44px] font-extrabold mb-3">Weekend FC League</h1>
-          <p className="text-[16px] md:text-[18px] text-[#9E9E9E] mb-6">Compete every weekend. Report results. Climb the table.</p>
+          <p className="text-[16px] md:text-[18px] text-[#9E9E9E] mb-6">
+            Compete every weekend. Report results. Climb the table.
+          </p>
 
           <div className="flex flex-wrap justify-center gap-2 mb-8">
             <span className="px-3 py-1 rounded-full text-sm border">Clubs Only</span>
@@ -16,10 +16,19 @@ export default function HomePage() {
             <span className="px-3 py-1 rounded-full text-sm border">Round-Robin</span>
           </div>
 
-          <div>
-            <button aria-disabled={true} disabled className="inline-flex items-center rounded-md bg-[#00C853]/40 px-5 py-2.5 text-black/60 text-sm font-semibold cursor-not-allowed">
-              {user ? "Go to Dashboard" : "Register"}
-            </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/register"
+              className="inline-flex items-center rounded-md bg-[#00C853] px-5 py-2.5 text-black text-sm font-semibold transition-colors hover:bg-[#00C853]/90"
+            >
+              Register
+            </Link>
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center rounded-md border px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+            >
+              Sign in
+            </Link>
           </div>
         </section>
 
@@ -46,9 +55,12 @@ export default function HomePage() {
             </div>
           </div>
           <div className="text-center mt-8">
-            <span aria-disabled={true} className="text-sm font-semibold text-[#00C853]/60 cursor-not-allowed select-none">
-              {user ? "Go to your dashboard" : "Create your player →"}
-            </span>
+            <Link
+              href="/register"
+              className="text-sm font-semibold text-[#00C853] hover:underline"
+            >
+              Create your player →
+            </Link>
           </div>
         </section>
       </div>

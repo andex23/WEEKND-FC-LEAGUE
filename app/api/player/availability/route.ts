@@ -1,21 +1,25 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = createServerClient()
-    const { playerId, available } = await request.json()
+export async function POST(request: Request) {
+  const supabase = await createClient()
 
-    const { error } = await supabase.from("players").update({ available_this_weekend: available }).eq("id", playerId)
-
-    if (error) {
-      console.error("Error updating availability:", error)
-      return NextResponse.json({ error: "Failed to update availability" }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error in availability API:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
+
+  const { available } = await request.json().catch(() => ({}))
+  if (typeof available !== "boolean") {
+    return NextResponse.json({ error: "`available` must be a boolean" }, { status: 400 })
+  }
+
+  const { error } = await supabase.from("players").update({ available }).eq("id", user.id)
+  if (error) {
+    return NextResponse.json({ error: "Failed to update availability" }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, available })
 }

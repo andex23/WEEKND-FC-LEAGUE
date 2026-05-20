@@ -1,10 +1,11 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
+import { updateSession } from "@/lib/supabase/middleware"
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
-  // Protect admin routes (except the login page itself)
+  // Admin area uses a separate cookie-based gate.
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     const isAdmin = request.cookies.get("wfc_admin")?.value === "1"
     if (!isAdmin) {
@@ -13,9 +14,11 @@ export async function middleware(request: NextRequest) {
       url.search = `?next=${encodeURIComponent(pathname + (search || ""))}`
       return NextResponse.redirect(url)
     }
+    return NextResponse.next()
   }
 
-  return NextResponse.next()
+  // Player area uses the Supabase session; updateSession also refreshes cookies.
+  return updateSession(request)
 }
 
 export const config = {

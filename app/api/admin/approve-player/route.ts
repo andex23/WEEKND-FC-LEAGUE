@@ -1,21 +1,31 @@
 import { NextResponse } from "next/server"
-import { updateMemRegistrationStatus, getMemRegistrations } from "@/lib/mocks/registrations"
-import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(request: Request) {
-  const { playerId, action } = await request.json().catch(() => ({ }))
-  if (!playerId || !action) return NextResponse.json({ error: "Missing" }, { status: 400 })
-
-  if (process.env.MOCK_DEMO === "1") {
-    updateMemRegistrationStatus(String(playerId), action === "approve" ? "approved" : "rejected")
-    return NextResponse.json({ ok: true, registrations: getMemRegistrations() || [] })
+  const cookieStore = await cookies()
+  if (cookieStore.get("wfc_admin")?.value !== "1") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  try {
-    const sb = await createClient()
-    await sb.from("users").update({ status: action === "approve" ? "approved" : "rejected" }).eq("id", playerId)
-    return NextResponse.json({ ok: true })
-  } catch (e) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 })
+  const { playerId, action } = await request.json().catch(() => ({}))
+  if (!playerId || !action) {
+    return NextResponse.json({ error: "playerId and action are required" }, { status: 400 })
   }
+
+  const status = action === "approve" ? "approved" : action === "reject" ? "rejected" : null
+  if (!status) {
+    return NextResponse.json({ error: "action must be 'approve' or 'reject'" }, { status: 400 })
+  }
+
+  const { error } = await createAdminClient()
+    .from("players")
+    .update({ status })
+    .eq("id", playerId)
+  if (error) {
+    console.error("Error updating player status:", error)
+    return NextResponse.json({ error: "Failed to update player" }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, status })
 }
