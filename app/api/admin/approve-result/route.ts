@@ -41,9 +41,6 @@ export async function POST(request: Request) {
       // Fallback: no-op
     }
 
-    // Also notify local stats API to recompute (safe noop if not implemented)
-    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/admin/stats`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) }).catch(() => null)
-
     return NextResponse.json({ ok: true })
   } catch (error) {
     return NextResponse.json({ error: "Failed to approve result" }, { status: 500 })

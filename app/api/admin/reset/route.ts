@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server"
-
-// Minimal in-memory stores referencing existing endpoints
-let memNotifications: any[] = []
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const { action } = body
+
   if (action === "clear_tournament") {
     const tournamentId = String(body.tournamentId || "")
-    // Clear fixtures for tournament
-    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/fixtures`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId }) })
-    // Stats clearing hook (when stats API added)
+    if (!tournamentId) {
+      return NextResponse.json({ ok: false, error: "Missing tournamentId" }, { status: 400 })
+    }
+    const { error } = await createAdminClient().from("fixtures").delete().eq("tournament_id", tournamentId)
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+    }
     return NextResponse.json({ ok: true, tournamentId })
   }
+
   return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 })
 }
