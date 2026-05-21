@@ -60,9 +60,15 @@ export async function POST(request: NextRequest) {
     options: { data: { username, name: data.name } },
   })
   if (authError || !authData.user) {
+    const msg = authError?.message || ""
+    const isConnError = /fetch failed|network|ENOTFOUND|ECONNREFUSED|timeout|getaddrinfo/i.test(msg)
     return NextResponse.json(
-      { error: authError?.message || "Could not create your account." },
-      { status: 400 },
+      {
+        error: isConnError
+          ? "Could not reach the league database. It may be offline or misconfigured — please try again shortly."
+          : msg || "Could not create your account.",
+      },
+      { status: isConnError ? 503 : 400 },
     )
   }
 
