@@ -13,6 +13,7 @@ interface PlayerCardProps {
   rating?: number | null
   tierLabel?: string
   minted?: boolean
+  stats?: { label: string; value: string | number }[]
   className?: string
 }
 
@@ -48,6 +49,7 @@ export function PlayerCard({
   rating,
   tierLabel = "Rookie",
   minted = false,
+  stats,
   className,
 }: PlayerCardProps) {
   const crest = getTeamBadge(club)
@@ -132,11 +134,27 @@ export function PlayerCard({
 
           <div className="relative z-10 my-3 h-px bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" />
 
-          <div className="relative z-10 space-y-2">
-            <InfoRow icon={Gamepad2} label="Gamertag" value={gamertag} />
-            <InfoRow icon={Shield} label="Club" value={club} />
-            <InfoRow icon={MapPin} label="Base" value={location} />
-          </div>
+          {stats && stats.length > 0 ? (
+            <div className="relative z-10 grid grid-cols-3 gap-1.5">
+              {stats.slice(0, 6).map((st) => (
+                <div
+                  key={st.label}
+                  className="rounded-md border border-amber-400/10 bg-black/30 px-1 py-1.5 text-center"
+                >
+                  <div className="font-heading text-base leading-none text-amber-100">{st.value}</div>
+                  <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-amber-200/45">
+                    {st.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="relative z-10 space-y-2">
+              <InfoRow icon={Gamepad2} label="Gamertag" value={gamertag} />
+              <InfoRow icon={Shield} label="Club" value={club} />
+              <InfoRow icon={MapPin} label="Base" value={location} />
+            </div>
+          )}
 
           <div className="relative z-10 mt-4 flex items-center gap-2">
             <div className="h-px flex-1 bg-amber-400/20" />

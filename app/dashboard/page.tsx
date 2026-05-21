@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { ArrowRight, AlertTriangle } from "lucide-react"
 import UserCard from "./_components/UserCard"
 import UsefulLinks from "./_components/UsefulLinks"
 import NextMatchCard from "./_components/NextMatchCard"
@@ -35,7 +36,7 @@ type DashboardData = {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center px-6 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
       {children}
     </div>
   )
@@ -43,22 +44,22 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
+    <div className="min-h-screen bg-[#0A0A0A] text-white">
       <div className="container-5xl section-pad space-y-6">
-        <Skeleton className="h-7 w-40" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-3 space-y-6">
-            <Skeleton className="h-28 w-full rounded-2xl" />
-            <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-8 w-48 bg-[#161616]" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-3">
+            <Skeleton className="h-[420px] w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-40 w-full rounded-2xl bg-[#161616]" />
           </div>
-          <div className="lg:col-span-6 space-y-6">
-            <Skeleton className="h-32 w-full rounded-2xl" />
-            <Skeleton className="h-32 w-full rounded-2xl" />
-            <Skeleton className="h-64 w-full rounded-2xl" />
+          <div className="space-y-6 lg:col-span-6">
+            <Skeleton className="h-32 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-32 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-64 w-full rounded-2xl bg-[#161616]" />
           </div>
-          <div className="lg:col-span-3 space-y-6">
-            <Skeleton className="h-44 w-full rounded-2xl" />
-            <Skeleton className="h-44 w-full rounded-2xl" />
+          <div className="space-y-6 lg:col-span-3">
+            <Skeleton className="h-44 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-44 w-full rounded-2xl bg-[#161616]" />
           </div>
         </div>
       </div>
@@ -124,7 +125,7 @@ export default function DashboardPage() {
           <p className="text-[#9E9E9E]">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-md bg-[#00C853] px-4 py-2 text-sm font-semibold text-black"
+            className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
           >
             Retry
           </button>
@@ -151,8 +152,7 @@ export default function DashboardPage() {
       const f = data.recent
       const mine = f.isHome ? f.homeScore : f.awayScore
       const theirs = f.isHome ? f.awayScore : f.homeScore
-      const result =
-        mine == null || theirs == null ? "D" : mine > theirs ? "W" : mine < theirs ? "L" : "D"
+      const result = mine == null || theirs == null ? "D" : mine > theirs ? "W" : mine < theirs ? "L" : "D"
       return {
         opponent_name: opponentOf(f),
         matchday: f.matchday,
@@ -163,24 +163,36 @@ export default function DashboardPage() {
     })()
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad space-y-6">
+    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute -top-40 left-1/2 h-[400px] w-[720px] -translate-x-1/2 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
+      </div>
+
+      <div className="relative container-5xl section-pad space-y-6">
         <header>
-          <h1 className="text-xl font-extrabold">Dashboard</h1>
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> My Dashboard
+          </span>
+          <h1 className="mt-3 font-heading text-3xl text-white md:text-4xl">
+            {user.name ? `Welcome back, ${user.name}` : "Dashboard"}
+          </h1>
         </header>
 
         {user.status === "pending" && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
-            Your registration is awaiting admin approval. You'll appear in fixtures and
-            standings once an admin approves your account.
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Your registration is awaiting admin approval. You&apos;ll appear in fixtures and standings once an admin
+              approves your account.
+            </span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-3 space-y-6 order-1">
-            <UserCard user={user} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="order-1 space-y-6 lg:col-span-3">
+            <UserCard user={user} stats={data.stats} />
             <div className="block lg:hidden">
-              <div className="grid grid-cols-2 gap-3 mt-6">
+              <div className="grid grid-cols-2 gap-3">
                 <KpiCard label="Position" value={(user.position as string) || "-"} />
                 <KpiCard label="Points" value={(user.points as number) ?? "-"} />
               </div>
@@ -190,7 +202,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-6 space-y-6 order-3 lg:order-2">
+          <div className="order-3 space-y-6 lg:order-2 lg:col-span-6">
             <NextMatchCard match={next} />
             <RecentMatchCard match={recent} />
             <LeagueTable standings={data.standings as never} />
@@ -199,8 +211,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-3 space-y-6 order-2 lg:order-3">
-            <div className="hidden lg:grid grid-cols-2 gap-3">
+          <div className="order-2 space-y-6 lg:order-3 lg:col-span-3">
+            <div className="hidden grid-cols-2 gap-3 lg:grid">
               <KpiCard label="Position" value={(user.position as string) || "-"} />
               <KpiCard label="Points" value={(user.points as number) ?? "-"} />
             </div>
@@ -209,13 +221,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="lg:hidden">
-          <PersonalStats stats={data.stats} />
-        </div>
-
         <div className="text-center">
-          <Link href="/report" className="text-sm font-semibold text-[#00C853]">
-            Report a result →
+          <Link
+            href="/report"
+            className="inline-flex h-11 items-center gap-2 rounded-lg px-6 font-heading text-sm text-black"
+            style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+          >
+            Report a result <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>

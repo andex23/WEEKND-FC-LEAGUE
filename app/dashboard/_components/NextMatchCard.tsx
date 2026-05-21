@@ -1,20 +1,45 @@
 "use client"
 
+import { CalendarClock, Swords } from "lucide-react"
 import { formatDateTime } from "@/lib/formatters"
 
 export default function NextMatchCard({ match }: { match: any }) {
   return (
-    <section aria-label="Next match" className="rounded-2xl p-4 border bg-[#0D0D0D] text-white">
-      <h3 className="text-sm font-semibold">Next Match</h3>
+    <section aria-label="Next match" className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+      <div className="flex items-center gap-2">
+        <Swords className="h-4 w-4 text-emerald-400" />
+        <h3 className="font-heading text-sm text-white">Next Match</h3>
+      </div>
       {match ? (
-        <div className="mt-2">
-          <div className="text-base font-semibold">{match.opponent_name}</div>
-          <div className="text-xs text-[#9E9E9E]">Matchday {match.matchday} · {match.home_away || ""}</div>
-          <time className="text-xs text-[#9E9E9E]" dateTime={match.match_date}>{formatDateTime(match.match_date)}</time>
-          <div className="mt-2 inline-flex items-center px-2 py-0.5 text-xs rounded border bg-amber-50 border-amber-200 text-amber-800">{match.status || "Scheduled"}</div>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#7A7A7A]">Opponent</div>
+            <div className="truncate font-heading text-lg text-white">{match.opponent_name}</div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="rounded bg-[#1A1A1A] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E]">
+                MD {match.matchday}
+              </span>
+              {match.home_away && (
+                <span className="rounded bg-[#1A1A1A] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E]">
+                  {match.home_away}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="inline-block rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+              {match.status || "Scheduled"}
+            </span>
+            <div className="mt-1.5 flex items-center justify-end gap-1 text-xs text-[#9E9E9E]">
+              <CalendarClock className="h-3 w-3" />
+              <time dateTime={match.match_date}>{formatDateTime(match.match_date)}</time>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="mt-2 text-[#9E9E9E]">No upcoming fixtures.</div>
+        <div className="mt-3 rounded-lg border border-dashed border-[#262626] py-6 text-center text-sm text-[#7A7A7A]">
+          No upcoming fixtures.
+        </div>
       )}
     </section>
   )

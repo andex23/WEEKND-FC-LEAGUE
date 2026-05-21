@@ -16,8 +16,13 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <LoginForm />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-12">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute left-1/2 top-0 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
+      </div>
+      <div className="relative w-full max-w-md">
+        <LoginForm />
+      </div>
     </div>
   )
 }
