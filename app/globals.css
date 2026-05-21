@@ -165,3 +165,66 @@
     }
   }
 }
+
+/* ===== Player card + registration experience ===== */
+@keyframes fut-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fut-glide {
+  0%   { transform: translateX(-120%); }
+  55%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+@keyframes fut-mint {
+  0%   { transform: scale(1) rotate(0deg); }
+  28%  { transform: scale(1.06) rotate(-1.5deg); }
+  62%  { transform: scale(1.02) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes fut-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes fut-slide {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fut-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.animate-fut-rise  { animation: fut-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fut-mint  { animation: fut-mint 0.9s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-fut-pop   { animation: fut-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-fut-slide { animation: fut-slide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fut-float { animation: fut-float 5.5s ease-in-out infinite; }
+
+.fut-shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.55) 48%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  animation: fut-glide 6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fut-rise,
+  .animate-fut-mint,
+  .animate-fut-pop,
+  .animate-fut-slide,
+  .animate-fut-float,
+  .fut-shine::before {
+    animation: none;
+  }
+}

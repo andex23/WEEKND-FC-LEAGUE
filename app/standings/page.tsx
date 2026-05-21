@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getTeamBadge } from "@/lib/badges"
+import { cn } from "@/lib/utils"
+import { Crown, Medal, Target, Zap, ShieldAlert, Trophy } from "lucide-react"
 
 interface StandingRow {
   id: string
@@ -42,6 +43,52 @@ function formatTime(dt?: string | null) {
   } catch { return "TBD" }
 }
 
+function computeForm(fixtures: any[]) {
+  const acc = new Map<string, { md: number; r: "W" | "D" | "L" }[]>()
+  for (const f of fixtures) {
+    if (String(f.status || "").toUpperCase() !== "PLAYED") continue
+    const home = String(f.homePlayer)
+    const away = String(f.awayPlayer)
+    const hs = Number(f.homeScore ?? 0)
+    const as = Number(f.awayScore ?? 0)
+    const md = Number(f.matchday || 0)
+    if (Number.isNaN(hs) || Number.isNaN(as)) continue
+    const homeR: "W" | "D" | "L" = hs > as ? "W" : hs < as ? "L" : "D"
+    const awayR: "W" | "D" | "L" = as > hs ? "W" : as < hs ? "L" : "D"
+    if (!acc.has(home)) acc.set(home, [])
+    if (!acc.has(away)) acc.set(away, [])
+    acc.get(home)!.push({ md, r: homeR })
+    acc.get(away)!.push({ md, r: awayR })
+  }
+  const out = new Map<string, ("W" | "D" | "L")[]>()
+  for (const [k, v] of acc) {
+    out.set(k, v.sort((a, b) => a.md - b.md).slice(-5).map((e) => e.r))
+  }
+  return out
+}
+
+function FormDots({ results }: { results?: ("W" | "D" | "L")[] }) {
+  const slots: (string)[] = [...(results ?? []).slice(-5)]
+  while (slots.length < 5) slots.unshift("")
+  return (
+    <div className="flex items-center gap-1">
+      {slots.map((res, i) => (
+        <span
+          key={i}
+          title={res || "—"}
+          className={cn(
+            "h-2 w-2 rounded-full",
+            res === "W" && "bg-emerald-500",
+            res === "D" && "bg-amber-500",
+            res === "L" && "bg-rose-500",
+            !res && "bg-[#262626]",
+          )}
+        />
+      ))}
+    </div>
+  )
+}
+
 function TeamBadge({ team }: { team?: string | null }) {
   const url = getTeamBadge(team)
   if (url) {
@@ -74,7 +121,7 @@ export default function StandingsPage() {
         // First try to get from settings
         const s = await fetch("/api/admin/settings").then((r) => r.json())
         let tournamentId = s?.tournament?.active_tournament_id
-        
+
         // If not found in settings, get active tournament directly
         if (!tournamentId) {
           try {
@@ -96,10 +143,10 @@ export default function StandingsPage() {
             console.error("Error fetching tournament details:", e)
           }
         }
-        
+
         setActiveTournamentId(tournamentId ?? null)
-      } catch { 
-        setActiveTournamentId(null) 
+      } catch {
+        setActiveTournamentId(null)
       }
     }
     loadActive()
@@ -173,12 +220,12 @@ export default function StandingsPage() {
       if (fixturesResponse.ok) {
         const f = await fixturesResponse.json()
         console.log("Standings page: Fixtures data:", f.fixtures?.length || 0)
-        
+
         // Map player IDs to names using the players data
         const allFixtures = (f.fixtures || []).map((fx: any) => {
           const homePlayer = byId.get(String(fx.homePlayer))
           const awayPlayer = byId.get(String(fx.awayPlayer))
-          
+
           return {
             ...fx,
             // Map player IDs to names
@@ -247,6 +294,7 @@ export default function StandingsPage() {
 
   const cancelled = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "CANCELLED"), [fixtures]);
   const forfeit = useMemo(() => fixtures.filter((f: any) => String(f.status || "").toUpperCase() === "FORFEIT"), [fixtures]);
+  const formGuide = useMemo(() => computeForm(fixtures), [fixtures]);
   console.log("Standings page: Fixture counts - Total:", fixtures.length, "Completed:", completed.length, "Upcoming:", upcoming.length, "Cancelled:", cancelled.length, "Forfeit:", forfeit.length, "Last completed matchday:", lastCompleted)
 
   const shownRaw = tab === "UPCOMING" ? upcoming : completed
@@ -266,259 +314,398 @@ export default function StandingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0D0D0D] text-white">
+      <div className="min-h-screen bg-[#0A0A0A] text-white">
         <div className="container-5xl section-pad space-y-6 px-4 md:px-0">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-64 w-full rounded-2xl" />
-          <Skeleton className="h-48 w-full rounded-2xl" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            <Skeleton className="h-56 w-full rounded-2xl" />
-            <Skeleton className="h-56 w-full rounded-2xl" />
-            <Skeleton className="h-56 w-full rounded-2xl" />
+          <Skeleton className="h-9 w-56 bg-[#161616]" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Skeleton className="h-28 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-28 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-28 w-full rounded-2xl bg-[#161616]" />
+          </div>
+          <Skeleton className="h-72 w-full rounded-2xl bg-[#161616]" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-56 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-56 w-full rounded-2xl bg-[#161616]" />
+            <Skeleton className="h-56 w-full rounded-2xl bg-[#161616]" />
           </div>
         </div>
       </div>
     )
   }
 
+  const podium = standings.slice(0, 3)
+  const consoles = [
+    { value: "all", label: "All" },
+    { value: "PS5", label: "PS5" },
+    { value: "XBOX", label: "Xbox" },
+    { value: "PC", label: "PC" },
+  ]
+
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad space-y-6 px-4 md:px-0">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute -top-40 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
+      </div>
+
+      <div className="relative container-5xl section-pad space-y-8 px-4 md:px-0">
+        {/* HEADER */}
+        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-xl font-extrabold">Standings</h1>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+              <Trophy className="h-3 w-3" /> League Table
+            </span>
+            <h1 className="mt-3 font-heading text-3xl text-white md:text-4xl">Standings</h1>
             {activeTournament ? (
-              <div className="text-sm text-[#9E9E9E]">
-                <div className="font-medium text-white">{activeTournament.name}</div>
-                <div>
-                  {activeTournament.start_at && new Date(activeTournament.start_at).toLocaleDateString()} 
-                  {activeTournament.end_at && ` → ${new Date(activeTournament.end_at).toLocaleDateString()}`}
-                </div>
-              </div>
+              <p className="mt-1 text-sm text-[#9E9E9E]">
+                <span className="font-semibold text-white">{activeTournament.name}</span>
+                {activeTournament.start_at && ` · ${new Date(activeTournament.start_at).toLocaleDateString()}`}
+                {activeTournament.end_at && ` → ${new Date(activeTournament.end_at).toLocaleDateString()}`}
+              </p>
             ) : (
-              <p className="text-sm text-[#9E9E9E]">Weekend FC League</p>
+              <p className="mt-1 text-sm text-[#9E9E9E]">Weekend FC League</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={consoleFilter} onValueChange={setConsoleFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by console" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Consoles</SelectItem>
-                <SelectItem value="PS5">PlayStation 5</SelectItem>
-                <SelectItem value="XBOX">Xbox Series X/S</SelectItem>
-                <SelectItem value="PC">PC</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#111111] p-1">
+            {consoles.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setConsoleFilter(c.value)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+                  consoleFilter === c.value ? "bg-emerald-500 text-black" : "text-[#8A8A8A] hover:text-white",
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
           </div>
         </header>
 
         {!activeTournamentId && (
-          <div className="rounded-2xl border p-8 bg-[#141414] text-center">
-            <div className="text-lg font-semibold mb-2">No Active Tournament</div>
-            <div className="text-sm text-[#9E9E9E]">All tournaments are currently inactive. Check back when a tournament is active.</div>
+          <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-10 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1A1A1A]">
+              <Trophy className="h-6 w-6 text-[#5C5C5C]" />
+            </div>
+            <div className="font-heading text-lg text-white">No active tournament</div>
+            <div className="mt-1 text-sm text-[#9E9E9E]">Check back when a tournament kicks off.</div>
           </div>
         )}
 
         {activeTournamentId && (
           <>
-            {/* League table */}
-            <section className="rounded-2xl border bg-[#141414] overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#1E1E1E] flex items-center justify-between">
-            <h2 className="text-sm font-semibold">League Table</h2>
-            <div className="text-xs text-[#9E9E9E]">{standings.length} players</div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[800px]">
-              <thead className="text-[#9E9E9E] sticky top-0 z-10 bg-[#141414]">
-                <tr>
-                  <th className="text-left px-3 py-2">Pos</th>
-                  <th className="text-left px-3 py-2">Player</th>
-                  <th className="text-left px-3 py-2">Team</th>
-                  <th className="text-right px-3 py-2">P</th>
-                  <th className="text-right px-3 py-2">W</th>
-                  <th className="text-right px-3 py-2">D</th>
-                  <th className="text-right px-3 py-2">L</th>
-                  <th className="text-right px-3 py-2">GF</th>
-                  <th className="text-right px-3 py-2">GA</th>
-                  <th className="text-right px-3 py-2">GD</th>
-                  <th className="text-right px-3 py-2">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {standings.map((s, idx) => (
-                  <tr key={s.id} className="border-t border-[#1E1E1E]">
-                    <td className="px-3 py-2 tabular-nums text-[#D1D1D1]">{idx + 1}</td>
-                    <td className="px-3 py-2 font-medium">{s.name}</td>
-                    <td className="px-3 py-2 text-[#9E9E9E]">{s.team}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.played}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.won}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.drawn}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.lost}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.goals_for}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{s.goals_against}</td>
-                    <td className="px-3 py-2 text-right tabular-nums"><span className={s.goal_difference >= 0 ? "text-emerald-400" : "text-rose-400"}>{s.goal_difference > 0 ? "+" : ""}{s.goal_difference}</span></td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold">{s.points}</td>
-                  </tr>
-                ))}
-                {standings.length === 0 && (
-                  <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={11}>No standings yet.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+            {/* PODIUM */}
+            {podium.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {podium.map((row, i) => {
+                  const tiers = [
+                    { ring: "border-amber-400/60", grad: "from-amber-500/15", text: "text-amber-300", chip: "bg-amber-400/15 text-amber-200" },
+                    { ring: "border-slate-300/40", grad: "from-slate-300/10", text: "text-slate-200", chip: "bg-slate-300/10 text-slate-200" },
+                    { ring: "border-orange-700/50", grad: "from-orange-800/15", text: "text-orange-300", chip: "bg-orange-700/15 text-orange-300" },
+                  ]
+                  const t = tiers[i]
+                  return (
+                    <div
+                      key={row.id || i}
+                      className={cn(
+                        "fut-shine relative overflow-hidden rounded-2xl border bg-gradient-to-b to-[#101010] p-4",
+                        t.ring,
+                        t.grad,
+                      )}
+                    >
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full border", t.ring)}>
+                          {i === 0 ? <Crown className={cn("h-5 w-5", t.text)} /> : <Medal className={cn("h-5 w-5", t.text)} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center">
+                            <TeamBadge team={row.team} />
+                            <span className="truncate font-heading text-base text-white">{row.name}</span>
+                          </div>
+                          <div className="mt-0.5 truncate text-xs text-[#9E9E9E]">{row.team}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className={cn("font-heading text-2xl leading-none", t.text)}>{row.points}</div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-[#7A7A7A]">Pts</div>
+                        </div>
+                      </div>
+                      <div className="relative z-10 mt-3 flex items-center justify-between">
+                        <span className={cn("rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider", t.chip)}>
+                          {i === 0 ? "Leader" : `#${i + 1}`}
+                        </span>
+                        <FormDots results={formGuide.get(String(row.id))} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
-        {/* Fixtures list */}
-        <section className="rounded-2xl border bg-[#141414] p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex flex-wrap gap-2">
-              <button className={`px-3 py-1 rounded text-sm ${tab === "UPCOMING" ? "bg-emerald-500 text-white" : "bg-[#1E1E1E] text-[#9E9E9E] hover:text-white"}`} onClick={() => setTab("UPCOMING")}>Upcoming ({upcoming.length})</button>
-              <button className={`px-3 py-1 rounded text-sm ${tab === "COMPLETED" ? "bg-emerald-500 text-white" : "bg-[#1E1E1E] text-[#9E9E9E] hover:text-white"}`} onClick={() => setTab("COMPLETED")}>Completed ({completed.length})</button>
-            </div>
-            <button className="text-xs text-[#9E9E9E] underline hover:text-white transition-colors" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "Show all"}</button>
-          </div>
-
-          {groups.length === 0 ? (
-            <div className="text-sm text-[#9E9E9E]">{tab === "COMPLETED" ? "No completed fixtures." : "No fixtures."}</div>
-          ) : (
-            <div className="space-y-4">
-              {groups.map((g) => (
-                <div key={g.md}>
-                  <div className="px-2 py-1 text-xs uppercase tracking-wide text-[#9E9E9E] bg-[#0F0F0F] rounded mb-1 border border-[#1E1E1E]">Matchday {g.md} — {formatDateRange(g.dates)}</div>
-                  <ul className="">
-                    {g.items.map((f, i) => {
-                      const isPlayed = String(f.status || "").toUpperCase() === "PLAYED"
-                      const hs = Number(f.homeScore ?? 0)
-                      const as = Number(f.awayScore ?? 0)
-                      const draw = isPlayed && hs === as
-                      const homeWin = isPlayed && hs > as
-                      const awayWin = isPlayed && as > hs
-                      const rowBg = i % 2 === 0 ? "bg-[#141414]" : "bg-[#121212]"
+            {/* LEAGUE TABLE */}
+            <section className="overflow-hidden rounded-2xl border border-[#1E1E1E] bg-[#111111]">
+              <div className="flex items-center justify-between border-b border-[#1E1E1E] px-4 py-3">
+                <h2 className="font-heading text-sm text-white">League Table</h2>
+                <span className="text-xs text-[#9E9E9E]">{standings.length} players</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-[#7A7A7A]">
+                      <th className="px-3 py-2 text-left font-bold">#</th>
+                      <th className="px-3 py-2 text-left font-bold">Player</th>
+                      <th className="px-3 py-2 text-left font-bold">Form</th>
+                      <th className="px-3 py-2 text-right font-bold">P</th>
+                      <th className="px-3 py-2 text-right font-bold">W</th>
+                      <th className="px-3 py-2 text-right font-bold">D</th>
+                      <th className="px-3 py-2 text-right font-bold">L</th>
+                      <th className="px-3 py-2 text-right font-bold">GF</th>
+                      <th className="px-3 py-2 text-right font-bold">GA</th>
+                      <th className="px-3 py-2 text-right font-bold">GD</th>
+                      <th className="px-3 py-2 text-right font-bold">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((s, idx) => {
+                      const rank = idx + 1
+                      const rankColor =
+                        rank === 1 ? "text-amber-300" : rank === 2 ? "text-slate-200" : rank === 3 ? "text-orange-300" : "text-[#9E9E9E]"
                       return (
-                        <li key={f.id} className={`${rowBg} border-t first:border-t-0 border-[#1E1E1E] p-3`}>
-                          <button onClick={() => setExpandedId((id) => (id === f.id ? null : f.id))} className="w-full text-left">
-                            <div className="grid grid-cols-12 items-center gap-2">
-                              <div className="col-span-5 flex items-center truncate">
-                                <TeamBadge team={f.homeTeam} />
-                                <span className="truncate text-sm sm:text-base">{f.homeLabel}</span>
-                              </div>
-                              <div className="col-span-2 text-center font-semibold tabular-nums text-sm sm:text-base">
-                                {isPlayed ? (
-                                  <span>
-                                    <span className={`${draw ? "text-yellow-300" : homeWin ? "text-emerald-400" : "text-[#9E9E9E]"}`}>{hs}</span>
-                                    <span className="mx-1">–</span>
-                                    <span className={`${draw ? "text-yellow-300" : awayWin ? "text-emerald-400" : "text-[#9E9E9E]"}`}>{as}</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-[#9E9E9E]">TBD</span>
-                                )}
-                              </div>
-                              <div className="col-span-5 flex items-center justify-end truncate">
-                                <span className="truncate text-sm sm:text-base">{f.awayLabel}</span>
-                                <TeamBadge team={f.awayTeam} />
-                              </div>
-                            </div>
-                            <div className="mt-1 text-xs text-[#9E9E9E]">
-                              {isPlayed ? (
-                                <span>Matchday {f.matchday} · Completed</span>
-                              ) : (
-                                <span>Matchday {f.matchday} · Kickoff: {formatTime(f.scheduledDate)}</span>
-                              )}
-                            </div>
-                          </button>
-                          {expandedId === f.id && (
-                            <div className="mt-2 text-xs text-[#D1D1D1] space-y-1">
-                              <div>Venue: <span className="text-[#9E9E9E]">{f.homeLabel} (Home)</span></div>
-                              {isPlayed && <div>Reported score: <span className="text-[#9E9E9E]">{hs}–{as}</span></div>}
-                              {f.notes && <div>Notes: <span className="text-[#9E9E9E]">{f.notes}</span></div>}
-                            </div>
+                        <tr
+                          key={s.id}
+                          className={cn(
+                            "border-t border-[#1A1A1A] transition-colors hover:bg-white/[0.025]",
+                            rank <= 3 && "bg-emerald-500/[0.03]",
                           )}
-                        </li>
+                        >
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className={cn("h-6 w-1 rounded-full", rank <= 3 ? "bg-emerald-500" : "bg-transparent")} />
+                              <span className={cn("font-heading tabular-nums", rankColor)}>{rank}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center">
+                              <TeamBadge team={s.team} />
+                              <span className="font-medium text-white">{s.name}</span>
+                            </div>
+                            <div className="ml-7 text-[11px] text-[#7A7A7A]">{s.team}</div>
+                          </td>
+                          <td className="px-3 py-2.5"><FormDots results={formGuide.get(String(s.id))} /></td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[#D1D1D1]">{s.played}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-emerald-400">{s.won}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-amber-400">{s.drawn}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-rose-400">{s.lost}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[#D1D1D1]">{s.goals_for}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[#D1D1D1]">{s.goals_against}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            <span className={s.goal_difference >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                              {s.goal_difference > 0 ? "+" : ""}{s.goal_difference}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <span className="font-heading text-base text-white tabular-nums">{s.points}</span>
+                          </td>
+                        </tr>
                       )
                     })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Stats widgets */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-          <div className="rounded-2xl border bg-[#141414] p-4">
-            <h3 className="text-sm font-semibold mb-3">Top Scorers</h3>
-            <div className="divide-y divide-[#1E1E1E]">
-              {playerStats.topScorers.slice(0, 5).map((scorer, i) => (
-                <div key={`${i}-${scorer.name}`} className="flex items-center justify-between py-2 text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 text-[#9E9E9E] tabular-nums text-right">{scorer.rank}</span>
-                    <div>
-                      <div className="font-medium">{scorer.name}</div>
-                      <div className="text-xs text-[#9E9E9E]">{scorer.team}</div>
-                    </div>
-                  </div>
-                  <div className="tabular-nums font-semibold">{scorer.goals}</div>
-                </div>
-              ))}
-              {playerStats.topScorers.length === 0 && (
-                <div className="py-4 text-sm text-[#9E9E9E]">No goals yet</div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-[#141414] p-4">
-            <h3 className="text-sm font-semibold mb-3">Top Assists</h3>
-            <div className="divide-y divide-[#1E1E1E]">
-              {playerStats.topAssists.slice(0, 5).map((assister, i) => (
-                <div key={`${i}-${assister.name}`} className="flex items-center justify-between py-2 text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 text-[#9E9E9E] tabular-nums text-right">{assister.rank}</span>
-                    <div>
-                      <div className="font-medium">{assister.name}</div>
-                      <div className="text-xs text-[#9E9E9E]">{assister.team}</div>
-                    </div>
-                  </div>
-                  <div className="tabular-nums font-semibold">{assister.assists}</div>
-                </div>
-              ))}
-              {playerStats.topAssists.length === 0 && (
-                <div className="py-4 text-sm text-[#9E9E9E]">No assists yet</div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-[#141414] p-4">
-            <h3 className="text-sm font-semibold mb-3">Discipline</h3>
-            <div className="divide-y divide-[#1E1E1E]">
-              {playerStats.discipline.slice(0, 5).map((player, i) => (
-                <div key={`${i}-${player.name}`} className="flex items-center justify-between py-2 text-sm">
-                  <div>
-                    <div className="font-medium">{player.name}</div>
-                    <div className="text-xs text-[#9E9E9E]">{player.team}</div>
-                  </div>
-                  <div className="flex items-center gap-2 tabular-nums">
-                    {player.yellow_cards > 0 && (
-                      <span className="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 text-xs font-medium">{player.yellow_cards} 🟨</span>
+                    {standings.length === 0 && (
+                      <tr>
+                        <td className="px-3 py-8 text-center text-sm text-[#7A7A7A]" colSpan={11}>
+                          No standings yet — play some matches to climb the table.
+                        </td>
+                      </tr>
                     )}
-                    {player.red_cards > 0 && (
-                      <span className="px-2 py-0.5 rounded bg-rose-600/20 text-rose-300 text-xs font-medium">{player.red_cards} 🟥</span>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* FIXTURES */}
+            <section className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4 md:p-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#0D0D0D] p-1">
+                  <button
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+                      tab === "UPCOMING" ? "bg-emerald-500 text-black" : "text-[#8A8A8A] hover:text-white",
                     )}
-                  </div>
+                    onClick={() => setTab("UPCOMING")}
+                  >
+                    Upcoming ({upcoming.length})
+                  </button>
+                  <button
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors",
+                      tab === "COMPLETED" ? "bg-emerald-500 text-black" : "text-[#8A8A8A] hover:text-white",
+                    )}
+                    onClick={() => setTab("COMPLETED")}
+                  >
+                    Completed ({completed.length})
+                  </button>
                 </div>
-              ))}
-              {playerStats.discipline.length === 0 && (
-                <div className="py-4 text-sm text-[#9E9E9E]">No cards yet</div>
+                {shownRaw.length > 8 && (
+                  <button
+                    className="text-xs font-bold uppercase tracking-wider text-emerald-400 hover:underline"
+                    onClick={() => setShowAll((v) => !v)}
+                  >
+                    {showAll ? "Show less" : "Show all"}
+                  </button>
+                )}
+              </div>
+
+              {groups.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#222] py-10 text-center text-sm text-[#7A7A7A]">
+                  {tab === "COMPLETED" ? "No completed fixtures yet." : "No upcoming fixtures."}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {groups.map((g) => (
+                    <div key={g.md}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded bg-[#0D0D0D] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E]">
+                          Matchday {g.md}
+                        </span>
+                        <span className="text-[11px] text-[#6A6A6A]">{formatDateRange(g.dates)}</span>
+                        <div className="h-px flex-1 bg-[#1A1A1A]" />
+                      </div>
+                      <div className="space-y-2">
+                        {g.items.map((f: any) => {
+                          const isPlayed = String(f.status || "").toUpperCase() === "PLAYED"
+                          const hs = Number(f.homeScore ?? 0)
+                          const as = Number(f.awayScore ?? 0)
+                          const draw = isPlayed && hs === as
+                          const homeWin = isPlayed && hs > as
+                          const awayWin = isPlayed && as > hs
+                          return (
+                            <div key={f.id} className="overflow-hidden rounded-xl border border-[#1E1E1E] bg-[#0D0D0D]">
+                              <button
+                                onClick={() => setExpandedId((id) => (id === f.id ? null : f.id))}
+                                className="w-full px-3 py-3 text-left transition-colors hover:bg-white/[0.02]"
+                              >
+                                <div className="grid grid-cols-12 items-center gap-2">
+                                  <div className="col-span-5 flex items-center truncate">
+                                    <TeamBadge team={f.homeTeam} />
+                                    <span className={cn("truncate text-sm", homeWin ? "font-semibold text-white" : "text-[#D1D1D1]")}>
+                                      {f.homeLabel}
+                                    </span>
+                                  </div>
+                                  <div className="col-span-2 text-center">
+                                    {isPlayed ? (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-[#141414] px-2 py-1 font-heading tabular-nums">
+                                        <span className={draw ? "text-amber-300" : homeWin ? "text-emerald-400" : "text-[#7A7A7A]"}>{hs}</span>
+                                        <span className="text-[#4A4A4A]">:</span>
+                                        <span className={draw ? "text-amber-300" : awayWin ? "text-emerald-400" : "text-[#7A7A7A]"}>{as}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="rounded-md bg-[#141414] px-2 py-1 text-xs font-bold uppercase tracking-wider text-[#7A7A7A]">
+                                        {formatTime(f.scheduledDate)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="col-span-5 flex items-center justify-end truncate">
+                                    <span className={cn("truncate text-right text-sm", awayWin ? "font-semibold text-white" : "text-[#D1D1D1]")}>
+                                      {f.awayLabel}
+                                    </span>
+                                    <TeamBadge team={f.awayTeam} />
+                                  </div>
+                                </div>
+                              </button>
+                              {expandedId === f.id && (
+                                <div className="border-t border-[#1A1A1A] bg-[#0A0A0A] px-3 py-2 text-xs text-[#9E9E9E]">
+                                  <span>Matchday {f.matchday} · {isPlayed ? "Completed" : `Kickoff ${formatTime(f.scheduledDate)}`}</span>
+                                  {isPlayed && <span className="ml-3">Score {hs}–{as}</span>}
+                                  {f.notes && <div className="mt-1">Notes: {f.notes}</div>}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          </div>
-        </section>
+            </section>
 
-            </>
-          )}
+            {/* STATS */}
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <h3 className="font-heading text-sm text-white">Top Scorers</h3>
+                </div>
+                <div className="divide-y divide-[#1A1A1A]">
+                  {playerStats.topScorers.slice(0, 5).map((scorer, i) => (
+                    <div key={`${i}-${scorer.name}`} className="flex items-center gap-3 py-2 text-sm">
+                      <span className="w-5 text-right font-heading text-xs tabular-nums text-[#7A7A7A]">{scorer.rank}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-white">{scorer.name}</div>
+                        <div className="truncate text-xs text-[#7A7A7A]">{scorer.team}</div>
+                      </div>
+                      <span className="font-heading tabular-nums text-emerald-400">{scorer.goals}</span>
+                    </div>
+                  ))}
+                  {playerStats.topScorers.length === 0 && <div className="py-6 text-center text-sm text-[#7A7A7A]">No goals yet</div>}
+                </div>
+              </div>
 
-        <div className="text-center text-xs text-[#9E9E9E]">Sorted by points, goal difference, goals scored</div>
+              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-sky-400" />
+                  <h3 className="font-heading text-sm text-white">Top Assists</h3>
+                </div>
+                <div className="divide-y divide-[#1A1A1A]">
+                  {playerStats.topAssists.slice(0, 5).map((assister, i) => (
+                    <div key={`${i}-${assister.name}`} className="flex items-center gap-3 py-2 text-sm">
+                      <span className="w-5 text-right font-heading text-xs tabular-nums text-[#7A7A7A]">{assister.rank}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-white">{assister.name}</div>
+                        <div className="truncate text-xs text-[#7A7A7A]">{assister.team}</div>
+                      </div>
+                      <span className="font-heading tabular-nums text-sky-400">{assister.assists}</span>
+                    </div>
+                  ))}
+                  {playerStats.topAssists.length === 0 && <div className="py-6 text-center text-sm text-[#7A7A7A]">No assists yet</div>}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-rose-400" />
+                  <h3 className="font-heading text-sm text-white">Discipline</h3>
+                </div>
+                <div className="divide-y divide-[#1A1A1A]">
+                  {playerStats.discipline.slice(0, 5).map((player, i) => (
+                    <div key={`${i}-${player.name}`} className="flex items-center gap-3 py-2 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-white">{player.name}</div>
+                        <div className="truncate text-xs text-[#7A7A7A]">{player.team}</div>
+                      </div>
+                      <div className="flex items-center gap-1.5 tabular-nums">
+                        {player.yellow_cards > 0 && (
+                          <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-xs font-bold text-yellow-300">
+                            {player.yellow_cards}
+                          </span>
+                        )}
+                        {player.red_cards > 0 && (
+                          <span className="rounded bg-rose-600/25 px-1.5 py-0.5 text-xs font-bold text-rose-300">
+                            {player.red_cards}
+                          </span>
+                        )}
+                        {player.yellow_cards === 0 && player.red_cards === 0 && (
+                          <span className="text-xs text-[#5A5A5A]">clean</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {playerStats.discipline.length === 0 && <div className="py-6 text-center text-sm text-[#7A7A7A]">No cards yet</div>}
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        <p className="text-center text-xs text-[#6A6A6A]">Sorted by points, goal difference, then goals scored.</p>
       </div>
     </div>
   )
