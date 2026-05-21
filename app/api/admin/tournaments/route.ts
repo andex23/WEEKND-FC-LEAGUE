@@ -22,38 +22,24 @@ export async function POST(req: Request) {
     const { action, ...data } = body
 
     if (action === "create") {
-      // Primary shape (newer schema)
-      const insertData: any = {
+      // Extra fields live under the tournaments.config JSON column.
+      const insertData = {
         name: data.name,
         status: data.status || "DRAFT",
         season: data.season || "2024/25",
-        type: data.type || "DOUBLE",
-        players: data.players || 0,
-        rules: data.rules || "",
-        match_length: data.match_length || 6,
-        matchdays: data.matchdays || ["Sat", "Sun"],
         start_at: data.start_at || null,
         end_at: data.end_at || null,
         is_active: !!data.is_active,
+        config: {
+          type: data.type || "DOUBLE",
+          players: data.players || 0,
+          rules: data.rules || "",
+          match_length: data.match_length || 6,
+          matchdays: data.matchdays || ["Sat", "Sun"],
+        },
       }
-      // Try admin insert (bypass RLS). Fallback to minimal schema if needed.
-      let created: any | null = null
-      try {
-        const { data: row, error } = await admin.from("tournaments").insert([insertData]).select().single()
-        if (error) throw error
-        created = row
-      } catch (e: any) {
-        // Retry with lowercase status for older schemas with lowercase CHECK
-        try {
-          const lowered = { name: String(data.name || ""), status: String(data.status || "draft").toLowerCase() }
-          const { data: row2, error: err2 } = await admin.from("tournaments").insert([lowered]).select().single()
-          if (err2) throw err2
-          created = row2
-        } catch (e2) {
-          console.error("create tournament fallback failed", e2)
-          throw e2
-        }
-      }
+      const { data: created, error } = await admin.from("tournaments").insert([insertData]).select().single()
+      if (error) throw error
       return NextResponse.json({ success: true, tournament: created })
     }
 
@@ -63,15 +49,24 @@ export async function POST(req: Request) {
       const patch: any = {}
       if (typeof src.name !== 'undefined') patch.name = src.name
       if (typeof src.season !== 'undefined') patch.season = src.season
-      if (typeof src.type !== 'undefined') patch.type = src.type
       if (typeof src.status !== 'undefined') patch.status = src.status
-      if (typeof src.players !== 'undefined') patch.players = src.players
-      if (typeof src.rules !== 'undefined') patch.rules = src.rules
-      if (typeof src.match_length !== 'undefined') patch.match_length = src.match_length
-      if (typeof src.matchdays !== 'undefined') patch.matchdays = src.matchdays
       if (typeof src.start_at !== 'undefined') patch.start_at = src.start_at
       if (typeof src.end_at !== 'undefined') patch.end_at = src.end_at
       patch.updated_at = new Date().toISOString()
+
+      // Extra fields are merged into the tournaments.config JSON column.
+      const configPatch: Record<string, unknown> = {}
+      for (const k of ["type", "players", "rules", "match_length", "matchdays"]) {
+        if (typeof src[k] !== 'undefined') configPatch[k] = src[k]
+      }
+      if (Object.keys(configPatch).length > 0) {
+        const { data: existing } = await admin
+          .from("tournaments")
+          .select("config")
+          .eq("id", String(data.id))
+          .maybeSingle()
+        patch.config = { ...(existing?.config || {}), ...configPatch }
+      }
 
       const { data: updated, error } = await admin
         .from("tournaments")
@@ -97,12 +92,20 @@ export async function POST(req: Request) {
         .eq("status", "approved")
       if (cntErr) throw cntErr
 
-      // Try to persist into tournaments.players if the column exists; otherwise, just return the count
+      // Persist the roster count into the tournaments.config JSON column.
       let persisted = false
       try {
+        const { data: existing } = await admin
+          .from("tournaments")
+          .select("config")
+          .eq("id", String(data.id))
+          .maybeSingle()
         const { error: upErr } = await admin
           .from("tournaments")
-          .update({ players: count || 0, updated_at: new Date().toISOString() })
+          .update({
+            config: { ...(existing?.config || {}), players: count || 0 },
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", String(data.id))
         if (!upErr) persisted = true
       } catch {}
