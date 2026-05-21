@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { EmptyState } from "@/components/ui/empty-state"
 
 type FixtureOption = {
   id: string
@@ -105,7 +106,11 @@ export default function ReportPage() {
           <div className="lg:col-span-8">
             <form onSubmit={onSubmit} className="rounded-2xl bg-[#141414] border p-4 space-y-4">
               {eligible.length === 0 ? (
-                <div className="text-sm text-[#9E9E9E]">You have no fixtures eligible for reporting.</div>
+                <EmptyState
+                  icon="📋"
+                  title="Nothing to report yet"
+                  description="You have no fixtures eligible for reporting. Check back once your next match has been played."
+                />
               ) : (
                 <>
                   <div>

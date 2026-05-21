@@ -2,35 +2,60 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { cn } from "@/lib/utils"
+
+const LINKS = [
+  { href: "/standings", label: "Standings" },
+  { href: "/rules", label: "Rules" },
+  { href: "/dashboard", label: "Dashboard" },
+]
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
+
   return (
-    <nav className="sticky top-0 z-40 border-b border-[#1A1A1A] bg-[#050505]/95 backdrop-blur">
+    <nav className="sticky top-0 z-40 border-b border-[#1A1A1A] bg-[#070707]/95 backdrop-blur">
       <div className="container-5xl">
-        <div className="flex justify-between items-center h-14 px-4 md:px-0">
-          <Link href="/" className="font-heading font-extrabold tracking-wide text-white text-lg md:text-xl">Weekend FC</Link>
-          <button 
-            className="md:hidden text-[#D1D1D1] p-2 hover:text-white transition-colors" 
-            onClick={() => setOpen((v) => !v)} 
+        <div className="flex h-14 items-center justify-between px-4 md:px-0">
+          <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 font-heading text-sm text-black">
+              W
+            </span>
+            <span className="font-heading text-lg tracking-wide text-white">Weekend FC</span>
+          </Link>
+
+          <button
+            className="p-2 text-[#D1D1D1] transition-colors hover:text-white md:hidden"
+            onClick={() => setOpen((v) => !v)}
             aria-label="Toggle navigation"
           >
             {open ? "✕" : "☰"}
           </button>
-          <div className={`md:flex items-center gap-6 text-sm uppercase ${open ? "flex absolute top-full left-0 right-0 bg-[#050505]/95 backdrop-blur border-b border-[#1A1A1A] flex-col md:flex-row md:relative md:border-0 md:bg-transparent" : "hidden"}`}>
-            <Link 
-              href="/standings" 
-              className="text-[#D1D1D1] hover:text-white px-4 py-3 md:px-0 md:py-0 transition-colors"
+
+          <div
+            className={cn(
+              "items-center gap-1 md:flex",
+              open
+                ? "absolute left-0 right-0 top-full flex flex-col items-stretch border-b border-[#1A1A1A] bg-[#070707]/98 p-3 backdrop-blur md:relative md:flex-row md:items-center md:border-0 md:bg-transparent md:p-0"
+                : "hidden",
+            )}
+          >
+            {LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="rounded-md px-3 py-2 text-sm font-bold uppercase tracking-wider text-[#9E9E9E] transition-colors hover:bg-white/5 hover:text-white"
+              >
+                {l.label}
+              </Link>
+            ))}
+            <Link
+              href="/register"
               onClick={() => setOpen(false)}
+              className="mt-1 rounded-md bg-emerald-500 px-4 py-2 text-center font-heading text-sm text-black transition-colors hover:bg-emerald-400 md:ml-2 md:mt-0"
             >
-              Standings
-            </Link>
-            <Link 
-              href="/rules" 
-              className="text-[#D1D1D1] hover:text-white px-4 py-3 md:px-0 md:py-0 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              Rules
+              Register
             </Link>
           </div>
         </div>
@@ -38,4 +63,3 @@ export function Navbar() {
     </nav>
   )
 }
-

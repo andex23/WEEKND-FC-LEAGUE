@@ -1,18 +1,38 @@
 "use client"
 
-import Image from "next/image"
+import { PlayerCard } from "@/components/player-card"
 
-export default function UserCard({ user }: { user: any }) {
+export default function UserCard({ user, stats }: { user: any; stats?: any }) {
+  const points = Number(user?.points ?? 0)
+  const rating = Math.max(48, Math.min(99, Math.round(56 + points * 2)))
+  const tier = rating >= 85 ? "Elite" : rating >= 70 ? "Pro" : "Rookie"
+
+  const s = stats || {}
+  const wins = Number(s.wins ?? 0)
+  const draws = Number(s.draws ?? 0)
+  const losses = Number(s.losses ?? 0)
+  const statLine = [
+    { label: "GP", value: wins + draws + losses },
+    { label: "W", value: wins },
+    { label: "D", value: draws },
+    { label: "L", value: losses },
+    { label: "GLS", value: Number(s.goals ?? 0) },
+    { label: "AST", value: Number(s.assists ?? 0) },
+  ]
+
   return (
-    <section aria-label="User info" className="rounded-2xl p-4 border bg-[#0D0D0D] text-white">
-      <div className="flex items-center gap-3">
-        <Image src={user.avatar_url || "/placeholder-user.jpg"} alt="Avatar" width={48} height={48} className="rounded-full" />
-        <div>
-          <h2 className="text-base font-semibold">{user.name}</h2>
-          <p className="text-xs text-[#9E9E9E]">{user.preferredClub || user.assignedTeam || "—"} · {user.console || "—"}</p>
-          <p className="text-xs text-[#9E9E9E]">Season: {user.season_name || "—"}</p>
-        </div>
-      </div>
+    <section aria-label="Player card" className="flex justify-center">
+      <PlayerCard
+        name={user?.name}
+        username={user?.username}
+        gamertag={user?.psnName || user?.psn_id}
+        club={user?.preferredClub || user?.preferred_club || user?.assignedTeam || user?.assigned_club}
+        consoleType={user?.console}
+        location={user?.location}
+        rating={rating}
+        tierLabel={tier}
+        stats={statLine}
+      />
     </section>
   )
 }

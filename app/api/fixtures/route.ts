@@ -95,10 +95,8 @@ export async function POST(request: NextRequest) {
       id,
       tournament_id: body.tournamentId || null,
       matchday: Number(body.matchday || 1),
-      home_player_id: String(body.homeId), // Primary player reference
-      away_player_id: String(body.awayId), // Primary player reference
-      home_reg_id: null, // Explicitly set to null
-      away_reg_id: null, // Explicitly set to null
+      home_player_id: String(body.homeId),
+      away_player_id: String(body.awayId),
       home_score: body.homeScore ?? null,
       away_score: body.awayScore ?? null,
       status: String(body.status || "SCHEDULED").toUpperCase(),

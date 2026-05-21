@@ -1,221 +1,108 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(req: Request) {
+type PlayerRow = {
+  id: string
+  name: string
+  preferred_club: string | null
+  assigned_club: string | null
+}
+type EventRow = { player_id: string; type: string }
+type Tally = { goals: number; assists: number; yellow: number; red: number }
+
+const emptyStats = { goals: 0, assists: 0, yellow: 0, red: 0, wins: 0, draws: 0, losses: 0 }
+
+export async function GET(request: Request) {
   try {
     const supabase = await createClient()
-    const { searchParams } = new URL(req.url)
-    const tournamentId = searchParams.get("tournamentId")
+    const tournamentId = new URL(request.url).searchParams.get("tournamentId")
 
-    let topScorers: any[] = []
-    let topAssists: any[] = []
-    let discipline: any[] = []
-
-    // If tournamentId is provided, compute stats from fixtures
+    // Optionally restrict to a single tournament's fixtures.
+    let fixtureIds: string[] | null = null
     if (tournamentId) {
-      try {
-        // Fetch fixtures for the tournament
-        const { data: fixtures, error: fixturesError } = await supabase
-          .from("fixtures")
-          .select("id, home_player_id, away_player_id, home_score, away_score, status")
-          .eq("tournament_id", tournamentId)
-          .eq("status", "PLAYED")
-
-        if (!fixturesError && fixtures && fixtures.length > 0) {
-          // Fetch players for names
-          const { data: players, error: playersError } = await supabase
-            .from("players")
-            .select("id, name, preferred_club")
-            .eq("status", "approved")
-
-          if (!playersError && players) {
-            const playerMap = new Map(players.map((p: any) => [p.id, p]))
-            
-            // Compute goals from fixtures
-            const goalsMap = new Map<string, { name: string; team: string; goals: number }>()
-            
-            for (const fixture of fixtures) {
-              if (fixture.home_score !== null && fixture.away_score !== null) {
-                const homePlayer = playerMap.get(fixture.home_player_id)
-                const awayPlayer = playerMap.get(fixture.away_player_id)
-                
-                if (homePlayer) {
-                  const current = goalsMap.get(fixture.home_player_id) || { 
-                    name: homePlayer.name, 
-                    team: homePlayer.preferred_club || "-", 
-                    goals: 0 
-                  }
-                  current.goals += fixture.home_score
-                  goalsMap.set(fixture.home_player_id, current)
-                }
-                
-                if (awayPlayer) {
-                  const current = goalsMap.get(fixture.away_player_id) || { 
-                    name: awayPlayer.name, 
-                    team: awayPlayer.preferred_club || "-", 
-                    goals: 0 
-                  }
-                  current.goals += fixture.away_score
-                  goalsMap.set(fixture.away_player_id, current)
-                }
-              }
-            }
-            
-            // Convert to top scorers array
-            topScorers = Array.from(goalsMap.values())
-              .sort((a, b) => b.goals - a.goals)
-              .map((player, index) => ({
-                rank: index + 1,
-                name: player.name,
-                team: player.team,
-                goals: player.goals
-              }))
-          }
-        }
-      } catch (e) {
-        console.log("Could not compute stats from fixtures:", e)
+      const { data: fx } = await supabase
+        .from("fixtures")
+        .select("id")
+        .eq("tournament_id", tournamentId)
+      fixtureIds = (fx ?? []).map((f: { id: string }) => f.id)
+      if (fixtureIds.length === 0) {
+        return NextResponse.json({ topScorers: [], topAssists: [], discipline: [], ...emptyStats })
       }
     }
 
-    const maybeFilter = (query: any) => (tournamentId ? query.eq("tournament_id", tournamentId) : query)
+    let eventsQuery = supabase.from("match_events").select("player_id,type")
+    if (fixtureIds) eventsQuery = eventsQuery.in("fixture_id", fixtureIds)
+    const { data: events } = await eventsQuery
 
-    // 0) Primary: player_stats table if it exists
-    try {
-      let q = supabase.from("player_stats").select("player_id, player_name, team, goals, assists, yellow_cards, red_cards")
-      q = maybeFilter(q)
-      const { data, error } = await q
-      if (!error && Array.isArray(data) && data.length) {
-        const sortedGoals = [...data].sort((a: any, b: any) => (b.goals ?? 0) - (a.goals ?? 0))
-        topScorers = sortedGoals.slice(0, 20).map((r: any, i: number) => ({ rank: i + 1, name: r.player_name || r.name, team: r.team || "-", goals: r.goals || 0 }))
-        const sortedAssists = [...data].sort((a: any, b: any) => (b.assists ?? 0) - (a.assists ?? 0))
-        topAssists = sortedAssists.slice(0, 20).map((r: any, i: number) => ({ rank: i + 1, name: r.player_name || r.name, team: r.team || "-", assists: r.assists || 0 }))
-        discipline = data.map((r: any) => ({ name: r.player_name || r.name, team: r.team || "-", yellow_cards: r.yellow_cards || 0, red_cards: r.red_cards || 0 }))
+    const { data: players } = await supabase
+      .from("players")
+      .select("id,name,preferred_club,assigned_club")
+      .eq("status", "approved")
+
+    const playerMap = new Map<string, PlayerRow>(
+      ((players as PlayerRow[]) ?? []).map((p) => [p.id, p]),
+    )
+    const teamOf = (id: string) => {
+      const p = playerMap.get(id)
+      return p?.assigned_club || p?.preferred_club || "-"
+    }
+    const nameOf = (id: string) => playerMap.get(id)?.name ?? "Unknown"
+
+    // Tally goals / assists / cards per player from match events.
+    const tally = new Map<string, Tally>()
+    for (const e of ((events as EventRow[]) ?? [])) {
+      const t = tally.get(e.player_id) ?? { goals: 0, assists: 0, yellow: 0, red: 0 }
+      if (e.type === "goal") t.goals++
+      else if (e.type === "assist") t.assists++
+      else if (e.type === "yellow") t.yellow++
+      else if (e.type === "red") t.red++
+      tally.set(e.player_id, t)
+    }
+
+    const entries = [...tally.entries()]
+    const topScorers = entries
+      .filter(([, t]) => t.goals > 0)
+      .sort((a, b) => b[1].goals - a[1].goals)
+      .slice(0, 20)
+      .map(([id, t], i) => ({ rank: i + 1, name: nameOf(id), team: teamOf(id), goals: t.goals }))
+    const topAssists = entries
+      .filter(([, t]) => t.assists > 0)
+      .sort((a, b) => b[1].assists - a[1].assists)
+      .slice(0, 20)
+      .map(([id, t], i) => ({ rank: i + 1, name: nameOf(id), team: teamOf(id), assists: t.assists }))
+    const discipline = entries
+      .filter(([, t]) => t.yellow > 0 || t.red > 0)
+      .sort((a, b) => b[1].red - a[1].red || b[1].yellow - a[1].yellow)
+      .map(([id, t]) => ({
+        name: nameOf(id),
+        team: teamOf(id),
+        yellow_cards: t.yellow,
+        red_cards: t.red,
+      }))
+
+    // Per-user stats for the signed-in player's dashboard.
+    let stats = { ...emptyStats }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const mine = tally.get(user.id)
+      if (mine) stats = { ...stats, ...mine }
+      const { data: standing } = await supabase
+        .from("v_standings")
+        .select("wins,draws,losses")
+        .eq("id", user.id)
+        .maybeSingle()
+      if (standing) {
+        stats.wins = standing.wins ?? 0
+        stats.draws = standing.draws ?? 0
+        stats.losses = standing.losses ?? 0
       }
-    } catch {}
-
-    // 1) Preferred views if needed
-    if (!topScorers.length) {
-      try { let q = supabase.from("v_top_scorers").select("*"); q = maybeFilter(q); const { data, error } = await q; if (!error && Array.isArray(data)) topScorers = data } catch {}
-    }
-    if (!topAssists.length) {
-      try { let q = supabase.from("v_top_assists").select("*"); q = maybeFilter(q); const { data, error } = await q; if (!error && Array.isArray(data)) topAssists = data } catch {}
-    }
-    if (!discipline.length) {
-      try { let q = supabase.from("v_discipline").select("*"); q = maybeFilter(q); const { data, error } = await q; if (!error && Array.isArray(data)) discipline = data } catch {}
     }
 
-    // Try to get real discipline data from stats table
-    if (!discipline.length) {
-      try {
-        const { data: statsData, error: statsError } = await supabase
-          .from("stats")
-          .select(`
-            user_id,
-            yellows,
-            reds,
-            players!inner(name, preferred_club)
-          `)
-          .gt("yellows", 0)
-          .or("reds.gt.0")
-        
-        if (!statsError && statsData && statsData.length > 0) {
-          discipline = statsData.map((stat: any) => ({
-            name: stat.players?.name || "Unknown",
-            team: stat.players?.preferred_club || "-",
-            yellow_cards: stat.yellows || 0,
-            red_cards: stat.reds || 0,
-          }))
-        }
-      } catch (e) {
-        console.log("Could not fetch discipline from stats table:", e)
-      }
-    }
-
-    // 2) Fallback to standings_view if still empty
-    const needScorers = !topScorers?.length
-    const needAssists = !topAssists?.length
-    const needDiscipline = !discipline?.length
-
-    if (needScorers || needAssists || needDiscipline) {
-      try {
-        let q = supabase.from("standings_view").select("*")
-        q = maybeFilter(q)
-        const { data, error } = await q
-        if (!error && Array.isArray(data)) {
-          if (needScorers) {
-            const hasGoals = data.length > 0 && ("goals" in data[0] || "goals_for" in data[0])
-            if (hasGoals) {
-              const sorted = [...data].sort((a: any, b: any) => (b.goals ?? b.goals_for ?? 0) - (a.goals ?? a.goals_for ?? 0))
-              topScorers = sorted.slice(0, 20).map((r: any, i: number) => ({
-                rank: i + 1,
-                name: r.name || r.player_name || r.player || r.username,
-                team: r.team || r.club || r.preferred_club || r.assigned_club || "-",
-                goals: r.goals ?? r.goals_for ?? 0,
-              }))
-            }
-          }
-          if (needAssists) {
-            const hasAssists = data.length > 0 && ("assists" in data[0])
-            if (hasAssists) {
-              const sorted = [...data].sort((a: any, b: any) => (b.assists ?? 0) - (a.assists ?? 0))
-              topAssists = sorted.slice(0, 20).map((r: any, i: number) => ({
-                rank: i + 1,
-                name: r.name || r.player_name || r.player || r.username,
-                team: r.team || r.club || r.preferred_club || r.assigned_club || "-",
-                assists: r.assists ?? 0,
-              }))
-            }
-          }
-          if (needDiscipline) {
-            const hasCards = data.length > 0 && ("yellow_cards" in data[0] || "YC" in data[0])
-            if (hasCards) {
-              const mapped = data.map((r: any) => ({
-                name: r.name || r.player_name || r.player || r.username,
-                team: r.team || r.club || r.preferred_club || r.assigned_club || "-",
-                yellow_cards: r.yellow_cards ?? r.YC ?? 0,
-                red_cards: r.red_cards ?? r.RC ?? 0,
-              }))
-              discipline = mapped
-            }
-          }
-        }
-      } catch {}
-    }
-
-    // 3) Normalize output
-    const normalizeName = (r: any) => r.name || r.player || r.player_name || r.playerName
-    const normalizeTeam = (r: any) => r.team || r.club || r.preferred_club || r.assigned_club || "-"
-
-    const normalizedScorers = (topScorers || []).map((r: any, i: number) => ({
-      rank: r.rank || i + 1,
-      name: normalizeName(r),
-      team: normalizeTeam(r),
-      goals: r.goals || r.G || r.total_goals || 0,
-    }))
-
-    const normalizedAssists = (topAssists || []).map((r: any, i: number) => ({
-      rank: r.rank || i + 1,
-      name: normalizeName(r),
-      team: normalizeTeam(r),
-      assists: r.assists || r.A || r.total_assists || 0,
-    }))
-
-    const normalizedDiscipline = (discipline || []).map((r: any) => ({
-      name: normalizeName(r),
-      team: normalizeTeam(r),
-      yellow_cards: r.yellow_cards || r.YC || 0,
-      red_cards: r.red_cards || r.RC || 0,
-    }))
-
-    const stats = { goals: 0, assists: 0, yellow: 0, red: 0, wins: 0, draws: 0, losses: 0 }
-
-    return NextResponse.json({
-      topScorers: normalizedScorers,
-      topAssists: normalizedAssists,
-      discipline: normalizedDiscipline,
-      ...stats,
-    })
+    return NextResponse.json({ topScorers, topAssists, discipline, ...stats })
   } catch (error) {
-    return NextResponse.json({ topScorers: [], topAssists: [], discipline: [], goals: 0, assists: 0, yellow: 0, red: 0, wins: 0, draws: 0, losses: 0 })
+    console.error("Error computing player stats:", error)
+    return NextResponse.json({ error: "Failed to compute stats" }, { status: 500 })
   }
 }

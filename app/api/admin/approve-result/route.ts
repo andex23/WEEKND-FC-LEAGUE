@@ -21,10 +21,14 @@ export async function POST(request: Request) {
 
         // 2) Insert structured match events (optional)
         if (Array.isArray(events) && events.length > 0) {
-          // Expect events like { registration_id, type, minute, payload }
           const cleaned = events
-            .filter((e: any) => e && e.type)
-            .map((e: any) => ({ fixture_id: fixtureId, tournament_id: e.tournament_id || null, registration_id: e.registration_id || null, type: e.type, minute: e.minute || null, payload: e.payload || null }))
+            .filter((e: any) => e && e.type && (e.player_id || e.registration_id))
+            .map((e: any) => ({
+              fixture_id: fixtureId,
+              player_id: e.player_id || e.registration_id,
+              type: e.type,
+              minute: e.minute ?? null,
+            }))
           if (cleaned.length > 0) {
             await sb.from("match_events").insert(cleaned)
           }
@@ -36,9 +40,6 @@ export async function POST(request: Request) {
     } catch (e) {
       // Fallback: no-op
     }
-
-    // Also notify local stats API to recompute (safe noop if not implemented)
-    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/admin/stats`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) }).catch(() => null)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

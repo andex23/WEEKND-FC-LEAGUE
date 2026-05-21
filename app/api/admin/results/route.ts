@@ -6,13 +6,13 @@ export async function GET() {
     const sb = await createClient()
     const { data, error } = await sb
       .from("fixtures")
-      .select("id,matchday,home_player,away_player,reported_home_score,reported_away_score,report_status,reported_by_player_id,updated_at,created_at")
+      .select("id,matchday,home_player_id,away_player_id,reported_home_score,reported_away_score,report_status,reported_by_player_id,updated_at,created_at")
       .in("report_status", ["PENDING", "CONFLICT"]) as any
     if (error) throw error
     const results = (data || []).map((r: any) => ({
       id: r.id,
-      homePlayer: r.home_player,
-      awayPlayer: r.away_player,
+      homePlayer: r.home_player_id,
+      awayPlayer: r.away_player_id,
       homeScore: r.reported_home_score,
       awayScore: r.reported_away_score,
       status: r.report_status || "PENDING",
