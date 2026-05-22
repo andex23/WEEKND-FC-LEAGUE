@@ -33,7 +33,6 @@ export const registrationSchema = z
     preferredClub: z.string().refine((club) => FIFA_CLUBS.includes(club), "Please select a valid FIFA club"),
     downloadMbps: speedField("download"),
     uploadMbps: speedField("upload"),
-    speedTestScreenshot: z.string().optional(),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
