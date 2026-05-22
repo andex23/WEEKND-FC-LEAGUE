@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 // Player-facing areas that require a signed-in Supabase session.
-const PROTECTED_PREFIXES = ["/dashboard", "/report"]
+const PROTECTED_PREFIXES = ["/dashboard", "/report", "/refer"]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })

@@ -14,6 +14,7 @@ not run them.
 | `0004_functions_rls.sql` | triggers, `is_admin()`, league functions, RLS policies |
 | `0005_seed.sql` | optional development seed |
 | `0006_speed_test.sql` | connection-speed columns + `speed-tests` storage bucket |
+| `0007_match_reminders.sql` | `fixtures.reminder_sent_at` for the reminder cron |
 
 All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`,
 `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE`) — they are safe to re-run and
@@ -21,7 +22,7 @@ safe to apply on top of an existing database.
 
 ## How to apply
 
-Open the Supabase project's SQL editor and run each file in order (0001 → 0006),
+Open the Supabase project's SQL editor and run each file in order (0001 → 0007),
 or with the Supabase CLI:
 
 ```bash

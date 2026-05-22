@@ -23,7 +23,7 @@ export function AdminOverlayNav() {
                 { key: "tournaments", label: "Tournaments", href: "/admin/tournaments" },
                 { key: "stats", label: "Stats", href: "/admin/stats" },
                 { key: "reports", label: "Reports", href: "/admin" },
-                { key: "messaging", label: "Messaging", href: "/admin" },
+                { key: "messaging", label: "Messaging", href: "/admin/messaging" },
                 { key: "settings", label: "Settings", href: "/admin" },
               ].map((item) => (
                 <Link key={item.key} href={item.href} className="block px-4 py-3 rounded-md text-sm border bg-transparent hover:bg-[#0F0F0F] border-[#1E1E1E] transition-colors" onClick={() => setOpen(false)}>
