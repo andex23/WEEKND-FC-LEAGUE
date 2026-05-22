@@ -305,6 +305,8 @@ export function RegistrationForm() {
   const [speedResult, setSpeedResult] = React.useState<{ down: number; up: number } | null>(null)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const abortRef = React.useRef<AbortController | null>(null)
+  const headingRef = React.useRef<HTMLHeadingElement>(null)
+  const hasMounted = React.useRef(false)
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -328,6 +330,19 @@ export function RegistrationForm() {
   React.useEffect(() => {
     return () => abortRef.current?.abort()
   }, [])
+
+  // On each step change, move focus to the step heading. This keeps keyboard
+  // users oriented and, crucially, stops focus from lingering on the previous
+  // step's "Continue" button — otherwise, once the final step mounts its
+  // submit button, a stray keypress would submit the empty form and flag
+  // every field as invalid before anything was filled in.
+  React.useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true
+      return
+    }
+    headingRef.current?.focus()
+  }, [current])
 
   const values = form.watch()
   const isLast = current === STEPS.length - 1
@@ -426,7 +441,13 @@ export function RegistrationForm() {
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-400">
               Step {current + 1} of {STEPS.length}
             </div>
-            <h2 className="mt-1 font-heading text-2xl text-white">{STEPS[current].title}</h2>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="mt-1 font-heading text-2xl text-white outline-none"
+            >
+              {STEPS[current].title}
+            </h2>
             <p className="mt-1 text-sm text-[#8A8A8A]">
               {done ? "Card minted. Taking you to sign in…" : STEPS[current].blurb}
             </p>
@@ -636,6 +657,7 @@ export function RegistrationForm() {
               <div className="mt-7 flex items-center gap-3">
                 {current > 0 && (
                   <Button
+                    key="back"
                     type="button"
                     variant="secondary"
                     onClick={goBack}
@@ -647,6 +669,7 @@ export function RegistrationForm() {
                 )}
                 {isLast ? (
                   <Button
+                    key="submit"
                     type="submit"
                     disabled={isSubmitting || done}
                     className="h-11 flex-1 font-heading text-black"
@@ -664,6 +687,7 @@ export function RegistrationForm() {
                   </Button>
                 ) : (
                   <Button
+                    key="continue"
                     type="button"
                     onClick={goNext}
                     disabled={testing || (current === 2 && !testDone)}
