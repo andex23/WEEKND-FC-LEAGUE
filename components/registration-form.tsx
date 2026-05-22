@@ -11,13 +11,12 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
-  Camera,
   Check,
   Download,
-  ExternalLink,
   Eye,
   EyeOff,
   Gamepad2,
+  Gauge,
   Loader2,
   Lock,
   Mail,
@@ -27,7 +26,6 @@ import {
   Upload,
   User,
   Wifi,
-  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -259,104 +257,6 @@ function StepProgress({ current }: { current: number }) {
   )
 }
 
-async function compressImage(file: File): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error("read failed"))
-    reader.readAsDataURL(file)
-  })
-
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error("decode failed"))
-    image.src = dataUrl
-  })
-
-  const maxWidth = 1280
-  const scale = Math.min(1, maxWidth / img.width)
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.round(img.width * scale)
-  canvas.height = Math.round(img.height * scale)
-
-  const ctx = canvas.getContext("2d")
-  if (!ctx) throw new Error("canvas unavailable")
-  ctx.fillStyle = "#0A0A0A"
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-  return canvas.toDataURL("image/jpeg", 0.82)
-}
-
-function ScreenshotField({
-  value,
-  fileName,
-  error,
-  onPick,
-  onClear,
-}: {
-  value: string | null
-  fileName: string | null
-  error: string | null
-  onPick: (file: File) => void
-  onClear: () => void
-}) {
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className={LABEL_CLASS}>Speed test screenshot</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6C6C6C]">Optional</span>
-      </div>
-
-      {value ? (
-        <div className="overflow-hidden rounded-lg border border-[#2A2A2A] bg-[#0F0F0F]">
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Speed test result" className="max-h-52 w-full object-contain" />
-            <button
-              type="button"
-              onClick={onClear}
-              aria-label="Remove screenshot"
-              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-rose-500"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {fileName ? (
-            <div className="truncate border-t border-[#2A2A2A] px-3 py-2 text-xs text-[#8A8A8A]">{fileName}</div>
-          ) : null}
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-[#2A2A2A] bg-[#0F0F0F] px-4 py-6 text-center transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/[0.04]"
-        >
-          <Camera className="h-5 w-5 text-[#6C6C6C]" />
-          <span className="text-sm font-medium text-[#C8C8C8]">Upload a screenshot of your result</span>
-          <span className="text-xs text-[#6C6C6C]">PNG or JPG, up to 10 MB</span>
-        </button>
-      )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) onPick(file)
-          e.target.value = ""
-        }}
-      />
-
-      {error ? <p className="text-xs text-rose-400">{error}</p> : null}
-    </div>
-  )
-}
-
 export function RegistrationForm() {
   const router = useRouter()
   const [current, setCurrent] = React.useState(0)
@@ -364,9 +264,10 @@ export function RegistrationForm() {
   const [minting, setMinting] = React.useState(false)
   const [done, setDone] = React.useState(false)
   const [displayRating, setDisplayRating] = React.useState<number | null>(null)
-  const [screenshot, setScreenshot] = React.useState<string | null>(null)
-  const [screenshotName, setScreenshotName] = React.useState<string | null>(null)
-  const [screenshotError, setScreenshotError] = React.useState<string | null>(null)
+  const [testing, setTesting] = React.useState(false)
+  const [testDone, setTestDone] = React.useState(false)
+  const [testError, setTestError] = React.useState<string | null>(null)
+  const engineRef = React.useRef<{ pause?: () => void } | null>(null)
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -385,6 +286,17 @@ export function RegistrationForm() {
       confirmPassword: "",
     },
   })
+
+  // Stop the speed-test engine if the user leaves before it finishes.
+  React.useEffect(() => {
+    return () => {
+      try {
+        engineRef.current?.pause?.()
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
 
   const values = form.watch()
   const isLast = current === STEPS.length - 1
@@ -409,29 +321,47 @@ export function RegistrationForm() {
 
   const goBack = () => setCurrent((c) => Math.max(c - 1, 0))
 
-  const handleScreenshotPick = async (file: File) => {
-    setScreenshotError(null)
-    if (!file.type.startsWith("image/")) {
-      setScreenshotError("Please choose an image file.")
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setScreenshotError("That image is over 10 MB — try a smaller one.")
-      return
-    }
+  // Runs Cloudflare's in-browser speed test and fills the Mbps fields.
+  const runSpeedTest = async () => {
+    setTestError(null)
+    setTestDone(false)
+    setTesting(true)
     try {
-      const dataUrl = await compressImage(file)
-      setScreenshot(dataUrl)
-      setScreenshotName(file.name)
-    } catch {
-      setScreenshotError("Couldn't process that image. Try a different one.")
-    }
-  }
+      const mod: any = await import("@cloudflare/speedtest")
+      const SpeedTest = mod.default
+      const engine: any = new SpeedTest({ autoStart: false })
+      engineRef.current = engine
 
-  const clearScreenshot = () => {
-    setScreenshot(null)
-    setScreenshotName(null)
-    setScreenshotError(null)
+      engine.onFinish = (results: any) => {
+        const summary = results?.getSummary?.() ?? {}
+        const down = (Number(summary.download) || 0) / 1e6
+        const up = (Number(summary.upload) || 0) / 1e6
+        if (down > 0 || up > 0) {
+          form.setValue("downloadMbps", down > 0 ? down.toFixed(1) : "", {
+            shouldValidate: true,
+            shouldTouch: true,
+          })
+          form.setValue("uploadMbps", up > 0 ? up.toFixed(1) : "", {
+            shouldValidate: true,
+            shouldTouch: true,
+          })
+          setTestDone(true)
+        } else {
+          setTestError("The test didn't return a result — enter your speeds manually below.")
+        }
+        setTesting(false)
+      }
+
+      engine.onError = () => {
+        setTesting(false)
+        setTestError("Couldn't run the speed test — enter your speeds manually below.")
+      }
+
+      engine.play()
+    } catch {
+      setTesting(false)
+      setTestError("Couldn't load the speed test — enter your speeds manually below.")
+    }
   }
 
   const submit = async (data: RegistrationFormData) => {
@@ -442,7 +372,7 @@ export function RegistrationForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, speedTestScreenshot: screenshot ?? undefined }),
+        body: JSON.stringify(data),
       })
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || "Registration failed. Please try again.")
@@ -592,19 +522,35 @@ export function RegistrationForm() {
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
                           <Wifi className="h-4 w-4" />
                         </span>
-                        <div className="space-y-2.5">
+                        <div className="flex-1 space-y-3">
                           <p className="text-sm leading-relaxed text-[#C8C8C8]">
-                            Run a quick test on Speedtest.net, then enter your numbers below. A
-                            screenshot helps us verify your connection.
+                            Run a quick speed test right here — it fills in your numbers
+                            automatically. It takes about 30 seconds.
                           </p>
-                          <a
-                            href="https://www.speedtest.net/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-emerald-400"
+                          <Button
+                            type="button"
+                            onClick={runSpeedTest}
+                            disabled={testing}
+                            className="h-9 font-heading text-black"
+                            style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
                           >
-                            Run speed test <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+                            {testing ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" /> Testing your connection…
+                              </>
+                            ) : (
+                              <>
+                                <Gauge className="h-4 w-4" /> {testDone ? "Test again" : "Test my speed"}
+                              </>
+                            )}
+                          </Button>
+                          {testDone && !testing ? (
+                            <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                              <Check className="h-3.5 w-3.5" /> Speed test complete — numbers filled in
+                              below.
+                            </p>
+                          ) : null}
+                          {testError ? <p className="text-xs text-rose-400">{testError}</p> : null}
                         </div>
                       </div>
                     </div>
@@ -628,13 +574,10 @@ export function RegistrationForm() {
                       />
                     </div>
 
-                    <ScreenshotField
-                      value={screenshot}
-                      fileName={screenshotName}
-                      error={screenshotError}
-                      onPick={handleScreenshotPick}
-                      onClear={clearScreenshot}
-                    />
+                    <p className="text-xs text-[#7A7A7A]">
+                      The test runs on Cloudflare&apos;s network. You can also type your speeds in
+                      manually.
+                    </p>
                   </>
                 )}
 
@@ -698,7 +641,12 @@ export function RegistrationForm() {
                     )}
                   </Button>
                 ) : (
-                  <Button type="button" onClick={goNext} className="h-11 flex-1 font-heading">
+                  <Button
+                    type="button"
+                    onClick={goNext}
+                    disabled={testing}
+                    className="h-11 flex-1 font-heading"
+                  >
                     Continue <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}

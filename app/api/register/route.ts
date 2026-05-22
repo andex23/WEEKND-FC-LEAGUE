@@ -77,31 +77,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Create the player profile. The service-role client bypasses RLS for this
-  // initial insert (and for the optional speed-test screenshot upload).
+  // initial insert.
   const admin = createAdminClient()
-
-  // Optional: store the speed-test screenshot in the public `speed-tests`
-  // bucket. A failure here must not block registration.
-  let screenshotUrl: string | null = null
-  if (typeof data.speedTestScreenshot === "string") {
-    const match = data.speedTestScreenshot.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/)
-    if (match) {
-      const [, mime, base64] = match
-      const buffer = Buffer.from(base64, "base64")
-      if (buffer.length > 0 && buffer.length <= 5 * 1024 * 1024) {
-        const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"
-        const path = `${authData.user.id}.${ext}`
-        const { error: uploadError } = await admin.storage
-          .from("speed-tests")
-          .upload(path, buffer, { contentType: mime, upsert: true })
-        if (uploadError) {
-          console.error("Speed-test screenshot upload failed:", uploadError.message)
-        } else {
-          screenshotUrl = admin.storage.from("speed-tests").getPublicUrl(path).data.publicUrl
-        }
-      }
-    }
-  }
 
   const { error: playerError } = await admin.from("players").insert({
     id: authData.user.id,
@@ -114,7 +91,6 @@ export async function POST(request: NextRequest) {
     preferred_club: data.preferredClub,
     download_mbps: Number(data.downloadMbps),
     upload_mbps: Number(data.uploadMbps),
-    speed_test_screenshot_url: screenshotUrl,
     role: "PLAYER",
     status: "pending",
   })
