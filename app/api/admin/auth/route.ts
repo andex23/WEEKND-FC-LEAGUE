@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 
-// Hardcoded admin credentials per user request
-const ADMIN_EMAIL = "blondealonee@gmail.com"
-const ADMIN_PASSWORD = "Sini1234"
-
 export async function POST(req: NextRequest) {
   try {
+    const adminEmail = process.env.ADMIN_EMAIL
+    const adminPassword = process.env.ADMIN_PASSWORD
+    if (!adminEmail || !adminPassword) {
+      return NextResponse.json(
+        { message: "Admin login is not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD." },
+        { status: 500 },
+      )
+    }
+
     const { email, password } = await req.json()
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    if (email === adminEmail && password === adminPassword) {
       const res = NextResponse.json({ ok: true })
       // Set secure httpOnly cookie for admin gate
       res.cookies.set({
