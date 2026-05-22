@@ -1,7 +1,7 @@
 -- ============================================================================
 -- WEEKND FC LEAGUE — combined migration bundle
 -- ----------------------------------------------------------------------------
--- One-time convenience bundle: migrations 0001-0005 concatenated in order.
+-- One-time convenience bundle: migrations 0001-0006 concatenated in order.
 -- Paste the whole file into the Supabase Dashboard -> SQL Editor and Run.
 -- Every statement is idempotent, so re-running it is safe.
 -- The canonical, individually-versioned files live in supabase/migrations/.
@@ -521,3 +521,28 @@ CREATE POLICY messages_admin_all ON public.messages FOR ALL USING (public.is_adm
 INSERT INTO public.tournaments (name, status, config, is_active)
 SELECT 'Weekend FC League — Season 1', 'DRAFT', '{}'::jsonb, false
 WHERE NOT EXISTS (SELECT 1 FROM public.tournaments);
+
+-- ############################################################################
+-- ## 0006_speed_test.sql
+-- ############################################################################
+
+-- 0006_speed_test.sql
+-- Connection speed captured during player registration.
+-- Idempotent: safe to re-run. Depends on 0001_core_schema.sql.
+
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS download_mbps numeric;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS upload_mbps numeric;
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS speed_test_screenshot_url text;
+
+-- Public bucket for the speed-test screenshots uploaded during registration.
+-- Reads are public; writes happen server-side with the service-role key, so no
+-- extra storage RLS policies are needed.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'speed-tests',
+  'speed-tests',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;

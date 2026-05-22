@@ -1,6 +1,15 @@
 import { z } from "zod"
 import { FIFA_CLUBS } from "./constants"
 
+const speedField = (which: "download" | "upload") =>
+  z
+    .string({ required_error: `Enter your ${which} speed` })
+    .trim()
+    .min(1, `Enter your ${which} speed`)
+    .regex(/^\d+(\.\d+)?$/, "Enter the speed as a number, e.g. 48")
+    .refine((v) => Number(v) > 0, `Enter your ${which} speed in Mbps`)
+    .refine((v) => Number(v) <= 10000, "That speed looks too high — check the units")
+
 export const registrationSchema = z
   .object({
     username: z
@@ -22,6 +31,9 @@ export const registrationSchema = z
       required_error: "Please select a console",
     }),
     preferredClub: z.string().refine((club) => FIFA_CLUBS.includes(club), "Please select a valid FIFA club"),
+    downloadMbps: speedField("download"),
+    uploadMbps: speedField("upload"),
+    speedTestScreenshot: z.string().optional(),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")

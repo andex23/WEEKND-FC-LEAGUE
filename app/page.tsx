@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BarChart3, CalendarDays, Gamepad2, ShieldCheck, Trophy, Users } from "lucide-react"
 import { PlayerCard } from "@/components/player-card"
+import { BackgroundVideo } from "@/components/background-video"
 
 const STEPS = [
   { n: 1, icon: Users, title: "Register", body: "Build your player card — pick your club and console." },
@@ -19,12 +20,14 @@ const ctaStyle = { background: "linear-gradient(90deg,#f5c54a,#10b981)" }
 export default function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
+      <BackgroundVideo />
+
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-40 left-1/3 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[130px]" />
         <div className="absolute right-0 top-1/3 h-[360px] w-[420px] rounded-full bg-amber-500/[0.06] blur-[120px]" />
       </div>
 
-      <div className="relative container-5xl section-pad space-y-20 px-4 md:px-0">
+      <div className="relative z-10 container-5xl section-pad space-y-20 px-4 md:px-0">
         {/* HERO */}
         <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
           <div>
