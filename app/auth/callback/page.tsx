@@ -19,7 +19,7 @@ export default async function AuthCallback({
     } catch {
       // A failed exchange is harmless — the email is confirmed regardless.
     }
-    redirect("/auth/login?confirmed=1")
+    redirect("/auth/confirmed")
   }
 
   redirect("/auth/login")

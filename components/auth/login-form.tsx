@@ -40,15 +40,6 @@ export default function LoginForm() {
   const [showPw, setShowPw] = useState(false)
 
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("confirmed") === "1"
-    ) {
-      toast.success("Email confirmed! You can sign in once an admin approves your account.")
-    }
-  }, [])
-
-  useEffect(() => {
     if (state?.success) {
       toast.success("Signed in — welcome back!")
       router.push("/dashboard")
