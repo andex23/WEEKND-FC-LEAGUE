@@ -244,7 +244,7 @@ export default function AdminPlayersPage() {
             </div>
 
             <div className="overflow-x-auto rounded-2xl border">
-              <table className="w-full text-sm min-w-[800px]">
+              <table className="w-full text-sm min-w-[920px]">
                 <thead className="text-[#9E9E9E]">
                   <tr>
                     <th className="text-left px-3 py-2">Name</th>
@@ -252,6 +252,7 @@ export default function AdminPlayersPage() {
                     <th className="text-left px-3 py-2">Club</th>
                     <th className="text-left px-3 py-2">Console</th>
                     <th className="text-left px-3 py-2">Location</th>
+                    <th className="text-left px-3 py-2">Connection</th>
                     <th className="text-left px-3 py-2">Active</th>
                     <th className="text-right px-3 py-2">Actions</th>
                   </tr>
@@ -264,6 +265,25 @@ export default function AdminPlayersPage() {
                       <td className="px-3 py-2">{p.preferred_club || "—"}</td>
                       <td className="px-3 py-2">{p.console}</td>
                       <td className="px-3 py-2">{p.location || "—"}</td>
+                      <td className="px-3 py-2">
+                        {p.download_mbps != null || p.upload_mbps != null ? (
+                          <span className="whitespace-nowrap text-xs">
+                            ↓ {p.download_mbps ?? "—"} / ↑ {p.upload_mbps ?? "—"} Mbps
+                            {p.speed_test_screenshot_url ? (
+                              <a
+                                href={p.speed_test_screenshot_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ml-2 text-emerald-400 underline"
+                              >
+                                shot
+                              </a>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <span className="text-[#6C6C6C]">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{String(p.status) === "approved" ? "Yes" : "No"}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex flex-wrap gap-1 sm:gap-2">
@@ -298,7 +318,7 @@ export default function AdminPlayersPage() {
                     </tr>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={7}>No players.</td></tr>
+                    <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={8}>No players.</td></tr>
                   )}
                 </tbody>
               </table>

@@ -22,6 +22,9 @@ export type Database = {
           role: PlayerRole
           status: PlayerStatus
           available: boolean
+          download_mbps: number | null
+          upload_mbps: number | null
+          speed_test_screenshot_url: string | null
           created_at: string
           updated_at: string
         }
@@ -38,6 +41,9 @@ export type Database = {
           role?: PlayerRole
           status?: PlayerStatus
           available?: boolean
+          download_mbps?: number | null
+          upload_mbps?: number | null
+          speed_test_screenshot_url?: string | null
           created_at?: string
           updated_at?: string
         }

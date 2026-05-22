@@ -11,7 +11,10 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  Camera,
   Check,
+  Download,
+  ExternalLink,
   Eye,
   EyeOff,
   Gamepad2,
@@ -21,7 +24,10 @@ import {
   MapPin,
   Monitor,
   Sparkles,
+  Upload,
   User,
+  Wifi,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -52,6 +58,13 @@ const STEPS: {
     title: "Pick your colours",
     blurb: "Your platform and club — the identity printed on your card.",
     fields: ["console", "preferredClub", "location"],
+  },
+  {
+    id: "connection",
+    name: "Connection",
+    title: "Test your connection",
+    blurb: "Run a quick speed test so we can keep matches lag-free and seed fairly.",
+    fields: ["downloadMbps", "uploadMbps"],
   },
   {
     id: "account",
@@ -99,14 +112,16 @@ function TextField({
   icon: Icon,
   type = "text",
   autoComplete,
+  inputMode,
 }: {
   control: Control<RegistrationFormData>
-  name: "name" | "username" | "psnName" | "email" | "location"
+  name: "name" | "username" | "psnName" | "email" | "location" | "downloadMbps" | "uploadMbps"
   label: string
   placeholder: string
   icon: LucideIcon
   type?: string
   autoComplete?: string
+  inputMode?: "text" | "decimal" | "numeric" | "email"
 }) {
   return (
     <FormField
@@ -121,6 +136,7 @@ function TextField({
               <Input
                 {...field}
                 type={type}
+                inputMode={inputMode}
                 autoComplete={autoComplete}
                 placeholder={placeholder}
                 className={cn(INPUT_CLASS, fieldState.error && "border-rose-500/70")}
@@ -243,6 +259,104 @@ function StepProgress({ current }: { current: number }) {
   )
 }
 
+async function compressImage(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error("read failed"))
+    reader.readAsDataURL(file)
+  })
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error("decode failed"))
+    image.src = dataUrl
+  })
+
+  const maxWidth = 1280
+  const scale = Math.min(1, maxWidth / img.width)
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.round(img.width * scale)
+  canvas.height = Math.round(img.height * scale)
+
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("canvas unavailable")
+  ctx.fillStyle = "#0A0A0A"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+  return canvas.toDataURL("image/jpeg", 0.82)
+}
+
+function ScreenshotField({
+  value,
+  fileName,
+  error,
+  onPick,
+  onClear,
+}: {
+  value: string | null
+  fileName: string | null
+  error: string | null
+  onPick: (file: File) => void
+  onClear: () => void
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className={LABEL_CLASS}>Speed test screenshot</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6C6C6C]">Optional</span>
+      </div>
+
+      {value ? (
+        <div className="overflow-hidden rounded-lg border border-[#2A2A2A] bg-[#0F0F0F]">
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={value} alt="Speed test result" className="max-h-52 w-full object-contain" />
+            <button
+              type="button"
+              onClick={onClear}
+              aria-label="Remove screenshot"
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-rose-500"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {fileName ? (
+            <div className="truncate border-t border-[#2A2A2A] px-3 py-2 text-xs text-[#8A8A8A]">{fileName}</div>
+          ) : null}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-[#2A2A2A] bg-[#0F0F0F] px-4 py-6 text-center transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/[0.04]"
+        >
+          <Camera className="h-5 w-5 text-[#6C6C6C]" />
+          <span className="text-sm font-medium text-[#C8C8C8]">Upload a screenshot of your result</span>
+          <span className="text-xs text-[#6C6C6C]">PNG or JPG, up to 10 MB</span>
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onPick(file)
+          e.target.value = ""
+        }}
+      />
+
+      {error ? <p className="text-xs text-rose-400">{error}</p> : null}
+    </div>
+  )
+}
+
 export function RegistrationForm() {
   const router = useRouter()
   const [current, setCurrent] = React.useState(0)
@@ -250,6 +364,9 @@ export function RegistrationForm() {
   const [minting, setMinting] = React.useState(false)
   const [done, setDone] = React.useState(false)
   const [displayRating, setDisplayRating] = React.useState<number | null>(null)
+  const [screenshot, setScreenshot] = React.useState<string | null>(null)
+  const [screenshotName, setScreenshotName] = React.useState<string | null>(null)
+  const [screenshotError, setScreenshotError] = React.useState<string | null>(null)
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -262,6 +379,8 @@ export function RegistrationForm() {
       location: "",
       console: undefined,
       preferredClub: "",
+      downloadMbps: "",
+      uploadMbps: "",
       password: "",
       confirmPassword: "",
     },
@@ -290,6 +409,31 @@ export function RegistrationForm() {
 
   const goBack = () => setCurrent((c) => Math.max(c - 1, 0))
 
+  const handleScreenshotPick = async (file: File) => {
+    setScreenshotError(null)
+    if (!file.type.startsWith("image/")) {
+      setScreenshotError("Please choose an image file.")
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setScreenshotError("That image is over 10 MB — try a smaller one.")
+      return
+    }
+    try {
+      const dataUrl = await compressImage(file)
+      setScreenshot(dataUrl)
+      setScreenshotName(file.name)
+    } catch {
+      setScreenshotError("Couldn't process that image. Try a different one.")
+    }
+  }
+
+  const clearScreenshot = () => {
+    setScreenshot(null)
+    setScreenshotName(null)
+    setScreenshotError(null)
+  }
+
   const submit = async (data: RegistrationFormData) => {
     setIsSubmitting(true)
     setMinting(true)
@@ -298,12 +442,12 @@ export function RegistrationForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, speedTestScreenshot: screenshot ?? undefined }),
       })
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || "Registration failed. Please try again.")
       setDone(true)
-      toast.success("Card minted — sign in once an admin approves your account.")
+      toast.success("Card minted — confirm your email, then wait for admin approval.")
       setTimeout(() => router.push("/auth/login"), 1900)
     } catch (error) {
       setMinting(false)
@@ -443,6 +587,59 @@ export function RegistrationForm() {
 
                 {current === 2 && (
                   <>
+                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                          <Wifi className="h-4 w-4" />
+                        </span>
+                        <div className="space-y-2.5">
+                          <p className="text-sm leading-relaxed text-[#C8C8C8]">
+                            Run a quick test on Speedtest.net, then enter your numbers below. A
+                            screenshot helps us verify your connection.
+                          </p>
+                          <a
+                            href="https://www.speedtest.net/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-emerald-400"
+                          >
+                            Run speed test <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <TextField
+                        control={form.control}
+                        name="downloadMbps"
+                        label="Download (Mbps)"
+                        placeholder="e.g. 48"
+                        icon={Download}
+                        inputMode="decimal"
+                      />
+                      <TextField
+                        control={form.control}
+                        name="uploadMbps"
+                        label="Upload (Mbps)"
+                        placeholder="e.g. 12"
+                        icon={Upload}
+                        inputMode="decimal"
+                      />
+                    </div>
+
+                    <ScreenshotField
+                      value={screenshot}
+                      fileName={screenshotName}
+                      error={screenshotError}
+                      onPick={handleScreenshotPick}
+                      onClear={clearScreenshot}
+                    />
+                  </>
+                )}
+
+                {current === 3 && (
+                  <>
                     <TextField
                       control={form.control}
                       name="email"
@@ -533,7 +730,7 @@ export function RegistrationForm() {
             />
             <p className="max-w-[270px] text-center text-xs leading-relaxed text-[#7A7A7A]">
               {done
-                ? "Your card is minted. An admin will approve it shortly."
+                ? "Card minted. Confirm your email, then an admin will approve you."
                 : minting
                   ? "Minting your card…"
                   : "Your card builds itself as you go. The rating reveals when you mint."}
