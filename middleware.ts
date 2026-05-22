@@ -25,9 +25,13 @@ export async function middleware(request: NextRequest) {
 
   // Privileged API routes require the admin cookie. Public pages still read a
   // few admin GET endpoints, so those stay open; everything else is gated.
+  // /api/admin/auth is the admin login endpoint itself — it must stay public,
+  // otherwise the cookie it issues could never be obtained in the first place.
   const isWrite = request.method !== "GET" && request.method !== "HEAD"
   const needsAdmin =
-    (pathname.startsWith("/api/admin/") && !(!isWrite && PUBLIC_ADMIN_GETS.has(pathname))) ||
+    (pathname.startsWith("/api/admin/") &&
+      pathname !== "/api/admin/auth" &&
+      !(!isWrite && PUBLIC_ADMIN_GETS.has(pathname))) ||
     (pathname === "/api/fixtures" && isWrite) ||
     ((pathname === "/api/tournament/publish" || pathname === "/api/tournament/config") && isWrite)
 

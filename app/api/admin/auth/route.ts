@@ -17,20 +17,6 @@ export async function POST(req: NextRequest) {
     const emailMatch =
       typeof email === "string" && email.trim().toLowerCase() === adminEmail.toLowerCase()
     const passwordMatch = typeof password === "string" && password === adminPassword
-
-    // TEMPORARY diagnostic — pinpoints a misconfigured env value, then removed.
-    console.log(
-      "[admin-auth diagnostic] " +
-        JSON.stringify({
-          envEmail: process.env.ADMIN_EMAIL ?? null,
-          envPassword: process.env.ADMIN_PASSWORD ?? null,
-          submittedEmail: typeof email === "string" ? email : null,
-          submittedPassword: typeof password === "string" ? password : null,
-          emailMatch,
-          passwordMatch,
-        }),
-    )
-
     if (emailMatch && passwordMatch) {
       const res = NextResponse.json({ ok: true })
       // Set secure httpOnly cookie for admin gate
