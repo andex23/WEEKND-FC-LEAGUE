@@ -31,7 +31,14 @@ export async function POST(req: NextRequest) {
       })
       return res
     }
-    return NextResponse.json({ message: "Invalid credentials" }, { status: 401 })
+    return NextResponse.json(
+      {
+        message: !emailMatch
+          ? "That email doesn't match the admin email configured in Vercel."
+          : "Email is correct, but the password doesn't match. Re-check the ADMIN_PASSWORD value in Vercel — watch for surrounding quotes or extra characters.",
+      },
+      { status: 401 },
+    )
   } catch (e) {
     return NextResponse.json({ message: "Bad request" }, { status: 400 })
   }
