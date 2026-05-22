@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react"
 import { useFormStatus } from "react-dom"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,7 +41,10 @@ export default function LoginForm() {
 
   useEffect(() => {
     if (state?.success) {
+      toast.success("Signed in — welcome back!")
       router.push("/dashboard")
+    } else if (state?.error) {
+      toast.error(state.error)
     }
   }, [state, router])
 
@@ -55,12 +59,6 @@ export default function LoginForm() {
       </div>
 
       <form action={formAction} className="mt-6 space-y-4">
-        {state?.error && (
-          <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-            {state.error}
-          </div>
-        )}
-
         <div className="space-y-1.5">
           <label htmlFor="email" className={labelClass}>
             Email
