@@ -258,6 +258,39 @@ function StepProgress({ current }: { current: number }) {
   )
 }
 
+async function measureDownload(signal: AbortSignal): Promise<number> {
+  const bytes = 12_000_000
+  const res = await fetch(`/api/speedtest/down?bytes=${bytes}&t=${Date.now()}`, {
+    cache: "no-store",
+    signal,
+  })
+  if (!res.ok || !res.body) throw new Error("download failed")
+  const reader = res.body.getReader()
+  let received = 0
+  const start = performance.now()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (value) received += value.length
+  }
+  const seconds = (performance.now() - start) / 1000
+  return seconds > 0 ? (received * 8) / seconds / 1e6 : 0
+}
+
+async function measureUpload(signal: AbortSignal): Promise<number> {
+  const bytes = 4_000_000
+  const start = performance.now()
+  const res = await fetch(`/api/speedtest/up?t=${Date.now()}`, {
+    method: "POST",
+    body: new Uint8Array(bytes),
+    cache: "no-store",
+    signal,
+  })
+  if (!res.ok) throw new Error("upload failed")
+  const seconds = (performance.now() - start) / 1000
+  return seconds > 0 ? (bytes * 8) / seconds / 1e6 : 0
+}
+
 export function RegistrationForm() {
   const router = useRouter()
   const [current, setCurrent] = React.useState(0)
@@ -267,9 +300,11 @@ export function RegistrationForm() {
   const [displayRating, setDisplayRating] = React.useState<number | null>(null)
   const [testing, setTesting] = React.useState(false)
   const [testDone, setTestDone] = React.useState(false)
+  const [testStatus, setTestStatus] = React.useState("")
   const [testError, setTestError] = React.useState<string | null>(null)
+  const [speedResult, setSpeedResult] = React.useState<{ down: number; up: number } | null>(null)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
-  const engineRef = React.useRef<{ pause?: () => void } | null>(null)
+  const abortRef = React.useRef<AbortController | null>(null)
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -289,15 +324,9 @@ export function RegistrationForm() {
     },
   })
 
-  // Stop the speed-test engine if the user leaves before it finishes.
+  // Cancel an in-flight speed test if the user leaves before it finishes.
   React.useEffect(() => {
-    return () => {
-      try {
-        engineRef.current?.pause?.()
-      } catch {
-        // ignore
-      }
-    }
+    return () => abortRef.current?.abort()
   }, [])
 
   const values = form.watch()
@@ -323,46 +352,35 @@ export function RegistrationForm() {
 
   const goBack = () => setCurrent((c) => Math.max(c - 1, 0))
 
-  // Runs Cloudflare's in-browser speed test and fills the Mbps fields.
+  // Measures connection speed against our own server, then fills the form.
   const runSpeedTest = async () => {
     setTestError(null)
     setTestDone(false)
+    setSpeedResult(null)
     setTesting(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeout = setTimeout(() => controller.abort(), 90_000)
+    let down = 0
+    let up = 0
     try {
-      const mod: any = await import("@cloudflare/speedtest")
-      const SpeedTest = mod.default
-      const engine: any = new SpeedTest({ autoStart: false })
-      engineRef.current = engine
-
-      engine.onFinish = (results: any) => {
-        const summary = results?.getSummary?.() ?? {}
-        const down = (Number(summary.download) || 0) / 1e6
-        const up = (Number(summary.upload) || 0) / 1e6
-        if (down > 0 || up > 0) {
-          form.setValue("downloadMbps", down > 0 ? down.toFixed(1) : "", {
-            shouldValidate: true,
-            shouldTouch: true,
-          })
-          form.setValue("uploadMbps", up > 0 ? up.toFixed(1) : "", {
-            shouldValidate: true,
-            shouldTouch: true,
-          })
-          setTestDone(true)
-        } else {
-          setTestError("The test didn't return a result — enter your speeds manually below.")
-        }
-        setTesting(false)
-      }
-
-      engine.onError = () => {
-        setTesting(false)
-        setTestError("Couldn't run the speed test — enter your speeds manually below.")
-      }
-
-      engine.play()
+      setTestStatus("Measuring download…")
+      down = await measureDownload(controller.signal)
+      setTestStatus("Measuring upload…")
+      up = await measureUpload(controller.signal)
     } catch {
-      setTesting(false)
-      setTestError("Couldn't load the speed test — enter your speeds manually below.")
+      // Falls through to the down/up check below.
+    } finally {
+      clearTimeout(timeout)
+    }
+    setTesting(false)
+    if (down > 0 && up > 0) {
+      form.setValue("downloadMbps", down.toFixed(1), { shouldValidate: true, shouldTouch: true })
+      form.setValue("uploadMbps", up.toFixed(1), { shouldValidate: true, shouldTouch: true })
+      setSpeedResult({ down, up })
+      setTestDone(true)
+    } else {
+      setTestError("The speed test didn't finish. Check your connection and try again.")
     }
   }
 
@@ -527,8 +545,8 @@ export function RegistrationForm() {
                         </span>
                         <div className="flex-1 space-y-3">
                           <p className="text-sm leading-relaxed text-[#C8C8C8]">
-                            Run a quick speed test right here — it fills in your numbers
-                            automatically. It takes about 30 seconds.
+                            We&apos;ll run a quick speed test to check your connection — it takes
+                            about 15 seconds.
                           </p>
                           <Button
                             type="button"
@@ -539,7 +557,7 @@ export function RegistrationForm() {
                           >
                             {testing ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" /> Testing your connection…
+                                <Loader2 className="h-4 w-4 animate-spin" /> {testStatus || "Testing…"}
                               </>
                             ) : (
                               <>
@@ -547,40 +565,35 @@ export function RegistrationForm() {
                               </>
                             )}
                           </Button>
-                          {testDone && !testing ? (
-                            <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                              <Check className="h-3.5 w-3.5" /> Speed test complete — numbers filled in
-                              below.
-                            </p>
-                          ) : null}
                           {testError ? <p className="text-xs text-rose-400">{testError}</p> : null}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                      <TextField
-                        control={form.control}
-                        name="downloadMbps"
-                        label="Download (Mbps)"
-                        placeholder="e.g. 48"
-                        icon={Download}
-                        inputMode="decimal"
-                      />
-                      <TextField
-                        control={form.control}
-                        name="uploadMbps"
-                        label="Upload (Mbps)"
-                        placeholder="e.g. 12"
-                        icon={Upload}
-                        inputMode="decimal"
-                      />
-                    </div>
-
-                    <p className="text-xs text-[#7A7A7A]">
-                      The test runs on Cloudflare&apos;s network. You can also type your speeds in
-                      manually.
-                    </p>
+                    {speedResult ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-[#2A2A2A] bg-[#0F0F0F] p-3">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">
+                            <Download className="h-3.5 w-3.5 text-emerald-400" /> Download
+                          </div>
+                          <div className="mt-1 font-heading text-2xl text-white">
+                            {speedResult.down.toFixed(0)}{" "}
+                            <span className="text-sm text-[#8A8A8A]">Mbps</span>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-[#2A2A2A] bg-[#0F0F0F] p-3">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">
+                            <Upload className="h-3.5 w-3.5 text-emerald-400" /> Upload
+                          </div>
+                          <div className="mt-1 font-heading text-2xl text-white">
+                            {speedResult.up.toFixed(0)}{" "}
+                            <span className="text-sm text-[#8A8A8A]">Mbps</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#7A7A7A]">Run the test above to continue.</p>
+                    )}
                   </>
                 )}
 
@@ -653,7 +666,7 @@ export function RegistrationForm() {
                   <Button
                     type="button"
                     onClick={goNext}
-                    disabled={testing}
+                    disabled={testing || (current === 2 && !testDone)}
                     className="h-11 flex-1 font-heading"
                   >
                     Continue <ArrowRight className="h-4 w-4" />
