@@ -17,14 +17,14 @@ export function AdminOverlayNav() {
             </div>
             <nav className="space-y-2">
               {[
-                { key: "overview", label: "Overview", href: "/admin" },
+                { key: "overview", label: "Overview", href: "/admin#overview" },
                 { key: "players", label: "Players", href: "/admin/players" },
                 { key: "fixtures", label: "Fixtures", href: "/admin/fixtures" },
                 { key: "tournaments", label: "Tournaments", href: "/admin/tournaments" },
                 { key: "stats", label: "Stats", href: "/admin/stats" },
-                { key: "reports", label: "Reports", href: "/admin" },
+                { key: "reports", label: "Reports", href: "/admin#reports" },
                 { key: "messaging", label: "Messaging", href: "/admin/messaging" },
-                { key: "settings", label: "Settings", href: "/admin" },
+                { key: "settings", label: "Settings", href: "/admin#settings" },
               ].map((item) => (
                 <Link key={item.key} href={item.href} className="block px-4 py-3 rounded-md text-sm border bg-transparent hover:bg-[#0F0F0F] border-[#1E1E1E] transition-colors" onClick={() => setOpen(false)}>
                   {item.label}

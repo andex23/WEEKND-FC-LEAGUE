@@ -7,11 +7,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, usePathname } from "next/navigation"
-import { StandingsTab } from "@/components/admin/standings-tab"
 import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon, Plus } from "lucide-react"
 import { SettingsPage } from "@/components/admin/settings-page"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
+
+// Route-backed nav items push a URL; in-page sections are tracked in local
+// state and mirrored to the URL hash so they can be deep-linked.
+const SECTION_ROUTES: Record<string, string> = {
+  players: "/admin/players",
+  fixtures: "/admin/fixtures",
+  tournaments: "/admin/tournaments",
+  stats: "/admin/stats",
+  messaging: "/admin/messaging",
+}
+const HASH_SECTIONS = new Set(["overview", "registrations", "reports", "settings"])
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -60,6 +70,18 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAllData()
+  }, [])
+
+  // Keep the visible section in sync with the URL hash so the mobile nav and
+  // deep links can reach in-page sections like Reports and Settings.
+  useEffect(() => {
+    const applyHash = () => {
+      const hash = window.location.hash.replace(/^#/, "")
+      if (HASH_SECTIONS.has(hash)) setSection(hash as any)
+    }
+    applyHash()
+    window.addEventListener("hashchange", applyHash)
+    return () => window.removeEventListener("hashchange", applyHash)
   }, [])
 
   const fetchAllData = async () => {
@@ -492,6 +514,18 @@ export default function AdminDashboard() {
 
   const goSetup = () => router.push("/admin/setup")
 
+  // Sidebar navigation: route-backed items push a URL; in-page sections
+  // update local state and keep the URL hash in sync.
+  const selectSection = (key: string) => {
+    const route = SECTION_ROUTES[key]
+    if (route) {
+      router.push(route)
+      return
+    }
+    setSection(key as any)
+    window.history.replaceState(null, "", `/admin#${key}`)
+  }
+
   const leagueActive = (leagueSettings?.status || "DRAFT").toUpperCase() === "ACTIVE" && leagueSettings?.activeTournament
 
   if (loading) {
@@ -549,7 +583,7 @@ export default function AdminDashboard() {
                 return (
                   <button
                     key={item.key}
-                    onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : item.key === "players" ? router.push("/admin/players") : item.key === "stats" ? router.push("/admin/stats") : setSection(item.key as any))}
+                    onClick={() => selectSection(item.key)}
                     className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
                       isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
                     }`}
