@@ -34,6 +34,8 @@ export default function ResetPasswordPage() {
       const supabase = createClient()
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
+      // Fire off the "password changed" security alert; never block on it.
+      await fetch("/api/account/password-changed", { method: "POST" }).catch(() => {})
       toast.success("Password updated. You can sign in now.")
       router.push("/auth/login")
     } catch (err) {

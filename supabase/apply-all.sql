@@ -1,7 +1,7 @@
 -- ============================================================================
 -- WEEKND FC LEAGUE — combined migration bundle
 -- ----------------------------------------------------------------------------
--- One-time convenience bundle: migrations 0001-0006 concatenated in order.
+-- One-time convenience bundle: migrations 0001-0007 concatenated in order.
 -- Paste the whole file into the Supabase Dashboard -> SQL Editor and Run.
 -- Every statement is idempotent, so re-running it is safe.
 -- The canonical, individually-versioned files live in supabase/migrations/.
@@ -546,3 +546,13 @@ VALUES (
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- ############################################################################
+-- ## 0007_match_reminders.sql
+-- ############################################################################
+
+-- 0007_match_reminders.sql
+-- Tracks whether a pre-match reminder email has been sent for a fixture.
+-- Idempotent: safe to re-run. Depends on 0001_core_schema.sql.
+
+ALTER TABLE public.fixtures ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;

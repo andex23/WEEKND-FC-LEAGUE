@@ -79,6 +79,7 @@ export type Database = {
           report_status: string | null
           forfeit_winner_id: string | null
           notes: string | null
+          reminder_sent_at: string | null
           created_at: string
           updated_at: string
         }

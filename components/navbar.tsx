@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/standings", label: "Standings" },
   { href: "/rules", label: "Rules" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/refer", label: "Invite" },
 ]
 
 export function Navbar() {
