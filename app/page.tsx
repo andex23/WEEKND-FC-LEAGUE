@@ -91,27 +91,35 @@ export default function HomePage() {
         {/* HOW IT WORKS */}
         <section>
           <div className="text-center">
-            <h2 className="font-heading text-2xl text-white md:text-3xl">How it works</h2>
-            <p className="mt-1 text-sm text-[#9E9E9E]">Three steps to get on the pitch</p>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+              How it works
+            </span>
+            <h2 className="mt-4 font-heading text-2xl text-white md:text-4xl">Three steps to the pitch</h2>
+            <p className="mt-2 text-sm text-[#9E9E9E]">From sign-up to silverware — here&apos;s the run of play.</p>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div
-                key={s.n}
-                className="fut-shine relative overflow-hidden rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6"
-              >
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
+
+          <div className="relative mt-12">
+            {/* connecting line behind the step nodes (desktop only) */}
+            <div
+              className="absolute inset-x-0 top-7 hidden h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent md:block"
+              aria-hidden
+            />
+            <div className="grid gap-10 md:grid-cols-3 md:gap-6">
+              {STEPS.map((s) => (
+                <div key={s.n} className="flex flex-col items-center text-center">
+                  <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/40 bg-[#0A0A0A] font-heading text-xl text-emerald-400">
+                    {s.n}
+                  </div>
+                  <div className="mt-5 w-full rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 transition-colors hover:border-emerald-500/30">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
                       <s.icon className="h-5 w-5 text-emerald-400" />
                     </div>
-                    <span className="font-heading text-3xl text-[#1F1F1F]">0{s.n}</span>
+                    <h3 className="mt-4 font-heading text-lg text-white">{s.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-[#9E9E9E]">{s.body}</p>
                   </div>
-                  <h3 className="mt-4 font-heading text-lg text-white">{s.title}</h3>
-                  <p className="mt-1 text-sm text-[#9E9E9E]">{s.body}</p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
