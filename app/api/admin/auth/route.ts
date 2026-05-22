@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL
-    const adminPassword = process.env.ADMIN_PASSWORD
+    // Trim env values — a stray space or newline pasted into the dashboard
+    // is the most common reason a correct password is rejected.
+    const adminEmail = process.env.ADMIN_EMAIL?.trim()
+    const adminPassword = process.env.ADMIN_PASSWORD?.trim()
     if (!adminEmail || !adminPassword) {
       return NextResponse.json(
         { message: "Admin login is not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD." },
@@ -12,7 +14,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password } = await req.json()
-    if (email === adminEmail && password === adminPassword) {
+    const emailMatch =
+      typeof email === "string" && email.trim().toLowerCase() === adminEmail.toLowerCase()
+    const passwordMatch = typeof password === "string" && password === adminPassword
+    if (emailMatch && passwordMatch) {
       const res = NextResponse.json({ ok: true })
       // Set secure httpOnly cookie for admin gate
       res.cookies.set({
