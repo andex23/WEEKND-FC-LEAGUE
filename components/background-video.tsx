@@ -4,9 +4,9 @@ export function BackgroundVideo() {
       <video className="h-full w-full object-cover" autoPlay muted loop playsInline preload="auto">
         <source src="/hero-bg.mp4" type="video/mp4" />
       </video>
-      {/* Dark shade so the footage stays subtle and the text remains readable */}
-      <div className="absolute inset-0 bg-[#0A0A0A]/55" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-[#0A0A0A]/30" />
+      {/* Light tint keeps the footage clearly visible; the bottom fade grounds text. */}
+      <div className="absolute inset-0 bg-[#0A0A0A]/40" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
     </div>
   )
 }
