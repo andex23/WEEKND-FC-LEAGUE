@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ErrorBanner } from "@/components/ui/error-banner"
 
 export function AdminLoginForm() {
   const router = useRouter()
@@ -46,8 +47,8 @@ export function AdminLoginForm() {
       </CardHeader>
       <CardContent>
         {error && (
-          <div className="bg-destructive/10 border border-destructive/50 text-destructive px-4 py-3 rounded mb-4">
-            {error}
+          <div className="mb-4">
+            <ErrorBanner title="Sign-in failed" message={error} />
           </div>
         )}
         <form onSubmit={submit} className="space-y-4">

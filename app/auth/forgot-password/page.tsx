@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Trophy } from "lucide-react"
+import { ErrorBanner } from "@/components/ui/error-banner"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -60,11 +61,7 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-6">
-              {error && (
-                <div className="bg-destructive/10 border border-destructive/50 text-destructive px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
+              {error && <ErrorBanner title="Couldn't send reset link" message={error} />}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium">
                   Email

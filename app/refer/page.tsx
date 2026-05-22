@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Loader2, Mail, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ErrorBanner } from "@/components/ui/error-banner"
 
 const labelClass = "text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]"
 
@@ -12,11 +13,13 @@ export default function ReferPage() {
   const [email, setEmail] = useState("")
   const [note, setNote] = useState("")
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (sending) return
     setSending(true)
+    setError(null)
     try {
       const res = await fetch("/api/referral/invite", {
         method: "POST",
@@ -28,8 +31,8 @@ export default function ReferPage() {
       toast.success(`Invite sent to ${email}.`)
       setEmail("")
       setNote("")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't send the invite.")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send the invite.")
     } finally {
       setSending(false)
     }
@@ -50,6 +53,8 @@ export default function ReferPage() {
           </div>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
+            {error ? <ErrorBanner title="Couldn't send invite" message={error} /> : null}
+
             <div className="space-y-1.5">
               <label htmlFor="email" className={labelClass}>
                 Friend&apos;s email
