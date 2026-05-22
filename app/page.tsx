@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BarChart3, CalendarDays, Gamepad2, ShieldCheck, Trophy, Users } from "lucide-react"
 import { PlayerCard } from "@/components/player-card"
+import { BackgroundVideo } from "@/components/background-video"
 
 const STEPS = [
   { n: 1, icon: Users, title: "Register", body: "Build your player card — pick your club and console." },
@@ -19,25 +20,7 @@ const ctaStyle = { background: "linear-gradient(90deg,#f5c54a,#10b981)" }
 export default function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
-      {/* Background video */}
-      <video
-        className="absolute inset-0 z-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        aria-hidden
-      >
-        <source src="/hero-bg.mp4" type="video/mp4" />
-      </video>
-
-      {/* Dark shade so the video doesn't wash out the text */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-[#0A0A0A]/75" aria-hidden />
-      <div
-        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/70 to-[#0A0A0A]/40"
-        aria-hidden
-      />
+      <BackgroundVideo />
 
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-40 left-1/3 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[130px]" />
