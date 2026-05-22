@@ -347,7 +347,11 @@ export function RegistrationForm() {
 
   const goNext = async () => {
     const valid = await form.trigger(STEPS[current].fields)
-    if (valid) setCurrent((c) => Math.min(c + 1, STEPS.length - 1))
+    if (valid) {
+      // Drop any errors flagged on later steps the user hasn't reached yet.
+      form.clearErrors()
+      setCurrent((c) => Math.min(c + 1, STEPS.length - 1))
+    }
   }
 
   const goBack = () => setCurrent((c) => Math.max(c - 1, 0))
@@ -375,8 +379,10 @@ export function RegistrationForm() {
     }
     setTesting(false)
     if (down > 0 && up > 0) {
-      form.setValue("downloadMbps", down.toFixed(1), { shouldValidate: true, shouldTouch: true })
-      form.setValue("uploadMbps", up.toFixed(1), { shouldValidate: true, shouldTouch: true })
+      // Set the values only — no shouldValidate, which would run the whole
+      // schema and pre-flag fields on later steps the user hasn't reached.
+      form.setValue("downloadMbps", down.toFixed(1))
+      form.setValue("uploadMbps", up.toFixed(1))
       setSpeedResult({ down, up })
       setTestDone(true)
     } else {
