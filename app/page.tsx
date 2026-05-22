@@ -19,12 +19,32 @@ const ctaStyle = { background: "linear-gradient(90deg,#f5c54a,#10b981)" }
 export default function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {/* Background video */}
+      <video
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden
+      >
+        <source src="/hero-bg.mp4" type="video/mp4" />
+      </video>
+
+      {/* Dark shade so the video doesn't wash out the text */}
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[#0A0A0A]/75" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/70 to-[#0A0A0A]/40"
+        aria-hidden
+      />
+
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div className="absolute -top-40 left-1/3 h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[130px]" />
         <div className="absolute right-0 top-1/3 h-[360px] w-[420px] rounded-full bg-amber-500/[0.06] blur-[120px]" />
       </div>
 
-      <div className="relative container-5xl section-pad space-y-20 px-4 md:px-0">
+      <div className="relative z-10 container-5xl section-pad space-y-20 px-4 md:px-0">
         {/* HERO */}
         <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
           <div>
