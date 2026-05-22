@@ -35,6 +35,7 @@ import { PlayerCard } from "@/components/player-card"
 import { registrationSchema, type RegistrationFormData } from "@/lib/validations"
 import { FIFA_CLUBS, CONSOLE_OPTIONS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
+import { ErrorBanner } from "@/components/ui/error-banner"
 
 const STEPS: {
   id: string
@@ -267,6 +268,7 @@ export function RegistrationForm() {
   const [testing, setTesting] = React.useState(false)
   const [testDone, setTestDone] = React.useState(false)
   const [testError, setTestError] = React.useState<string | null>(null)
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
   const engineRef = React.useRef<{ pause?: () => void } | null>(null)
 
   const form = useForm<RegistrationFormData>({
@@ -367,6 +369,7 @@ export function RegistrationForm() {
   const submit = async (data: RegistrationFormData) => {
     setIsSubmitting(true)
     setMinting(true)
+    setSubmitError(null)
     animateRating(rookieRating(data.name))
     try {
       const res = await fetch("/api/register", {
@@ -383,7 +386,7 @@ export function RegistrationForm() {
       setMinting(false)
       setDisplayRating(null)
       setIsSubmitting(false)
-      toast.error(error instanceof Error ? error.message : "Registration failed.")
+      setSubmitError(error instanceof Error ? error.message : "Registration failed.")
     }
   }
 
@@ -610,6 +613,12 @@ export function RegistrationForm() {
                   </>
                 )}
               </div>
+
+              {submitError ? (
+                <div className="mt-6">
+                  <ErrorBanner title="Registration failed" message={submitError} />
+                </div>
+              ) : null}
 
               <div className="mt-7 flex items-center gap-3">
                 {current > 0 && (

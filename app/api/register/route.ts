@@ -66,14 +66,19 @@ export async function POST(request: NextRequest) {
   if (authError || !authData.user) {
     const msg = authError?.message || ""
     const isConnError = /fetch failed|network|ENOTFOUND|ECONNREFUSED|timeout|getaddrinfo/i.test(msg)
-    return NextResponse.json(
-      {
-        error: isConnError
-          ? "Could not reach the league database. It may be offline or misconfigured — please try again shortly."
-          : msg || "Could not create your account.",
-      },
-      { status: isConnError ? 503 : 400 },
-    )
+    const isEmailError = /sending.*email|confirmation email|smtp/i.test(msg)
+    let error = msg || "Could not create your account."
+    let status = 400
+    if (isConnError) {
+      error =
+        "Could not reach the league database. It may be offline or misconfigured — please try again shortly."
+      status = 503
+    } else if (isEmailError) {
+      error =
+        "We couldn't send your confirmation email just now. Please try again in a few minutes — if it keeps happening, let an admin know."
+      status = 502
+    }
+    return NextResponse.json({ error }, { status })
   }
 
   // Create the player profile. The service-role client bypasses RLS for this
