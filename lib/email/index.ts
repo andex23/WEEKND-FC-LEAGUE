@@ -1,5 +1,7 @@
 import { getTransporter, emailFrom } from "./client"
 
+export { isEmailConfigured } from "./client"
+
 /** Send a single email. Returns false (without throwing) if it could not be sent. */
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const transporter = getTransporter()

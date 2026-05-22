@@ -66,6 +66,21 @@ ${
 
 export type EmailContent = { subject: string; html: string }
 
+export function confirmEmail(name: string, confirmUrl: string): EmailContent {
+  return {
+    subject: "Confirm your Weekend FC League account",
+    html: layout({
+      heading: "Confirm your email",
+      intro: `Hi ${escapeHtml(
+        name,
+      )}, welcome to the Weekend FC League. Confirm your email address to lock in your registration — an admin will review it right after.`,
+      cta: { label: "Confirm my email", url: confirmUrl },
+      footerNote:
+        "Didn't sign up for the Weekend FC League? You can safely ignore this email.",
+    }),
+  }
+}
+
 export function passwordChangedEmail(name: string): EmailContent {
   return {
     subject: "Your Weekend FC League password was changed",

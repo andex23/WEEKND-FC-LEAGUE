@@ -2,6 +2,19 @@ import { type NextRequest, NextResponse } from "next/server"
 import { registrationSchema } from "@/lib/validations"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { sendEmail, isEmailConfigured } from "@/lib/email"
+import { confirmEmail } from "@/lib/email/templates"
+
+const CONN_ERROR = /fetch failed|network|ENOTFOUND|ECONNREFUSED|timeout|getaddrinfo/i
+
+const SUCCESS = {
+  message:
+    "Registration submitted. Check your email to confirm your account, then an admin will review it.",
+}
+const CONN_MESSAGE =
+  "Could not reach the league database. It may be offline or misconfigured — please try again shortly."
+const EMAIL_MESSAGE =
+  "We couldn't send your confirmation email just now. Please try again in a few minutes — if it keeps happening, let an admin know."
 
 export async function POST(request: NextRequest) {
   let body: unknown
@@ -53,40 +66,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "That email is already registered." }, { status: 409 })
   }
 
-  // Create the auth user with the player's real email address. The confirmation
-  // email links back to /auth/callback on whichever host the request came from.
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password: data.password,
-    options: {
-      data: { username, name: data.name },
-      emailRedirectTo: `${request.nextUrl.origin}/auth/callback`,
-    },
-  })
-  if (authError || !authData.user) {
-    const msg = authError?.message || ""
-    const isConnError = /fetch failed|network|ENOTFOUND|ECONNREFUSED|timeout|getaddrinfo/i.test(msg)
-    const isEmailError = /sending.*email|confirmation email|smtp/i.test(msg)
-    let error = msg || "Could not create your account."
-    let status = 400
-    if (isConnError) {
-      error =
-        "Could not reach the league database. It may be offline or misconfigured — please try again shortly."
-      status = 503
-    } else if (isEmailError) {
-      error =
-        "We couldn't send your confirmation email just now. Please try again in a few minutes — if it keeps happening, let an admin know."
-      status = 502
-    }
-    return NextResponse.json({ error }, { status })
-  }
-
-  // Create the player profile. The service-role client bypasses RLS for this
-  // initial insert.
   const admin = createAdminClient()
+  const callbackUrl = `${request.nextUrl.origin}/auth/callback`
 
-  const { error: playerError } = await admin.from("players").insert({
-    id: authData.user.id,
+  // The player profile, minus the id (set once the auth user exists).
+  const playerRow = {
     username,
     email,
     name: data.name,
@@ -98,7 +82,85 @@ export async function POST(request: NextRequest) {
     upload_mbps: Number(data.uploadMbps),
     role: "PLAYER",
     status: "pending",
+  }
+
+  // Preferred path: when our own SMTP is configured, create the account and
+  // send a branded confirmation email ourselves. This keeps sign-up working
+  // even when Supabase's built-in email service is unavailable or rate-limited.
+  if (isEmailConfigured()) {
+    // generateLink creates the (unconfirmed) auth user and returns the
+    // confirmation link without Supabase sending any email.
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: "signup",
+      email,
+      password: data.password,
+      options: {
+        data: { username, name: data.name },
+        redirectTo: callbackUrl,
+      },
+    })
+    if (linkError || !linkData?.user) {
+      const msg = linkError?.message || ""
+      if (/already.*(registered|exists)|registered.*already/i.test(msg)) {
+        return NextResponse.json({ error: "That email is already registered." }, { status: 409 })
+      }
+      if (CONN_ERROR.test(msg)) {
+        return NextResponse.json({ error: CONN_MESSAGE }, { status: 503 })
+      }
+      return NextResponse.json({ error: msg || "Could not create your account." }, { status: 400 })
+    }
+
+    const userId = linkData.user.id
+    const confirmUrl = linkData.properties?.action_link
+
+    // Create the player profile. The service-role client bypasses RLS.
+    const { error: playerError } = await admin.from("players").insert({ id: userId, ...playerRow })
+    if (playerError) {
+      console.error("Player profile creation failed:", playerError)
+      await admin.auth.admin.deleteUser(userId).catch(() => {})
+      return NextResponse.json(
+        { error: "Could not complete your registration. Please try again." },
+        { status: 500 },
+      )
+    }
+
+    const { subject, html } = confirmEmail(data.name, confirmUrl || callbackUrl)
+    const sent = confirmUrl ? await sendEmail(email, subject, html) : false
+    if (!sent) {
+      // Roll the account back so the player can try again once email works,
+      // rather than being permanently stuck on "already registered".
+      await admin.from("players").delete().eq("id", userId)
+      await admin.auth.admin.deleteUser(userId).catch(() => {})
+      return NextResponse.json({ error: EMAIL_MESSAGE }, { status: 502 })
+    }
+
+    return NextResponse.json(SUCCESS, { status: 201 })
+  }
+
+  // Fallback: no app SMTP configured — let Supabase create the user and send
+  // its own confirmation email. The link returns to /auth/callback.
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password: data.password,
+    options: {
+      data: { username, name: data.name },
+      emailRedirectTo: callbackUrl,
+    },
   })
+  if (authError || !authData.user) {
+    const msg = authError?.message || ""
+    if (CONN_ERROR.test(msg)) {
+      return NextResponse.json({ error: CONN_MESSAGE }, { status: 503 })
+    }
+    if (/sending.*email|confirmation email|smtp/i.test(msg)) {
+      return NextResponse.json({ error: EMAIL_MESSAGE }, { status: 502 })
+    }
+    return NextResponse.json({ error: msg || "Could not create your account." }, { status: 400 })
+  }
+
+  const { error: playerError } = await admin
+    .from("players")
+    .insert({ id: authData.user.id, ...playerRow })
   if (playerError) {
     console.error("Player profile creation failed:", playerError)
     return NextResponse.json(
@@ -107,11 +169,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json(
-    {
-      message:
-        "Registration submitted. Check your email to confirm your account, then an admin will review it.",
-    },
-    { status: 201 },
-  )
+  return NextResponse.json(SUCCESS, { status: 201 })
 }

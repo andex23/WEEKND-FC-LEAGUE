@@ -32,3 +32,8 @@ export function emailFrom(): string {
   const address = process.env.SMTP_FROM || process.env.SMTP_USER || ""
   return `${name} <${address}>`
 }
+
+/** True when the SMTP_* environment variables needed to send mail are set. */
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+}
