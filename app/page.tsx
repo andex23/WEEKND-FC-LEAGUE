@@ -39,7 +39,7 @@ export default function HomePage() {
               <br />
               <span className="text-emerald-400">League</span>
             </h1>
-            <p className="mt-4 max-w-md text-base text-[#9E9E9E] md:text-lg">
+            <p className="mt-4 max-w-md text-base text-[#C8C8C8] md:text-lg">
               Compete every weekend. Report results. Build your card and climb the table.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -61,7 +61,7 @@ export default function HomePage() {
               {FEATURES.map((f) => (
                 <span
                   key={f.label}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#1E1E1E] bg-[#111111] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#9E9E9E]"
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#1E1E1E] bg-[#111111] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#C8C8C8]"
                 >
                   <f.icon className="h-3.5 w-3.5 text-emerald-400" /> {f.label}
                 </span>
@@ -95,7 +95,7 @@ export default function HomePage() {
               How it works
             </span>
             <h2 className="mt-4 font-heading text-2xl text-white md:text-4xl">Three steps to the pitch</h2>
-            <p className="mt-2 text-sm text-[#9E9E9E]">From sign-up to silverware — here&apos;s the run of play.</p>
+            <p className="mt-2 text-sm text-[#C8C8C8]">From sign-up to silverware — here&apos;s the run of play.</p>
           </div>
 
           <div className="relative mt-12">
@@ -115,7 +115,7 @@ export default function HomePage() {
                       <s.icon className="h-5 w-5 text-emerald-400" />
                     </div>
                     <h3 className="mt-4 font-heading text-lg text-white">{s.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#9E9E9E]">{s.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-[#C8C8C8]">{s.body}</p>
                   </div>
                 </div>
               ))}
@@ -126,7 +126,7 @@ export default function HomePage() {
         {/* CTA */}
         <section className="rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/10 to-[#101010] p-8 text-center md:p-12">
           <h2 className="font-heading text-2xl text-white md:text-3xl">Ready to play?</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-[#9E9E9E]">
+          <p className="mx-auto mt-2 max-w-md text-sm text-[#C8C8C8]">
             Build your player card in under a minute and join the next matchday.
           </p>
           <Link
