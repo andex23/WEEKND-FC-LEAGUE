@@ -1,9 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Calendar, Trophy, TrendingUp } from "lucide-react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { useState, useEffect } from "react"
+
+type ConsoleSlice = { name: string; value: number; color: string }
+
+// Distinct slice colours for the console-distribution pie chart.
+const SLICE_COLORS = ["#10b981", "#f5c54a", "#3b82f6", "#ef4444", "#a855f7"]
 
 export function OverviewTab() {
   const [stats, setStats] = useState({
@@ -13,42 +17,50 @@ export function OverviewTab() {
     endDate: new Date(),
     totalFixtures: 0,
     completedFixtures: 0,
-  });
-  const [consoleData, setConsoleData] = useState([]);
+  })
+  const [consoleData, setConsoleData] = useState<ConsoleSlice[]>([])
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
       try {
-        const r = await fetch("/api/admin/stats").then(x => x.json());
-        const tournaments = await fetch("/api/admin/tournaments").then(x => x.json());
-        const latestTournament = tournaments[0] || {};
-        const f = await fetch(`/api/fixtures?tournamentId=${latestTournament.id}`).then(x => x.json());
-        const playersRes = await fetch("/api/admin/players").then(x => x.json());
-        const players = playersRes.players || [];
+        const tournamentsRes = await fetch("/api/admin/tournaments").then((x) => x.json())
+        const tournaments: any[] = Array.isArray(tournamentsRes)
+          ? tournamentsRes
+          : tournamentsRes?.tournaments || []
+        const latestTournament = tournaments[0] || {}
+        const f = await fetch(`/api/fixtures?tournamentId=${latestTournament.id ?? ""}`).then((x) =>
+          x.json(),
+        )
+        const fixtures: any[] = f?.fixtures || []
+        const playersRes = await fetch("/api/admin/players").then((x) => x.json())
+        const players: any[] = playersRes?.players || []
 
-        // Compute console distribution
-        const consoleCounts = players.reduce((acc, p) => {
-          acc[p.console] = (acc[p.console] || 0) + 1;
-          return acc;
-        }, {});
-        const consoleArray = Object.entries(consoleCounts).map(([name, value], index) => ({
+        // Console distribution across registered players.
+        const counts = new Map<string, number>()
+        for (const p of players) {
+          const key = p.console || "Unknown"
+          counts.set(key, (counts.get(key) || 0) + 1)
+        }
+        const slices: ConsoleSlice[] = Array.from(counts.entries()).map(([name, value], i) => ({
           name,
           value,
-          color: `hsl(var(--chart-${index + 1}))`,
-        }));
+          color: SLICE_COLORS[i % SLICE_COLORS.length],
+        }))
 
         setStats({
           totalPlayers: players.length,
           status: latestTournament.status || "DRAFT",
           startDate: new Date(latestTournament.start_at || Date.now()),
           endDate: new Date(latestTournament.end_at || Date.now()),
-          totalFixtures: f.totalFixtures || 0,
-          completedFixtures: f.fixtures.filter(fixt => fixt.status === "COMPLETE").length,
-        });
-        setConsoleData(consoleArray);
-      } catch {}
-    })();
-  }, []);
+          totalFixtures: f?.totalFixtures || fixtures.length,
+          completedFixtures: fixtures.filter((fx) => fx.status === "PLAYED").length,
+        })
+        setConsoleData(slices)
+      } catch {
+        // Keep the placeholder stats if anything fails.
+      }
+    })()
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,32 +135,33 @@ export function OverviewTab() {
           <CardDescription>Breakdown of players by gaming platform</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={consoleData.reduce((acc, item, index) => {
-              acc[item.name.toLowerCase()] = { label: item.name, color: item.color };
-              return acc;
-            }, {})}
-            className="h-[300px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={consoleData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {consoleData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+          <div className="h-[300px]">
+            {consoleData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                No player data yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={consoleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {consoleData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

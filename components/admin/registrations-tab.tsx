@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Users, UserPlus, Shuffle } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface Player {
   id: string
@@ -49,14 +49,14 @@ export function RegistrationsTab() {
       })
 
       if (response.ok) {
-        toast({ title: "Success", description: "Teams assigned successfully!" })
+        toast.success("Teams assigned successfully!")
         fetchPlayers() // Refresh the data
       } else {
-        toast({ title: "Error", description: "Failed to assign teams", variant: "destructive" })
+        toast.error("Failed to assign teams")
       }
     } catch (error) {
       console.error("Error assigning teams:", error)
-      toast({ title: "Error", description: "Failed to assign teams", variant: "destructive" })
+      toast.error("Failed to assign teams")
     }
   }
 
@@ -69,14 +69,14 @@ export function RegistrationsTab() {
       })
 
       if (response.ok) {
-        toast({ title: "Success", description: "Player promoted to admin!" })
+        toast.success("Player promoted to admin!")
         fetchPlayers() // Refresh the data
       } else {
-        toast({ title: "Error", description: "Failed to promote player", variant: "destructive" })
+        toast.error("Failed to promote player")
       }
     } catch (error) {
       console.error("Error promoting player:", error)
-      toast({ title: "Error", description: "Failed to promote player", variant: "destructive" })
+      toast.error("Failed to promote player")
     }
   }
 

@@ -133,7 +133,7 @@ export function StandingsTab() {
               <tr>
                 <th className="text-left px-3 py-2 w-48">Player</th>
                 <th className="text-left px-3 py-2 w-40">Team</th>
-                {pageRows[0]?._cols?.map((c) => (
+                {pageRows[0]?._cols?.map((c: string) => (
                   <th key={c} className={`text-right px-3 py-2 ${colClass(c)}`}>{c}</th>
                 ))}
                 <th className="text-right px-3 py-2">Actions</th>
@@ -148,7 +148,7 @@ export function StandingsTab() {
                   <td className="px-3 py-2 min-w-[9rem]">
                     <Input className="w-full sm:w-40" defaultValue={r.team} onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v !== r.team) updateMeta(table, r.id, "team", v) }} />
                   </td>
-                  {r._cols?.map((c) => (
+                  {r._cols?.map((c: string) => (
                     <td key={c} className={`px-3 py-2 text-right tabular-nums ${colClass(c)}`}>
                       <div className="flex items-center justify-end gap-2">
                         <Input defaultValue={r[c] ?? 0} type="number" className="w-12 sm:w-14 text-right" onBlur={(e) => { const val = e.currentTarget.value; if (Number(val) < 0) { e.currentTarget.value = String(r[c] ?? 0); return } overrideCell(table, r.id, c, val) }} />
