@@ -132,6 +132,11 @@ export type Database = {
           end_date: string | null
           registration_open: boolean
           teams_locked: boolean
+          tournament: Record<string, unknown>
+          branding: Record<string, unknown>
+          socials: Record<string, unknown>
+          integrations: Record<string, unknown>
+          general: Record<string, unknown>
           created_at: string
           updated_at: string
         }

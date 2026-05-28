@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS public.league_settings (
   end_date              date,
   registration_open     boolean DEFAULT true,
   teams_locked          boolean DEFAULT false,
+  tournament            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  branding              jsonb NOT NULL DEFAULT '{}'::jsonb,
+  socials               jsonb NOT NULL DEFAULT '{}'::jsonb,
+  integrations          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  general               jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at            timestamptz DEFAULT now(),
   updated_at            timestamptz DEFAULT now()
 );
@@ -37,6 +42,11 @@ ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS start_date date;
 ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS end_date date;
 ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS registration_open boolean DEFAULT true;
 ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS teams_locked boolean DEFAULT false;
+ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS tournament jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS branding jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS socials jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS integrations jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS general jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.league_settings ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
 -- ---------------------------------------------------------------------------

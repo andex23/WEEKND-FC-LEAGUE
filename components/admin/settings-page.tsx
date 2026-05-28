@@ -47,7 +47,25 @@ export function SettingsPage() {
     setDirty(true) 
   }
 
-  const save = async (section: string) => { setSaving(true); await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section, data: (data as any)[section] }) }); setSaving(false); setDirty(false) }
+  const save = async (section: string) => {
+    setSaving(true)
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, data: (data as any)[section] }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || "Failed to save settings")
+      if (result?.settings) setData(result.settings)
+      setDirty(false)
+      toast.success("Settings saved")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
+  }
   const discard = () => { window.location.reload() }
 
   const toggleMatchday = (day: string) => {
@@ -136,11 +154,12 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-9">
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="grid grid-cols-4 w-full bg-[#141414] border">
-              <TabsTrigger value="tournament">Tournament</TabsTrigger>
-              <TabsTrigger value="branding">Branding</TabsTrigger>
-              <TabsTrigger value="integrations">Integrations</TabsTrigger>
-              <TabsTrigger value="general">General</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 border border-[#2A2A2A] bg-[#111111] p-1 sm:grid-cols-5">
+              <TabsTrigger className="h-9 text-[#D1D1D1] data-[state=active]:bg-white data-[state=active]:text-black" value="tournament">Tournament</TabsTrigger>
+              <TabsTrigger className="h-9 text-[#D1D1D1] data-[state=active]:bg-white data-[state=active]:text-black" value="branding">Branding</TabsTrigger>
+              <TabsTrigger className="h-9 text-[#D1D1D1] data-[state=active]:bg-white data-[state=active]:text-black" value="socials">Social Links</TabsTrigger>
+              <TabsTrigger className="h-9 text-[#D1D1D1] data-[state=active]:bg-white data-[state=active]:text-black" value="integrations">Integrations</TabsTrigger>
+              <TabsTrigger className="h-9 text-[#D1D1D1] data-[state=active]:bg-white data-[state=active]:text-black" value="general">General</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tournament" className="space-y-6 mt-4">
@@ -235,6 +254,44 @@ export function SettingsPage() {
               </div>
             </TabsContent>
 
+            <TabsContent value="socials" className="space-y-6 mt-4">
+              <div className="rounded-2xl border p-4 bg-[#141414]">
+                <div className="text-sm font-semibold mb-3">Player Social Links</div>
+                <p className="mb-4 text-xs text-[#9E9E9E]">
+                  These links show up in the player dashboard Quick Actions and can be used in future public pages.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="telegram-group-url" className="text-sm">Telegram Group Chat</label>
+                    <Input id="telegram-group-url" className="mt-1 bg-transparent" value={data?.socials?.telegram_group_url || ""} onChange={(e) => update("socials", { telegram_group_url: e.target.value })} placeholder="https://t.me/..." />
+                  </div>
+                  <div>
+                    <label htmlFor="whatsapp-group-url" className="text-sm">WhatsApp Group</label>
+                    <Input id="whatsapp-group-url" className="mt-1 bg-transparent" value={data?.socials?.whatsapp_group_url || ""} onChange={(e) => update("socials", { whatsapp_group_url: e.target.value })} placeholder="https://chat.whatsapp.com/..." />
+                  </div>
+                  <div>
+                    <label htmlFor="instagram-url" className="text-sm">Instagram</label>
+                    <Input id="instagram-url" className="mt-1 bg-transparent" value={data?.socials?.instagram_url || ""} onChange={(e) => update("socials", { instagram_url: e.target.value })} placeholder="https://instagram.com/..." />
+                  </div>
+                  <div>
+                    <label htmlFor="tiktok-url" className="text-sm">TikTok</label>
+                    <Input id="tiktok-url" className="mt-1 bg-transparent" value={data?.socials?.tiktok_url || ""} onChange={(e) => update("socials", { tiktok_url: e.target.value })} placeholder="https://tiktok.com/@..." />
+                  </div>
+                  <div>
+                    <label htmlFor="youtube-url" className="text-sm">YouTube</label>
+                    <Input id="youtube-url" className="mt-1 bg-transparent" value={data?.socials?.youtube_url || ""} onChange={(e) => update("socials", { youtube_url: e.target.value })} placeholder="https://youtube.com/..." />
+                  </div>
+                  <div>
+                    <label htmlFor="x-url" className="text-sm">X / Twitter</label>
+                    <Input id="x-url" className="mt-1 bg-transparent" value={data?.socials?.x_url || ""} onChange={(e) => update("socials", { x_url: e.target.value })} placeholder="https://x.com/..." />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <Button onClick={() => save("socials")}>Save Social Links</Button>
+              </div>
+            </TabsContent>
+
             <TabsContent value="integrations" className="space-y-6 mt-4">
               <div className="rounded-2xl border p-4 bg-[#141414]">
                 <div className="text-sm font-semibold mb-3">Discord</div>
@@ -284,8 +341,12 @@ export function SettingsPage() {
         <div className="lg:col-span-3">
           <div className="rounded-2xl border p-4 sticky top-4 bg-[#141414]">
             <div className="text-sm font-semibold mb-2">Help</div>
-            <div className="text-xs text-[#9E9E9E]">Settings let you tweak basics and connect Discord/Email. You can sync roster from approved players and finish or delete a tournament here.</div>
-            <div className="mt-2 text-xs"><a className="underline" href={data?.branding?.rules_url || "#"} target="_blank">Rules PDF</a> · <a className="underline" href={data?.branding?.discord_invite_url || "#"} target="_blank">Discord</a></div>
+            <div className="text-xs text-[#9E9E9E]">Settings let you tweak basics, add social links, connect Discord/Email, sync roster from approved players, and finish or delete a tournament.</div>
+            <div className="mt-2 space-x-2 text-xs">
+              <a className="underline" href={data?.branding?.rules_url || "#"} target="_blank">Rules</a>
+              <a className="underline" href={data?.socials?.telegram_group_url || "#"} target="_blank">Telegram</a>
+              <a className="underline" href={data?.branding?.discord_invite_url || "#"} target="_blank">Discord</a>
+            </div>
           </div>
         </div>
       </div>
@@ -305,4 +366,3 @@ export function SettingsPage() {
     </div>
   )
 }
-

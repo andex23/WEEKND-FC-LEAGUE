@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowUpRight, BookText, ClipboardList, LogOut, Send, UserPlus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -19,13 +19,34 @@ export default function UsefulLinks({
 }) {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
-  const telegramUrl = telegramInvite || TELEGRAM_GROUP_URL
+  const [siteLinks, setSiteLinks] = useState({
+    rulesUrl: rulesUrl || "/rules",
+    telegramUrl: telegramInvite || TELEGRAM_GROUP_URL,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch("/api/site-settings").catch(() => null)
+      if (!res?.ok) return
+      const settings = await res.json().catch(() => null)
+      if (cancelled || !settings) return
+      setSiteLinks({
+        rulesUrl: settings?.branding?.rulesUrl || rulesUrl || "/rules",
+        telegramUrl: settings?.socials?.telegramGroupUrl || telegramInvite || TELEGRAM_GROUP_URL,
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rulesUrl, telegramInvite])
+
   const links = [
-    { href: rulesUrl || "/rules", label: "League Rules", icon: BookText, external: !!rulesUrl },
+    { href: siteLinks.rulesUrl, label: "League Rules", icon: BookText, external: siteLinks.rulesUrl.startsWith("http") },
     { href: "/refer", label: "Refer a friend", icon: UserPlus, external: false },
-    { href: telegramUrl, label: "Telegram group chat", icon: Send, external: true },
+    { href: siteLinks.telegramUrl, label: "Telegram group chat", icon: Send, external: true },
     { href: reportHref || "/report", label: "Report Result", icon: ClipboardList, external: false },
-  ]
+  ].filter((link) => link.href)
 
   const logout = async () => {
     if (loggingOut) return

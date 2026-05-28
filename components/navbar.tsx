@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -17,8 +18,8 @@ export function Navbar() {
       <div className="container-5xl">
         <div className="flex h-14 items-center justify-between px-4 md:px-0">
           <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 font-heading text-sm text-black">
-              W
+            <span className="relative h-9 w-9 overflow-hidden rounded-full border border-amber-300/35 bg-[#eadfc9] shadow-[0_0_18px_rgba(16,185,129,0.18)]">
+              <Image src="/logo.png" alt="" fill sizes="36px" className="object-cover" priority />
             </span>
             <span className="font-heading text-lg tracking-wide text-white">Weekend FC</span>
           </Link>

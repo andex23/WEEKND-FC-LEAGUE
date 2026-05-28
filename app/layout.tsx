@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "Weekend Premier League - FIFA 25",
   description: "EA FC Community League for FIFA 25 players",
   generator: "v0.app",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 }
 
 export default function RootLayout({
