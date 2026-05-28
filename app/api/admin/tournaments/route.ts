@@ -22,6 +22,13 @@ export async function POST(req: Request) {
     const { action, ...data } = body
 
     if (action === "create") {
+      const extraConfig =
+        data.config && typeof data.config === "object" && !Array.isArray(data.config)
+          ? data.config
+          : {}
+      if (data.is_active) {
+        await admin.from("tournaments").update({ is_active: false, status: "DRAFT" }).eq("is_active", true)
+      }
       // Extra fields live under the tournaments.config JSON column.
       const insertData = {
         name: data.name,
@@ -31,6 +38,7 @@ export async function POST(req: Request) {
         end_at: data.end_at || null,
         is_active: !!data.is_active,
         config: {
+          ...extraConfig,
           type: data.type || "DOUBLE",
           players: data.players || 0,
           rules: data.rules || "",

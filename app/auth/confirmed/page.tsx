@@ -17,14 +17,13 @@ export default function EmailConfirmedPage() {
             <CheckCircle2 className="h-8 w-8" />
           </div>
 
-          <h1 className="mt-5 font-heading text-2xl text-white">Email confirmed</h1>
+          <h1 className="mt-5 font-heading text-2xl text-white">Account confirmed</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
-            Your email address is verified. An admin will review your registration shortly — you&apos;ll
-            be able to sign in as soon as your account is approved.
+            Your email address is verified. If an admin has approved your registration, you can sign in now.
           </p>
 
           <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-3 text-xs text-[#A8A8A8]">
-            We&apos;ll let you know once you&apos;re cleared to play. No further action needed for now.
+            New registrations still need admin approval before league access is opened.
           </div>
 
           <Link

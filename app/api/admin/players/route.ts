@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { updatePlayerStatusWithApprovalEmail } from "@/lib/admin/approval-confirmation"
+import { absoluteUrl } from "@/lib/site-url"
 
 export async function GET() {
   try {
@@ -43,6 +45,7 @@ export async function POST(request: Request) {
     
     const client = await createClient()
     const admin = createAdminClient()
+    const loginUrl = absoluteUrl("/auth/login", request.url)
 
     if (action === "clear") {
       // Fetch all UUIDs first, then delete by IN (avoids invalid uuid comparisons)
@@ -144,13 +147,29 @@ export async function POST(request: Request) {
         // Check if player is being deactivated (status changing from approved to pending)
         const { data: currentPlayer, error: fetchError } = await admin
           .from("players")
-          .select("status")
+          .select("id,name,email,status")
           .eq("id", id)
           .single()
         
         if (fetchError) throw fetchError
         
         const isBeingDeactivated = currentPlayer?.status === "approved" && src.status === "pending"
+        const isBeingApproved = src.status === "approved" && currentPlayer?.status !== "approved"
+
+        if (isBeingApproved) {
+          const result = await updatePlayerStatusWithApprovalEmail(admin, {
+            playerId: id,
+            status: "approved",
+            loginUrl,
+            patch,
+          })
+
+          if (!result.ok) {
+            return NextResponse.json({ error: result.error }, { status: result.statusCode })
+          }
+
+          return NextResponse.json({ success: true, player: result.player, emailSent: result.emailSent })
+        }
         
         const { data: updated, error } = await admin
           .from("players")
@@ -235,14 +254,17 @@ export async function POST(request: Request) {
     }
 
     if (action === "approve") {
-      const { data: updated, error } = await admin
-        .from("players")
-        .update({ status: "approved", updated_at: new Date().toISOString() })
-        .eq("id", String(data.id))
-        .select()
-        .single()
-      if (error) throw error
-      return NextResponse.json({ success: true, player: updated })
+      const result = await updatePlayerStatusWithApprovalEmail(admin, {
+        playerId: String(data.id),
+        status: "approved",
+        loginUrl,
+      })
+
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.statusCode })
+      }
+
+      return NextResponse.json({ success: true, player: result.player, emailSent: result.emailSent })
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })

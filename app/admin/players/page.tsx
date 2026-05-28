@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useRouter, usePathname } from "next/navigation"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
 import { toast } from "sonner"
+import { AlertTriangle, CalendarDays, CheckCircle2, Download, Search, ShieldCheck, Trash2, Trophy, type LucideIcon, Users } from "lucide-react"
 
 // All persistence is via Supabase. Remove local storage to avoid duplicates.
 
@@ -17,6 +18,7 @@ export default function AdminPlayersPage() {
   const pathname = usePathname()
   const [players, setPlayers] = useState<any[]>([])
   const [q, setQ] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [edit, setEdit] = useState<any | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -29,15 +31,47 @@ export default function AdminPlayersPage() {
   useEffect(() => { load() }, [])
 
   const activeCount = useMemo(() => players.filter((p) => String(p.status) === "approved").length, [players])
+  const pendingCount = useMemo(() => players.filter((p) => String(p.status || "pending").toLowerCase() === "pending").length, [players])
+  const rejectedCount = useMemo(() => players.filter((p) => String(p.status || "").toLowerCase() === "rejected").length, [players])
   const canCreateTournament = activeCount >= 6 && activeCount % 2 === 0
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
-    if (!query) return players
-    return players.filter((p) => [p.name, p.username, (p as any).gamer_tag, p.psn_name, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query)))
-  }, [players, q])
+    return players.filter((p) => {
+      const status = String(p.status || "pending").toLowerCase()
+      if (statusFilter !== "all" && status !== statusFilter) return false
+      if (!query) return true
+      return [p.name, p.username, p.email, (p as any).gamer_tag, p.psn_name, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query))
+    })
+  }, [players, q, statusFilter])
 
   const onAdded = () => load()
+
+  const updatePlayerStatus = async (player: any, nextStatus: "approved" | "pending" | "rejected") => {
+    const previousStatus = String(player.status || "pending").toLowerCase()
+    const response = await fetch("/api/admin/players", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update", id: player.id, status: nextStatus }),
+    })
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok || !result.success) {
+      throw new Error(result?.error || "Failed to update player status")
+    }
+
+    if (nextStatus === "approved") {
+      toast.success(result.emailSent ? "Player approved and confirmation email sent." : "Player approved successfully")
+    } else if (nextStatus === "rejected") {
+      toast.success("Player rejected")
+    } else if (previousStatus === "approved") {
+      toast.success("Player moved back to pending. Fixtures and standings were recalculated.")
+    } else {
+      toast.success("Player moved back to pending")
+    }
+
+    await load()
+  }
 
   const importCsv = async (file: File) => {
     const text = await file.text()
@@ -138,33 +172,36 @@ export default function AdminPlayersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad px-4 md:px-0">
-        <div className="mb-3">
-          <Button onClick={() => router.push("/admin")}>← Back to Admin</Button>
-        </div>
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          <aside className="hidden lg:block w-64 shrink-0">
-            <nav className="space-y-1">
+    <div className="min-h-screen bg-[#080A08] text-white">
+      <div className="mx-auto flex w-full max-w-[1500px] gap-5 px-4 py-5 lg:px-6">
+        <aside className="sticky top-5 hidden h-[calc(100vh-40px)] w-72 shrink-0 rounded-lg border border-[#243026] bg-[#0E120F] p-4 lg:block">
+          <div className="mb-6">
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Roster control</div>
+            <div className="mt-2 text-xl font-extrabold">Players</div>
+            <div className="mt-1 text-xs text-[#8A9A8D]">Approvals, clubs, and imports</div>
+          </div>
+          <nav className="space-y-1" aria-label="Admin navigation">
               {[
-                { key: "overview", label: "Overview" },
-                { key: "players", label: "Players" },
-                { key: "fixtures", label: "Fixtures" },
-                { key: "tournaments", label: "Tournaments" },
-                { key: "stats", label: "Stats" },
-                { key: "reports", label: "Reports" },
-                { key: "messaging", label: "Messaging" },
-                { key: "settings", label: "Settings" },
+                { key: "overview", label: "Overview", icon: Trophy },
+                { key: "players", label: "Players", icon: Users },
+                { key: "fixtures", label: "Fixtures", icon: CalendarDays },
+                { key: "tournaments", label: "Tournaments", icon: Trophy },
+                { key: "stats", label: "Stats", icon: ShieldCheck },
+                { key: "reports", label: "Reports", icon: AlertTriangle },
+                { key: "messaging", label: "Messaging", icon: CheckCircle2 },
+                { key: "settings", label: "Settings", icon: ShieldCheck },
               ].map((item) => {
+                const Icon = item.icon
                 const isActive = item.key === "players" || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
                 return (
                   <button
                     key={item.key}
                     onClick={() => (item.key === "fixtures" ? router.push("/admin/fixtures") : item.key === "tournaments" ? router.push("/admin/tournaments") : item.key === "players" ? router.push("/admin/players") : router.push("/admin"))}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
-                      isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
+                    className={`flex h-11 w-full items-center gap-2 rounded-md border px-3 text-sm transition-colors ${
+                      isActive ? "border-[#D6F66A] bg-[#D6F66A] text-[#10130D]" : "border-transparent text-[#DDE8D8] hover:border-[#273529] hover:bg-[#151B16]"
                     }`}
                   >
+                    <Icon className="h-4 w-4" />
                     {item.label}
                   </button>
                 )
@@ -172,11 +209,13 @@ export default function AdminPlayersPage() {
             </nav>
           </aside>
 
-          <section className="flex-1 space-y-6 min-w-0">
-            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <main className="min-w-0 flex-1 space-y-5">
+            <header className="rounded-lg border border-[#243026] bg-[#0E120F] p-4 sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h1 className="text-xl font-extrabold">Players</h1>
-                <p className="text-sm text-[#9E9E9E]">Add and manage players for tournaments</p>
+                <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Roster operations</div>
+                <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-4xl">Players</h1>
+                <p className="mt-1 text-sm text-[#A7B2A2]">Approve registrations, import rosters, and keep tournament eligibility clean.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <AdminOverlayNav />
@@ -201,14 +240,22 @@ export default function AdminPlayersPage() {
                 }}>Cleanup Deactivated Fixtures</Button>
                 <Button variant="outline" onClick={async () => { setConfirmClear(true) }}>Clear Players</Button>
               </div>
+              </div>
             </header>
+
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <RosterMetric icon={Users} label="Total" value={players.length} detail="All players" />
+              <RosterMetric icon={CheckCircle2} label="Approved" value={activeCount} detail="Can play" />
+              <RosterMetric icon={AlertTriangle} label="Pending" value={pendingCount} detail="Need approval" warning={pendingCount > 0} />
+              <RosterMetric icon={Trash2} label="Rejected" value={rejectedCount} detail="Declined" warning={rejectedCount > 0} />
+            </div>
 
             <AddForm onAdded={onAdded} />
 
-            <div className="rounded-2xl border p-4 bg-[#141414] space-y-4">
+            <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-sm font-semibold">Import Players {importing && "(Importing...)"}</div>
-                <Button variant="outline" onClick={downloadTemplate} disabled={importing}>Download CSV template</Button>
+                <Button variant="outline" onClick={downloadTemplate} disabled={importing}><Download className="h-4 w-4" /> CSV template</Button>
               </div>
               <div>
                 <input type="file" accept=".csv" disabled={importing} onChange={async (e) => { const input = e.currentTarget; const f = input.files?.[0]; if (f) await importCsv(f); input.value = "" }} />
@@ -224,7 +271,7 @@ export default function AdminPlayersPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border p-4 bg-[#141414] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Next steps</div>
                 <div className="text-xs text-[#9E9E9E]">Active players: {activeCount}. {activeCount < 6 ? "Need at least 6." : activeCount % 2 !== 0 ? "Even number required (no BYE)." : "Ready to create a tournament."}</div>
@@ -232,28 +279,41 @@ export default function AdminPlayersPage() {
               <Button variant="outline" onClick={() => router.push("/admin/tournaments") } disabled={!canCreateTournament}>Create Tournament</Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="px-3 py-1 rounded border bg-[#141414] text-xs">Active: <span className="font-semibold">{activeCount}</span></div>
-              <div className="px-3 py-1 rounded border bg-[#141414] text-xs">Total: <span className="font-semibold">{players.length}</span></div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-[#A7B2A2]">Showing {filtered.length} of {players.length} players</div>
+              <div className="text-xs text-[#8A9A8D]">Approving a pending player confirms their email and sends the approval notice.</div>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414] w-full sm:w-auto">
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/gamer tag/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent w-full" />
+              <div className="flex items-center gap-2 rounded-md border border-[#243026] bg-[#0E120F] px-3 py-2 w-full sm:w-[360px]">
+                <Search className="h-4 w-4 text-[#8A9A8D]" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name/email/club" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent w-full" />
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[170px] border-[#243026] bg-[#0E120F]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border">
-              <table className="w-full text-sm min-w-[920px]">
+            <div className="overflow-x-auto rounded-lg border border-[#243026] bg-[#0E120F]">
+              <table className="w-full text-sm min-w-[1040px]">
                 <thead className="text-[#9E9E9E]">
                   <tr>
                     <th className="text-left px-3 py-2">Name</th>
                     <th className="text-left px-3 py-2">Gamer Tag</th>
+                    <th className="text-left px-3 py-2">Email</th>
                     <th className="text-left px-3 py-2">Club</th>
                     <th className="text-left px-3 py-2">Console</th>
                     <th className="text-left px-3 py-2">Location</th>
                     <th className="text-left px-3 py-2">Connection</th>
-                    <th className="text-left px-3 py-2">Active</th>
+                    <th className="text-left px-3 py-2">Status</th>
                     <th className="text-right px-3 py-2">Actions</th>
                   </tr>
                 </thead>
@@ -262,6 +322,7 @@ export default function AdminPlayersPage() {
                     <tr key={p.id} className="border-t border-[#1E1E1E]">
                       <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2">{p.username || p.psn_name || "—"}</td>
+                      <td className="px-3 py-2">{p.email || "—"}</td>
                       <td className="px-3 py-2">{p.preferred_club || "—"}</td>
                       <td className="px-3 py-2">{p.console}</td>
                       <td className="px-3 py-2">{p.location || "—"}</td>
@@ -284,49 +345,38 @@ export default function AdminPlayersPage() {
                           <span className="text-[#6C6C6C]">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2">{String(p.status) === "approved" ? "Yes" : "No"}</td>
+                      <td className="px-3 py-2"><RosterStatusPill status={p.status} /></td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex flex-wrap gap-1 sm:gap-2">
                           <Button size="sm" variant="outline" onClick={() => setEdit(p)} className="text-xs sm:text-sm">Edit</Button>
                           <Button size="sm" variant="outline" onClick={async () => { 
                             try {
-                              const nextActive = String(p.status) !== "approved"; 
-                              const isDeactivating = String(p.status) === "approved" && !nextActive;
-                              const response = await fetch("/api/admin/players", { 
-                                method: "POST", 
-                                headers: { "Content-Type": "application/json" }, 
-                                body: JSON.stringify({ action: "update", id: p.id, status: nextActive ? "approved" : "pending" }) 
-                              }); 
-                              if (response.ok) {
-                                if (isDeactivating) {
-                                  toast.success(`Player deactivated successfully. All fixtures removed and standings recalculated for active players only.`)
-                                } else {
-                                  toast.success(`Player activated successfully`)
-                                }
-                                load()
-                              } else {
-                                throw new Error('Failed to update status')
-                              }
+                              await updatePlayerStatus(p, String(p.status) === "approved" ? "pending" : "approved")
                             } catch (error) {
-                              console.error("Error updating player status:", error)
-                              toast.error("Failed to update player status")
+                              toast.error(error instanceof Error ? error.message : "Failed to update player status")
                             }
-                          }} className="text-xs sm:text-sm">{String(p.status) === "approved" ? "Deactivate" : "Activate"}</Button>
-                          <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20 text-xs sm:text-sm" onClick={async () => { setConfirmDeleteId(p.id) }}>Delete</Button>
+                          }} className="text-xs sm:text-sm">{String(p.status) === "approved" ? "Move Pending" : "Approve"}</Button>
+                          <Button size="sm" variant="outline" disabled={String(p.status || "").toLowerCase() === "rejected"} className="text-amber-300 border-amber-900 hover:bg-amber-900/20 text-xs sm:text-sm" onClick={async () => {
+                            try {
+                              await updatePlayerStatus(p, "rejected")
+                            } catch (error) {
+                              toast.error(error instanceof Error ? error.message : "Failed to reject player")
+                            }
+                          }}>Reject</Button>
+                          <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20 text-xs sm:text-sm" onClick={async () => { setConfirmDeleteId(p.id) }}><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={8}>No players.</td></tr>
+                    <tr><td className="px-3 py-4 text-sm text-[#9E9E9E]" colSpan={9}>No players.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
 
             <EditDialog player={edit} onClose={() => setEdit(null)} onSaved={load} />
-          </section>
-        </div>
+          </main>
       </div>
       <PlayersConfirmDialogs
         confirmClear={confirmClear}
@@ -353,6 +403,34 @@ export default function AdminPlayersPage() {
         }}
       />
     </div>
+  )
+}
+
+function RosterMetric({ icon: Icon, label, value, detail, warning = false }: { icon: LucideIcon; label: string; value: number; detail: string; warning?: boolean }) {
+  return (
+    <div className={`min-h-[108px] rounded-lg border p-4 ${warning ? "border-amber-500/25 bg-amber-500/[0.06]" : "border-[#243026] bg-[#0E120F]"}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A9A8D]">{label}</div>
+        <Icon className={warning ? "h-4 w-4 text-amber-300" : "h-4 w-4 text-[#D6F66A]"} />
+      </div>
+      <div className="mt-4 text-2xl font-extrabold tabular-nums text-white">{value}</div>
+      <div className="mt-1 text-xs text-[#A7B2A2]">{detail}</div>
+    </div>
+  )
+}
+
+function RosterStatusPill({ status }: { status: string | null | undefined }) {
+  const normalized = String(status || "pending").toLowerCase()
+  const classes = normalized === "approved"
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+    : normalized === "rejected"
+      ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+      : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+
+  return (
+    <span className={`inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-bold uppercase tracking-[0.12em] ${classes}`}>
+      {normalized}
+    </span>
   )
 }
 
@@ -408,8 +486,11 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <div className="rounded-2xl border p-4 bg-[#141414]">
-      <div className="text-sm font-semibold mb-4">Add Player</div>
+    <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4">
+      <div className="mb-4">
+        <div className="text-sm font-semibold">Add Player</div>
+        <div className="mt-1 text-xs text-[#8A9A8D]">Manual adds are useful for seeded league rosters and late replacements.</div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
         <div className="sm:col-span-2 lg:col-span-1">
           <Label className="text-sm">Name (required)</Label>
@@ -458,7 +539,8 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
     if (player) {
       setForm({
         ...player,
-        gamer_tag: player.username || player.psn_name || ""
+        gamer_tag: player.username || player.psn_name || "",
+        active: String(player.status) === "approved",
       })
     }
   }, [player])
@@ -486,14 +568,14 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ action: "update", id: form.id, ...patch }) 
       })
+      const result = await response.json().catch(() => ({}))
       
       if (!response.ok) {
-        throw new Error(`Failed to update player: ${response.statusText}`)
+        throw new Error(result?.error || `Failed to update player: ${response.statusText}`)
       }
       
-      const result = await response.json()
       if (result.success) {
-        toast.success("Player updated successfully")
+        toast.success(result.emailSent ? "Player updated and confirmation email sent." : "Player updated successfully")
         onSaved()
         onClose()
       } else {
@@ -509,7 +591,7 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
 
   return (
     <Dialog open={!!player} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="sm:max-w-2xl bg-[#141414] text-white border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl border-[#243026] bg-[#0E120F] text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Player</DialogTitle>
         </DialogHeader>
@@ -559,7 +641,7 @@ function PlayersConfirmDialogs({ confirmClear, setConfirmClear, confirmDeleteId,
   return (
     <>
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
-        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+        <DialogContent className="sm:max-w-md border-[#243026] bg-[#0E120F] text-white">
           <DialogHeader>
             <DialogTitle>Clear all players?</DialogTitle>
           </DialogHeader>
@@ -570,7 +652,7 @@ function PlayersConfirmDialogs({ confirmClear, setConfirmClear, confirmDeleteId,
         </DialogContent>
       </Dialog>
       <Dialog open={!!confirmDeleteId} onOpenChange={(o) => setConfirmDeleteId(o ? (confirmDeleteId || "") : null)}>
-        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+        <DialogContent className="sm:max-w-md border-[#243026] bg-[#0E120F] text-white">
           <DialogHeader>
             <DialogTitle>Delete player?</DialogTitle>
           </DialogHeader>

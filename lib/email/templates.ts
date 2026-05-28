@@ -66,17 +66,17 @@ ${
 
 export type EmailContent = { subject: string; html: string }
 
-export function confirmEmail(name: string, confirmUrl: string): EmailContent {
+export function approvalConfirmedEmail(name: string, loginUrl: string): EmailContent {
   return {
-    subject: "Confirm your Weekend FC League account",
+    subject: "Your Weekend FC League account is approved",
     html: layout({
-      heading: "Confirm your email",
+      heading: "Registration approved",
       intro: `Hi ${escapeHtml(
         name,
-      )}, welcome to the Weekend FC League. Confirm your email address to lock in your registration — an admin will review it right after.`,
-      cta: { label: "Confirm my email", url: confirmUrl },
+      )}, an admin has approved your Weekend FC League registration. Your email is confirmed and your account is ready to use.`,
+      cta: { label: "Sign in", url: loginUrl },
       footerNote:
-        "Didn't sign up for the Weekend FC League? You can safely ignore this email.",
+        "You're receiving this because your Weekend FC League registration was approved.",
     }),
   }
 }
@@ -89,6 +89,20 @@ export function passwordChangedEmail(name: string): EmailContent {
       intro: `Hi ${escapeHtml(name)}, the password for your Weekend FC League account was just changed. If this was you, you're all set — no further action is needed.`,
       footerNote:
         "Didn't change your password? Reset it immediately from the sign-in page and let an admin know.",
+    }),
+  }
+}
+
+export function passwordResetEmail(name: string, resetUrl: string): EmailContent {
+  return {
+    subject: "Reset your Weekend FC League password",
+    html: layout({
+      heading: "Reset your password",
+      intro: `Hi ${escapeHtml(
+        name,
+      )}, use this secure link to choose a new password for your Weekend FC League account.`,
+      cta: { label: "Reset password", url: resetUrl },
+      footerNote: "If you didn't request a password reset, you can safely ignore this email.",
     }),
   }
 }

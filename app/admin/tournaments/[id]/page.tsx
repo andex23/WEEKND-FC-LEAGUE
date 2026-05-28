@@ -11,12 +11,17 @@ export default function TournamentSettingsPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [t, setT] = useState<any | null>(null)
+  const [entrySummary, setEntrySummary] = useState({ invited: 0, accepted: 0, declined: 0, total: 0 })
 
   useEffect(() => {
     ;(async () => {
-      const r = await fetch("/api/admin/tournaments").then((x) => x.json())
-      const found = (r.tournaments || []).find((x: any) => String(x.id) === String(id))
-      setT(found || null)
+      const [tournamentsResult, entriesResult] = await Promise.all([
+        fetch("/api/admin/tournaments").then((x) => x.json()),
+        fetch(`/api/admin/tournament-entries?tournamentId=${encodeURIComponent(String(id))}`).then((x) => x.json()).catch(() => ({ summary: null })),
+      ])
+      const found = (tournamentsResult.tournaments || []).find((x: any) => String(x.id) === String(id))
+      setT(found ? { ...found, type: found?.config?.type || found.type || "DOUBLE" } : null)
+      setEntrySummary(entriesResult.summary || { invited: 0, accepted: 0, declined: 0, total: 0 })
     })()
   }, [id])
 
@@ -27,12 +32,12 @@ export default function TournamentSettingsPage() {
   }
   const activate = async () => {
     if (!t) return
-    await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "tournament", data: { name: t.name, status: "ACTIVE", active_tournament_id: t.id, season: t.season, format: t.type } }) })
+    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) })
     toast.success("Activated")
   }
   const deactivate = async () => {
     if (!t) return
-    await fetch("/api/admin/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "tournament", data: { status: "INACTIVE", active_tournament_id: null } }) })
+    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) })
     toast.success("Deactivated")
   }
 
@@ -40,7 +45,11 @@ export default function TournamentSettingsPage() {
     if (!t) return
     const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
     const res = await fetch("/api/admin/generate-fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rounds, tournamentId: t.id, season: t.season }) })
-    if (!res.ok) { toast.error("Failed to generate fixtures"); return }
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}))
+      toast.error(error?.message || error?.error || "Failed to generate fixtures")
+      return
+    }
     toast.success("Fixtures generated")
   }
 
@@ -50,12 +59,13 @@ export default function TournamentSettingsPage() {
     toast.success("Cleared fixtures")
   }
 
-  const syncRoster = async () => {
+  const inviteAll = async () => {
     if (!t) return
-    const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: t.id }) })
-    if (!res.ok) { toast.error("Failed to sync roster"); return }
-    const data = await res.json().catch(() => null)
-    toast.success(`Roster synced (${data?.count ?? 0} players)`) 
+    const res = await fetch("/api/admin/tournament-entries", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "invite_all_approved", tournamentId: t.id }) })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(data?.error || "Failed to invite players"); return }
+    setEntrySummary(data?.summary || entrySummary)
+    toast.success(`Invitations ready for ${data?.summary?.total ?? 0} players`)
   }
 
   if (!t) return (
@@ -107,11 +117,28 @@ export default function TournamentSettingsPage() {
         </div>
 
         <div className="rounded-2xl border p-4 bg-[#141414] space-y-3">
-          <div className="text-sm font-semibold">Actions</div>
+          <div className="text-sm font-semibold">Invitations</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              ["Invited", entrySummary.invited],
+              ["Accepted", entrySummary.accepted],
+              ["Declined", entrySummary.declined],
+              ["Total", entrySummary.total],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md border border-[#243026] bg-[#0B0E0C] p-3">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-[#8A9A8D]">{label}</div>
+                <div className="mt-1 text-xl font-extrabold tabular-nums">{value}</div>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" onClick={inviteAll}>Invite Approved Players</Button>
+        </div>
+
+        <div className="rounded-2xl border p-4 bg-[#141414] space-y-3">
+          <div className="text-sm font-semibold">Fixtures</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={generate}>Generate Fixtures</Button>
             <Button variant="outline" onClick={clearFixtures}>Clear Fixtures</Button>
-            <Button variant="outline" onClick={syncRoster}>Sync Roster</Button>
           </div>
         </div>
       </div>

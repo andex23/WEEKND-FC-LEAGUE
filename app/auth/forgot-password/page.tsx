@@ -2,12 +2,15 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Trophy } from "lucide-react"
+import { Loader2, Mail } from "lucide-react"
 import { ErrorBanner } from "@/components/ui/error-banner"
+import { BackgroundVideo } from "@/components/background-video"
+
+const labelClass = "text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]"
+const inputClass =
+  "h-11 rounded-lg border-[#2A2A2A] bg-[#0F0F0F] pl-10 text-white placeholder:text-[#5C5C5C] focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -20,11 +23,15 @@ export default function ForgotPasswordPage() {
     setSending(true)
     setError(null)
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       })
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || "Could not send the reset email.")
+      }
       setSent(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send the reset email.")
@@ -34,71 +41,82 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Trophy className="h-12 w-12 text-accent" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-12">
+      <BackgroundVideo />
+
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div className="absolute left-1/2 top-0 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8">
+        <div className="text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 font-heading text-xl text-black">
+            W
           </div>
-          <CardTitle className="text-2xl font-heading">Reset your password</CardTitle>
-          <CardDescription>
-            Enter your email and we'll send you a link to set a new password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <h1 className="mt-4 font-heading text-2xl text-white">Reset your password</h1>
+          <p className="mt-1 text-sm text-[#8A8A8A]">
+            Enter your email and we&apos;ll send you a link to set a new password.
+          </p>
+        </div>
+
+        <div className="mt-6">
           {sent ? (
             <div className="space-y-4 text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm leading-6 text-[#B0B0B0]">
                 If an account exists for <span className="font-medium">{email}</span>, a reset
                 link is on its way. Check your inbox.
               </p>
               <Link
                 href="/auth/login"
-                className="text-accent hover:underline text-sm font-medium"
+                className="text-sm font-medium text-emerald-400 hover:underline"
               >
                 Back to sign in
               </Link>
             </div>
           ) : (
-            <form onSubmit={onSubmit} className="space-y-6">
+            <form onSubmit={onSubmit} className="space-y-4">
               {error && <ErrorBanner title="Couldn't send reset link" message={error} />}
-              <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium">
+              <div className="space-y-1.5">
+                <label htmlFor="email" className={labelClass}>
                   Email
                 </label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="h-12"
-                />
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5C5C5C]" />
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className={inputClass}
+                  />
+                </div>
               </div>
               <Button
                 type="submit"
                 disabled={sending}
-                className="w-full bg-accent hover:bg-accent/90 text-white h-12"
+                className="h-12 w-full font-heading text-black"
+                style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
               >
                 {sending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Sending…
                   </>
                 ) : (
                   "Send reset link"
                 )}
               </Button>
-              <div className="text-center text-muted-foreground text-sm">
-                <Link href="/auth/login" className="text-accent hover:underline font-medium">
+              <div className="text-center text-sm text-[#7A7A7A]">
+                <Link href="/auth/login" className="font-medium text-emerald-400 hover:underline">
                   Back to sign in
                 </Link>
               </div>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

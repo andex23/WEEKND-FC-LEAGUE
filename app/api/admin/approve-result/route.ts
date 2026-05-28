@@ -35,7 +35,11 @@ export async function POST(request: Request) {
         }
 
         // 3) Trigger recompute (RPC if exists), else rely on views on read
-        await sb.rpc("recompute_aggregates").catch(() => null)
+        try {
+          await sb.rpc("recompute_aggregates")
+        } catch {
+          // Best-effort RPC; some local schemas may not have it yet.
+        }
       }
     } catch (e) {
       // Fallback: no-op

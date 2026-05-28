@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import type { CheckedState } from "@radix-ui/react-checkbox"
 
 interface SubmitResultDialogProps {
   fixture: {
@@ -144,11 +145,11 @@ export function SubmitResultDialog({ fixture, onSubmitted }: SubmitResultDialogP
         {/* Confirmations */}
         <div className="space-y-3 mt-3">
           <div className="flex items-center space-x-2">
-            <Checkbox id="playerConfirm" checked={playerConfirmed} onCheckedChange={(c) => setPlayerConfirmed(c as boolean)} />
+            <Checkbox id="playerConfirm" checked={playerConfirmed} onCheckedChange={(c: CheckedState) => setPlayerConfirmed(c === true)} />
             <Label htmlFor="playerConfirm" className="text-sm">I confirm this score is accurate</Label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="opponentConfirm" checked={opponentConfirmed} onCheckedChange={(c) => setOpponentConfirmed(c as boolean)} />
+            <Checkbox id="opponentConfirm" checked={opponentConfirmed} onCheckedChange={(c: CheckedState) => setOpponentConfirmed(c === true)} />
             <Label htmlFor="opponentConfirm" className="text-sm">My opponent has confirmed this score</Label>
           </div>
         </div>

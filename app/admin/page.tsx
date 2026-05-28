@@ -1,16 +1,37 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, usePathname } from "next/navigation"
-import { ChevronLeft, ChevronRight, Download, Filter as FilterIcon, Search as SearchIcon, Plus } from "lucide-react"
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  Filter as FilterIcon,
+  LayoutDashboard,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Search as SearchIcon,
+  Send,
+  Settings,
+  ShieldCheck,
+  type LucideIcon,
+  Trophy,
+  Users,
+} from "lucide-react"
 import { SettingsPage } from "@/components/admin/settings-page"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
+import { toast } from "sonner"
 
 // Route-backed nav items push a URL; in-page sections are tracked in local
 // state and mirrored to the URL hash so they can be deep-linked.
@@ -22,6 +43,17 @@ const SECTION_ROUTES: Record<string, string> = {
   messaging: "/admin/messaging",
 }
 const HASH_SECTIONS = new Set(["overview", "registrations", "reports", "settings"])
+
+const ADMIN_NAV = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "players", label: "Players", icon: Users },
+  { key: "fixtures", label: "Fixtures", icon: CalendarDays },
+  { key: "tournaments", label: "Tournaments", icon: Trophy },
+  { key: "stats", label: "Stats", icon: BarChart3 },
+  { key: "reports", label: "Reports", icon: ClipboardCheck },
+  { key: "messaging", label: "Messaging", icon: MessageSquare },
+  { key: "settings", label: "Settings", icon: Settings },
+]
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -36,6 +68,7 @@ export default function AdminDashboard() {
   const [leagueSettings, setLeagueSettings] = useState<any>(null)
   const [playerStats, setPlayerStats] = useState<any>(null)
   const [resultsQueue, setResultsQueue] = useState<any[]>([])
+  const [entrySummary, setEntrySummary] = useState({ invited: 0, accepted: 0, declined: 0, total: 0 })
   const [clearing, setClearing] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -97,20 +130,23 @@ export default function AdminDashboard() {
       // Build query string for tournament-specific data
       const tournamentQuery = activeTournament ? `?tournamentId=${encodeURIComponent(String(activeTournament.id))}` : ""
       
-      const [playersRes, standingsRes, statusRes, settingsRes] = await Promise.all([
+      const [playersRes, standingsRes, statusRes, settingsRes, entriesRes] = await Promise.all([
         fetch("/api/admin/players"),
         fetch(`/api/standings${tournamentQuery}`),
         fetch("/api/league/status"),
         fetch("/api/admin/settings").catch(() => null),
+        fetch(activeTournament ? `/api/admin/tournament-entries?tournamentId=${encodeURIComponent(String(activeTournament.id))}` : "/api/admin/tournament-entries").catch(() => null),
       ])
 
       const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
       const statusData = await statusRes.json()
       const settingsData = settingsRes ? await settingsRes.json() : null
+      const entriesData = entriesRes ? await entriesRes.json().catch(() => null) : null
 
       setPlayers(playersData.players || [])
       setStandings(standingsData.standings || [])
+      setEntrySummary(entriesData?.summary || { invited: 0, accepted: 0, declined: 0, total: 0 })
       
       // Fetch fixtures specifically for active tournament
       let activeTournamentFixtures: any[] = []
@@ -219,9 +255,15 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId, action: "approve" }),
       })
-      if (response.ok) fetchAllData()
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast.error(result?.error || "Failed to approve player")
+        return
+      }
+      toast.success(result.emailSent ? "Player approved and confirmation email sent." : "Player approved.")
+      fetchAllData()
     } catch (err) {
-      console.error("Error approving player:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to approve player")
     }
   }
 
@@ -232,9 +274,15 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId, action: "reject" }),
       })
-      if (response.ok) fetchAllData()
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast.error(result?.error || "Failed to reject player")
+        return
+      }
+      toast.success("Player rejected.")
+      fetchAllData()
     } catch (err) {
-      console.error("Error rejecting player:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to reject player")
     }
   }
 
@@ -548,95 +596,129 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
-      <div className="container-5xl section-pad">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-[28px] md:text-[32px] font-extrabold">Admin</h1>
-            <p className="text-sm text-[#9E9E9E]">Manage the Weekend FC League</p>
+    <div className="min-h-screen bg-[#080A08] text-white">
+      <div className="mx-auto flex w-full max-w-[1500px] gap-5 px-4 py-5 lg:px-6">
+        <aside className="sticky top-5 hidden h-[calc(100vh-40px)] w-72 shrink-0 rounded-lg border border-[#243026] bg-[#0E120F] p-4 lg:block">
+          <div className="mb-6">
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Control room</div>
+            <div className="mt-2 text-xl font-extrabold">Weekend FC</div>
+            <div className="mt-1 text-xs text-[#8A9A8D]">League operations dashboard</div>
           </div>
-          <div className="flex items-center gap-2">
-            <AdminOverlayNav />
-            <Button variant="outline" onClick={() => setConfirmClear(true)}>Clear League Data</Button>
-          </div>
-        </div>
-        {String(leagueSettings?.status || "").toUpperCase() === "COMPLETED" && (
-          <div className="mb-6 border rounded-md p-3 bg-[#141414] text-[#D1D1D1] text-sm">
-            Tournament is completed. Editing fixtures and approving new results are disabled.
-          </div>
-        )}
-
-        <div className="flex gap-8">
-          <aside className="w-64 shrink-0">
-            <nav className="space-y-1">
-              {[
-                { key: "overview", label: "Overview" },
-                { key: "players", label: "Players" },
-                { key: "fixtures", label: "Fixtures" },
-                { key: "tournaments", label: "Tournaments" },
-                { key: "stats", label: "Stats" },
-                { key: "reports", label: "Reports" },
-                { key: "messaging", label: "Messaging" },
-                { key: "settings", label: "Settings" },
-              ].map((item) => {
-                const isActive = section === item.key || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => selectSection(item.key)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
-                      isActive ? "bg-[#141414] border-[#1E1E1E]" : "bg-transparent hover:bg-[#141414] border-transparent"
-                    }`}
-                  >
+          <nav className="space-y-1" aria-label="Admin sections">
+            {ADMIN_NAV.map((item) => {
+              const Icon = item.icon
+              const isActive = section === item.key || ((item.key === "fixtures" || item.key === "tournaments") && (pathname || "").startsWith(`/admin/${item.key}`))
+              const badge = item.key === "overview" ? activePlayersCount : item.key === "reports" ? matchesPendingApproval : item.key === "players" ? pendingRegistrations.length : null
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => selectSection(item.key)}
+                  className={`flex h-11 w-full items-center justify-between rounded-md border px-3 text-sm transition-colors ${
+                    isActive
+                      ? "border-[#D6F66A] bg-[#D6F66A] text-[#10130D]"
+                      : "border-transparent text-[#DDE8D8] hover:border-[#273529] hover:bg-[#151B16]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
                     {item.label}
-                  </button>
-                )
-              })}
-            </nav>
-          </aside>
+                  </span>
+                  {badge !== null ? <span className="tabular-nums opacity-70">{badge}</span> : null}
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
 
-          <section className="flex-1">
+        <main className="min-w-0 flex-1 space-y-5">
+          <header className="rounded-lg border border-[#243026] bg-[#0E120F] p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[#A7B2A2]">
+                  <StatusPill tone={leagueActive ? "green" : "amber"}>{leagueActive ? "Active tournament" : "Setup needed"}</StatusPill>
+                  <span>{leagueSettings?.name || "Weekend FC League"}</span>
+                </div>
+                <h1 className="mt-2 text-2xl font-extrabold tracking-tight md:text-4xl">Admin operations</h1>
+                <p className="mt-1 max-w-2xl text-sm text-[#A7B2A2]">
+                  Review registrations, protect fixture quality, and keep the league moving from one dense workspace.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminOverlayNav />
+                <Button variant="outline" onClick={fetchAllData} disabled={loading}>
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </Button>
+                <Button variant="outline" className="border-rose-900/70 text-rose-300 hover:bg-rose-950/30" onClick={() => setConfirmClear(true)}>
+                  <AlertTriangle className="h-4 w-4" /> Clear Data
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          {String(leagueSettings?.status || "").toUpperCase() === "COMPLETED" && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+              Tournament is completed. Editing fixtures and approving new results are disabled.
+            </div>
+          )}
+
+          <section>
             {section === "overview" && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Players (Active / Total)</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{activePlayersCount} / {players.length}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Tournaments</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.tournaments || 0}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Fixtures Created</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.activeTournament ? fixtures.length : 0}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Matches Played</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{leagueSettings?.activeTournament ? matchesPlayed : 0}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">Pending Approval</div>
-                    <div className="text-2xl font-bold tabular-nums text-[#00C853]">{matchesPendingApproval}</div>
-                  </div>
-                  <div className="rounded-2xl p-4 border bg-[#141414] flex flex-col justify-between min-h-[88px]">
-                    <div className="text-xs text-[#9E9E9E]">League Status</div>
-                    <div className="text-sm font-semibold">{leagueSettings?.activeTournament ? (leagueSettings?.status || "DRAFT") : "NO ACTIVE TOURNAMENT"}</div>
-                  </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-7">
+                  <MetricCard icon={Users} label="Active / total" value={`${activePlayersCount} / ${players.length}`} detail={`${pendingRegistrations.length} pending`} tone="green" />
+                  <MetricCard icon={Trophy} label="Tournaments" value={leagueSettings?.tournaments || 0} detail={leagueSettings?.activeTournament?.name || "No active tournament"} tone="lime" />
+                  <MetricCard icon={Send} label="Invites" value={`${entrySummary.accepted}/${entrySummary.total}`} detail={`${entrySummary.invited} waiting`} tone={entrySummary.invited ? "amber" : "green"} />
+                  <MetricCard icon={CalendarDays} label="Fixtures" value={leagueSettings?.activeTournament ? fixtures.length : 0} detail="Created" tone="cyan" />
+                  <MetricCard icon={CheckCircle2} label="Played" value={leagueSettings?.activeTournament ? matchesPlayed : 0} detail="Official matches" tone="green" />
+                  <MetricCard icon={ClipboardCheck} label="Reports" value={matchesPendingApproval} detail="Need review" tone={matchesPendingApproval ? "amber" : "green"} />
+                  <MetricCard icon={ShieldCheck} label="Status" value={leagueSettings?.activeTournament ? (leagueSettings?.status || "DRAFT") : "None"} detail="League state" tone={leagueActive ? "green" : "amber"} />
                 </div>
 
+                {pendingRegistrations.length > 0 && (
+                  <Panel
+                    title="Approval queue"
+                    kicker={`${pendingRegistrations.length} waiting`}
+                    action={
+                      <Button size="sm" onClick={bulkApproveAll}>
+                        <CheckCircle2 className="h-4 w-4" /> Approve all
+                      </Button>
+                    }
+                  >
+                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      {pendingRegistrations.slice(0, 6).map((p) => (
+                        <div key={p.id} className="rounded-md border border-[#243026] bg-[#0B0E0C] p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold">{p.name}</div>
+                              <div className="mt-1 truncate text-xs text-[#8A9A8D]">{p.email || "No email on file"}</div>
+                            </div>
+                            <StatusPill tone={p.email ? "amber" : "rose"}>{p.email ? "Pending" : "No email"}</StatusPill>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <Button size="sm" className="h-8 flex-1" onClick={() => approvePlayer(p.id)}>
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-8 flex-1" onClick={() => rejectPlayer(p.id)}>
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                )}
+
                 {!leagueSettings?.activeTournament && (
-                  <div className="rounded-2xl border p-4 bg-[#141414] text-center">
+                  <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-5 text-center">
                     <div className="text-sm text-[#9E9E9E] mb-2">No Active Tournament</div>
                     <div className="text-xs text-[#9E9E9E]">All tournaments are currently inactive. Activate a tournament to see live data.</div>
                   </div>
                 )}
 
                 {leagueActive && fixtures.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="rounded-2xl p-4 border bg-[#141414]">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <Panel title="League table" kicker="Top 5">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="text-sm font-semibold">League Standings (Top 5)</div>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}>
                             {loading ? "Refreshing..." : "Refresh"}
@@ -698,13 +780,9 @@ export default function AdminDashboard() {
                       ) : (
                         <div className="text-sm text-[#9E9E9E]">No players found.</div>
                       )}
-                    </div>
+                    </Panel>
 
-                    <div className="rounded-2xl p-4 border bg-[#141414]">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-sm font-semibold">Stats Leaders</div>
-                        <Button variant="outline" size="sm" onClick={() => router.push("/admin/stats")}>Open Stats</Button>
-                      </div>
+                    <Panel title="Stats leaders" kicker="Current form" action={<Button variant="outline" size="sm" onClick={() => router.push("/admin/stats")}>Open Stats</Button>}>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                           <div className="text-xs text-[#9E9E9E] mb-1">Top Scorers</div>
@@ -734,10 +812,10 @@ export default function AdminDashboard() {
                           )) || <div className="text-xs text-[#9E9E9E]">—</div>}
                         </div>
                       </div>
-                    </div>
+                    </Panel>
                   </div>
                 ) : (
-                  <div className="rounded-2xl p-8 flex items-center justify-between border bg-[#141414]">
+                  <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-8 flex items-center justify-between">
                     <div>
                       <div className="text-sm font-semibold">League Standings & Stats</div>
                       <div className="text-xs text-[#9E9E9E]">No league yet. Create one to see standings and leaders here.</div>
@@ -746,7 +824,7 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <div className="rounded-2xl p-4 border bg-[#141414] flex items-center justify-between">
+                <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4 flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Reports</div>
                     <div className="text-xs text-[#9E9E9E]">Pending {matchesPendingApproval} • Last 7 days {recentReports7d}</div>
@@ -758,13 +836,34 @@ export default function AdminDashboard() {
 
             {section === "registrations" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold">Players</h2>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Roster intake</div>
+                    <h2 className="mt-1 text-2xl font-extrabold">Registrations</h2>
+                    <p className="mt-1 text-sm text-[#A7B2A2]">Approve players only when their confirmation email can be sent.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" disabled={selectedIds.size === 0} onClick={() => bulkAction("approve")}>
+                      <CheckCircle2 className="h-4 w-4" /> Approve selected
+                    </Button>
+                    <Button variant="outline" disabled={selectedIds.size === 0} onClick={() => bulkAction("reject")}>
+                      Reject selected
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Manual add */}
                 <ManualAdd onAdded={fetchAllData} />
 
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <MetricCard icon={Users} label="Total" value={players.length} detail="All registrations" tone="lime" />
+                  <MetricCard icon={ShieldCheck} label="Approved" value={approvedPlayers.length} detail="Cleared to play" tone="green" />
+                  <MetricCard icon={AlertTriangle} label="Pending" value={pendingRegistrations.length} detail="Need review" tone={pendingRegistrations.length ? "amber" : "green"} />
+                  <MetricCard icon={AlertTriangle} label="Conflicts" value={conflictsCount} detail={`${rejectedCount} rejected`} tone={conflictsCount ? "rose" : "green"} />
+                </div>
+
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                  <div className="flex w-full items-center gap-2 rounded-md border border-[#243026] bg-[#0E120F] px-3 py-2 sm:w-[360px]">
                     <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
                     <Input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
@@ -778,11 +877,7 @@ export default function AdminDashboard() {
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap gap-4">
-                  <div className="px-4 py-2 rounded-md border bg-[#141414] text-sm">Total Players: <span className="font-semibold">{players.length}</span></div>
-                </div>
-
-                <div className="overflow-x-auto rounded-2xl border">
+                <div className="overflow-x-auto rounded-lg border border-[#243026] bg-[#0E120F]">
                   <table className="w-full text-sm">
                     <thead className="text-[#9E9E9E]">
                       <tr>
@@ -795,8 +890,8 @@ export default function AdminDashboard() {
                         <th className="text-left px-3 py-2">Console</th>
                         <th className="text-left px-3 py-2">Club</th>
                         <th className="text-left px-3 py-2">Location</th>
-                        <th className="hidden px-3 py-2">Status</th>
-                        <th className="hidden px-3 py-2">Actions</th>
+                        <th className="text-left px-3 py-2">Status</th>
+                        <th className="text-right px-3 py-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -811,8 +906,17 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{p.console || "—"}</td>
                           <td className="px-3 py-2">{p.preferred_team || p.preferred_club || "—"}</td>
                           <td className="px-3 py-2">{p.location || p.city || p.country || "—"}</td>
-                          <td className="hidden px-3 py-2" />
-                          <td className="hidden px-3 py-2" />
+                          <td className="px-3 py-2">
+                            <StatusPill tone={(p.status || "pending").toLowerCase() === "approved" ? "green" : (p.status || "pending").toLowerCase() === "rejected" ? "rose" : "amber"}>
+                              {p.status || "pending"}
+                            </StatusPill>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <div className="inline-flex gap-2">
+                              <Button size="sm" onClick={() => approvePlayer(p.id)} disabled={(p.status || "").toLowerCase() === "approved"}>Approve</Button>
+                              <Button size="sm" variant="outline" onClick={() => rejectPlayer(p.id)} disabled={(p.status || "").toLowerCase() === "rejected"}>Reject</Button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -822,18 +926,18 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-[#9E9E9E]">Rows per page: {rowsPerPage}</div>
                   <div className="flex items-center gap-1">
-                    <button className="p-2 hover:bg-[#141414] rounded" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    <button className="p-2 hover:bg-[#151B16] rounded" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     {Array.from({ length: pageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setPage(num)} className={`h-8 w-8 rounded ${currentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#151B16]"}`}>
                           {num}
                         </button>
                       )
                     })}
-                    <button className="p-2 hover:bg-[#141414] rounded" disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
+                    <button className="p-2 hover:bg-[#151B16] rounded" disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -843,10 +947,25 @@ export default function AdminDashboard() {
 
             {section === "reports" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold">Reports</h2>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Match control</div>
+                    <h2 className="mt-1 text-2xl font-extrabold">Result reports</h2>
+                    <p className="mt-1 text-sm text-[#A7B2A2]">Review pending score reports before they become official.</p>
+                  </div>
+                  <Button disabled={selectedReportIds.size === 0 || String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"} onClick={bulkApproveReports}>
+                    <CheckCircle2 className="h-4 w-4" /> Approve selected
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <MetricCard icon={ClipboardCheck} label="Total reports" value={resultsQueue.length} detail="In queue" tone="lime" />
+                  <MetricCard icon={AlertTriangle} label="Pending" value={matchesPendingApproval} detail="Need admin review" tone={matchesPendingApproval ? "amber" : "green"} />
+                  <MetricCard icon={CalendarDays} label="Recent" value={recentReports7d} detail="Last 7 days" tone="cyan" />
+                </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                  <div className="flex w-full items-center gap-2 rounded-md border border-[#243026] bg-[#0E120F] px-3 py-2 sm:w-[360px]">
                     <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
                     <Input value={reportQuery} onChange={(e) => { setReportQuery(e.target.value); setReportPage(1) }} placeholder="Search" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
@@ -868,12 +987,7 @@ export default function AdminDashboard() {
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap gap-4">
-                  <div className="px-4 py-2 rounded-md border bg-[#141414] text-sm">Total: <span className="font-semibold">{resultsQueue.length}</span></div>
-                  <div className="px-4 py-2 rounded-md border bg-amber-900/20 text-sm text-amber-300">Pending: <span className="font-semibold">{matchesPendingApproval}</span></div>
-                          </div>
-
-                <div className="overflow-x-auto rounded-2xl border">
+                <div className="overflow-x-auto rounded-lg border border-[#243026] bg-[#0E120F]">
                   <table className="w-full text-sm">
                     <thead className="text-[#9E9E9E]">
                       <tr>
@@ -915,18 +1029,18 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-[#9E9E9E]">Rows per page: {reportRowsPerPage}</div>
                   <div className="flex items-center gap-1">
-                    <button className="p-2 hover:bg-[#141414] rounded" disabled={reportsCurrentPage <= 1} onClick={() => setReportPage((p) => Math.max(1, p - 1))}>
+                    <button className="p-2 hover:bg-[#151B16] rounded" disabled={reportsCurrentPage <= 1} onClick={() => setReportPage((p) => Math.max(1, p - 1))}>
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     {Array.from({ length: reportsPageCount }).slice(0, 5).map((_, i) => {
                       const num = i + 1
                       return (
-                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#141414]"}`}>
+                        <button key={num} onClick={() => setReportPage(num)} className={`h-8 w-8 rounded ${reportsCurrentPage === num ? "bg-emerald-500 text-black" : "hover:bg-[#151B16]"}`}>
                           {num}
                         </button>
                       )
                     })}
-                    <button className="p-2 hover:bg-[#141414] rounded" disabled={reportsCurrentPage >= reportsPageCount} onClick={() => setReportPage((p) => Math.min(reportsPageCount, p + 1))}>
+                    <button className="p-2 hover:bg-[#151B16] rounded" disabled={reportsCurrentPage >= reportsPageCount} onClick={() => setReportPage((p) => Math.min(reportsPageCount, p + 1))}>
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -938,10 +1052,17 @@ export default function AdminDashboard() {
 
             {section === "messaging" && (
               <div className="space-y-6">
-                <h2 className="text-[26px] font-extrabold">Messaging</h2>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Comms desk</div>
+                    <h2 className="mt-1 text-2xl font-extrabold">Messaging</h2>
+                    <p className="mt-1 text-sm text-[#A7B2A2]">Send league-wide updates and direct player notices from one queue.</p>
+                  </div>
+                  <Button variant="outline" className="h-9" onClick={clearMessages}>Clear History</Button>
+                </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-[#141414]">
+                  <div className="flex w-full items-center gap-2 rounded-md border border-[#243026] bg-[#0E120F] px-3 py-2 sm:w-[360px]">
                     <SearchIcon className="h-4 w-4 text-[#9E9E9E]" />
                     <Input value={messageQuery} onChange={(e) => setMessageQuery(e.target.value)} placeholder="Search messages" className="h-7 border-0 focus-visible:ring-0 p-0 bg-transparent" />
                   </div>
@@ -959,23 +1080,35 @@ export default function AdminDashboard() {
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </Button>
-                  <Button variant="outline" className="h-9" onClick={clearMessages}>Clear History</Button>
                 </div>
 
-                <div className="rounded-2xl border p-4 bg-[#141414]">
-                  <Label className="text-sm">Global broadcast</Label>
-                  <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Write a league-wide announcement (sent to dashboards)" className="mt-2 bg-transparent" />
-                  <div className="flex justify-end mt-3">
-                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={sendBroadcast}>Send Broadcast</Button>
-                  </div>
-                </div>
+                <Panel
+                  title="Global broadcast"
+                  kicker="All players"
+                  action={
+                    <Button className="bg-[#D6F66A] text-[#10130D] hover:bg-[#E9FF9A]" onClick={sendBroadcast}>
+                      <Send className="h-4 w-4" /> Send Broadcast
+                    </Button>
+                  }
+                >
+                  <Label className="text-sm text-[#DDE8D8]">Announcement</Label>
+                  <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Write a league-wide announcement" className="mt-2 border-[#243026] bg-[#080A08]" />
+                </Panel>
 
-                <div className="rounded-2xl border p-4 bg-[#141414]">
+                <Panel
+                  title="Direct message"
+                  kicker="One player"
+                  action={
+                    <Button className="bg-[#D6F66A] text-[#10130D] hover:bg-[#E9FF9A]" onClick={sendDirect}>
+                      <Send className="h-4 w-4" /> Send Message
+                    </Button>
+                  }
+                >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                      <Label className="text-sm">Player</Label>
+                      <Label className="text-sm text-[#DDE8D8]">Player</Label>
                       <Select value={directPlayerId} onValueChange={(v) => setDirectPlayerId(v)}>
-                        <SelectTrigger className="mt-2">
+                        <SelectTrigger className="mt-2 border-[#243026] bg-[#080A08]">
                           <SelectValue placeholder="Choose player" />
                         </SelectTrigger>
                         <SelectContent>
@@ -986,16 +1119,13 @@ export default function AdminDashboard() {
                       </Select>
                     </div>
                     <div className="md:col-span-2">
-                      <Label className="text-sm">Message</Label>
-                      <Input value={directText} onChange={(e) => setDirectText(e.target.value)} placeholder="Direct message (for disputes/clarifications)" className="mt-2 bg-transparent" />
+                      <Label className="text-sm text-[#DDE8D8]">Message</Label>
+                      <Input value={directText} onChange={(e) => setDirectText(e.target.value)} placeholder="Direct message for disputes or clarifications" className="mt-2 border-[#243026] bg-[#080A08]" />
                     </div>
                   </div>
-                  <div className="flex justify-end mt-3">
-                    <Button className="bg-[#00C853] text-black hover:bg-[#00C853]/90" onClick={sendDirect}>Send Message</Button>
-                  </div>
-                </div>
+                </Panel>
 
-                <div className="overflow-x-auto rounded-2xl border">
+                <div className="overflow-x-auto rounded-lg border border-[#243026] bg-[#0E120F]">
                   <table className="w-full text-sm">
                     <thead className="text-[#9E9E9E]">
                       <tr>
@@ -1014,7 +1144,7 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{m.content}</td>
                           <td className="px-3 py-2 text-[#9E9E9E]">{new Date(m.createdAt).toLocaleString()}</td>
                           <td className="px-3 py-2 text-right">
-                            <span className="px-2 py-0.5 text-xs rounded border bg-emerald-600/15 text-emerald-300">{m.status}</span>
+                            <StatusPill tone="green">{m.status}</StatusPill>
                           </td>
                         </tr>
                       ))}
@@ -1030,10 +1160,10 @@ export default function AdminDashboard() {
               </div>
             )}
           </section>
-        </div>
+        </main>
       </div>
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
-        <DialogContent className="sm:max-w-md bg-[#141414] text-white border">
+        <DialogContent className="sm:max-w-md border-[#243026] bg-[#0E120F] text-white">
           <DialogHeader>
             <DialogTitle>Clear league data?</DialogTitle>
           </DialogHeader>
@@ -1047,6 +1177,72 @@ export default function AdminDashboard() {
   )
 }
 
+type Tone = "green" | "amber" | "rose" | "lime" | "cyan"
+
+const toneClasses: Record<Tone, { pill: string; metric: string; icon: string }> = {
+  green: {
+    pill: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+    metric: "border-emerald-500/20 bg-emerald-500/[0.06]",
+    icon: "text-emerald-300",
+  },
+  amber: {
+    pill: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+    metric: "border-amber-500/20 bg-amber-500/[0.06]",
+    icon: "text-amber-300",
+  },
+  rose: {
+    pill: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+    metric: "border-rose-500/20 bg-rose-500/[0.06]",
+    icon: "text-rose-300",
+  },
+  lime: {
+    pill: "border-[#D6F66A]/30 bg-[#D6F66A]/10 text-[#E9FF9A]",
+    metric: "border-[#D6F66A]/20 bg-[#D6F66A]/[0.06]",
+    icon: "text-[#D6F66A]",
+  },
+  cyan: {
+    pill: "border-cyan-400/30 bg-cyan-400/10 text-cyan-100",
+    metric: "border-cyan-400/20 bg-cyan-400/[0.06]",
+    icon: "text-cyan-200",
+  },
+}
+
+function StatusPill({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return (
+    <span className={`inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-bold uppercase tracking-[0.12em] ${toneClasses[tone].pill}`}>
+      {children}
+    </span>
+  )
+}
+
+function MetricCard({ icon: Icon, label, value, detail, tone }: { icon: LucideIcon; label: string; value: string | number; detail: string; tone: Tone }) {
+  return (
+    <div className={`min-h-[116px] rounded-lg border p-4 ${toneClasses[tone].metric}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A9A8D]">{label}</div>
+        <Icon className={`h-4 w-4 ${toneClasses[tone].icon}`} />
+      </div>
+      <div className="mt-5 truncate text-2xl font-extrabold tabular-nums text-white">{value}</div>
+      <div className="mt-1 truncate text-xs text-[#A7B2A2]">{detail}</div>
+    </div>
+  )
+}
+
+function Panel({ title, kicker, action, children }: { title: string; kicker?: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="rounded-lg border border-[#243026] bg-[#0E120F] p-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {kicker ? <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8A9A8D]">{kicker}</div> : null}
+          <h3 className="mt-1 text-base font-bold text-white">{title}</h3>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 function ManualAdd({ onAdded }: { onAdded: () => void }) {
   const [name, setName] = useState("")
   const [gamerTag, setGamerTag] = useState("")
@@ -1056,12 +1252,22 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) {
+      toast.error("Name is required")
+      return
+    }
     setLoading(true)
     try {
-      await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", name, gamer_tag: gamerTag, console: consoleType, preferred_club: club, location }) })
+      const response = await fetch("/api/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", name, username: gamerTag || null, psn_name: gamerTag || null, console: consoleType, preferred_club: club, location, status: "pending" }) })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || "Failed to add player")
+      }
       setName(""); setClub(""); setGamerTag(""); setLocation("")
+      toast.success("Player added as pending")
       onAdded()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add player")
     } finally { setLoading(false) }
   }
 
@@ -1076,26 +1282,56 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
       header.forEach((h, i) => { obj[h] = cols[i] })
       return obj
     })
-    await fetch("/api/admin/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import", rows }) })
+    const rowsWithNames = rows.filter((row) => String(row.name || "").trim())
+    const results = await Promise.allSettled(rowsWithNames.map(async (row) => {
+      const rawStatus = String(row.status || "pending").toLowerCase()
+      const status = rawStatus === "active" ? "approved" : ["approved", "pending", "rejected"].includes(rawStatus) ? rawStatus : "pending"
+      const response = await fetch("/api/admin/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add",
+          name: row.name,
+          username: row.gamer_tag || row.gamertag || null,
+          psn_name: row.gamer_tag || row.gamertag || null,
+          console: row.console || "PS5",
+          preferred_club: row.preferred_club || null,
+          location: row.location || null,
+          status,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success) throw new Error(result?.error || "Import row failed")
+      return result
+    }))
+    const failed = results.filter((result) => result.status === "rejected").length
+    if (failed) {
+      toast.error(`Imported with ${failed} failed rows`)
+    } else {
+      toast.success(`Imported ${rowsWithNames.length} players`)
+    }
     onAdded()
   }
 
   return (
-    <div className="rounded-2xl border p-4 bg-[#141414]">
-      <div className="text-sm font-semibold mb-2">Add Player Manually</div>
+    <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4">
+      <div className="mb-4">
+        <div className="text-sm font-semibold">Add Player Manually</div>
+        <div className="mt-1 text-xs text-[#8A9A8D]">Manual players start pending and can be approved from the roster.</div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
         <div>
           <Label className="text-sm">Name</Label>
-          <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player name" />
+          <Input className="mt-1 border-[#243026] bg-[#080A08]" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player name" />
         </div>
         <div>
           <Label className="text-sm">Gamer Tag</Label>
-          <Input className="mt-1 bg-transparent" value={gamerTag} onChange={(e) => setGamerTag(e.target.value)} placeholder="PSN / Xbox handle" />
+          <Input className="mt-1 border-[#243026] bg-[#080A08]" value={gamerTag} onChange={(e) => setGamerTag(e.target.value)} placeholder="PSN / Xbox handle" />
         </div>
         <div>
           <Label className="text-sm">Console</Label>
           <Select value={consoleType} onValueChange={setConsoleType}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1 border-[#243026] bg-[#080A08]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="PS5">PS5</SelectItem>
               <SelectItem value="XBOX">Xbox</SelectItem>
@@ -1105,14 +1341,14 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
         </div>
         <div>
           <Label className="text-sm">Preferred Club</Label>
-          <Input className="mt-1 bg-transparent" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Arsenal" />
+          <Input className="mt-1 border-[#243026] bg-[#080A08]" value={club} onChange={(e) => setClub(e.target.value)} placeholder="Arsenal" />
         </div>
         <div>
           <Label className="text-sm">Location</Label>
-          <Input className="mt-1 bg-transparent" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />
+          <Input className="mt-1 border-[#243026] bg-[#080A08]" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />
         </div>
         <div className="flex justify-end">
-          <Button onClick={submit} disabled={loading}>{loading ? "Adding…" : "Add"}</Button>
+          <Button className="bg-[#D6F66A] text-[#10130D] hover:bg-[#E9FF9A]" onClick={submit} disabled={loading}>{loading ? "Adding…" : "Add"}</Button>
         </div>
       </div>
 
@@ -1123,4 +1359,3 @@ function ManualAdd({ onAdded }: { onAdded: () => void }) {
     </div>
   )
 }
-

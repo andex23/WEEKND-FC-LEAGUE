@@ -95,13 +95,14 @@ function FormLabel({ className, ...props }: React.ComponentProps<typeof LabelPri
 
 function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+  const child = props.children as React.ReactElement<Record<string, unknown>>
 
-  return React.cloneElement(props.children as React.ReactElement, {
+  return React.cloneElement(child, {
     "data-slot": "form-control",
     id: formItemId,
     "aria-describedby": !error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`,
     "aria-invalid": !!error,
-    ...((props.children as React.ReactElement).props || {}),
+    ...(child.props || {}),
   })
 }
 

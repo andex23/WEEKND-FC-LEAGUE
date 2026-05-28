@@ -3,13 +3,14 @@
 import { useActionState, useEffect, useState } from "react"
 import { useFormStatus } from "react-dom"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { signIn } from "@/lib/actions"
 import { ErrorBanner } from "@/components/ui/error-banner"
+import { safeNextPath } from "@/lib/safe-next-path"
 
 const labelClass = "text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]"
 const inputClass =
@@ -37,15 +38,17 @@ function SubmitButton() {
 
 export default function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const postLoginPath = safeNextPath(searchParams.get("next") || undefined)
   const [state, formAction] = useActionState(signIn, null)
   const [showPw, setShowPw] = useState(false)
 
   useEffect(() => {
     if (state?.success) {
       toast.success("Signed in — welcome back!")
-      router.push("/dashboard")
+      router.replace(postLoginPath)
     }
-  }, [state, router])
+  }, [state, router, postLoginPath])
 
   return (
     <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8">

@@ -11,6 +11,7 @@ import KpiCard from "./_components/KpiCard"
 import FixtureList from "./_components/FixtureList"
 import PersonalStats from "./_components/PersonalStats"
 import LeagueTable from "./_components/LeagueTable"
+import TournamentInvites from "./_components/TournamentInvites"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type PlayerFixture = {
@@ -188,38 +189,31 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="order-1 space-y-6 lg:col-span-3">
-            <UserCard user={user} stats={data.stats} />
-            <div className="block lg:hidden">
-              <div className="grid grid-cols-2 gap-3">
-                <KpiCard label="Position" value={(user.position as string) || "-"} />
-                <KpiCard label="Points" value={(user.points as number) ?? "-"} />
-              </div>
-            </div>
-            <div className="hidden lg:block">
-              <UsefulLinks reportHref="/report" />
-            </div>
-          </div>
-
-          <div className="order-3 space-y-6 lg:order-2 lg:col-span-6">
-            <NextMatchCard match={next} />
-            <RecentMatchCard match={recent} />
-            <LeagueTable standings={data.standings as never} />
-            <div className="block lg:hidden">
-              <UsefulLinks reportHref="/report" />
-            </div>
-          </div>
-
-          <div className="order-2 space-y-6 lg:order-3 lg:col-span-3">
-            <div className="hidden grid-cols-2 gap-3 lg:grid">
+        <div className="grid items-start gap-4 md:grid-cols-[290px_minmax(0,1fr)]">
+          <UserCard user={user} stats={data.stats} />
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
               <KpiCard label="Position" value={(user.position as string) || "-"} />
               <KpiCard label="Points" value={(user.points as number) ?? "-"} />
             </div>
+            <TournamentInvites />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            <NextMatchCard match={next} />
+            <RecentMatchCard match={recent} />
+            <LeagueTable standings={data.standings as never} />
+          </div>
+
+          <div className="space-y-6 lg:col-span-4">
             <FixtureList fixtures={data.fixtures} />
             <PersonalStats stats={data.stats} />
           </div>
         </div>
+
+        <UsefulLinks reportHref="/report" />
 
         <div className="text-center">
           <Link

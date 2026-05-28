@@ -30,7 +30,7 @@ export async function signIn(prevState: any, formData: FormData) {
 
       if (code === "email_not_confirmed" || message.includes("not confirmed")) {
         return {
-          error: "Your email isn't confirmed yet. Check your inbox for the verification link, then sign in.",
+          error: "Your account is awaiting admin approval. You'll get an email once you're approved.",
         }
       }
       if (code === "invalid_credentials" || message.includes("invalid login")) {

@@ -21,7 +21,7 @@ export default function UserCard({ user, stats }: { user: any; stats?: any }) {
   ]
 
   return (
-    <section aria-label="Player card" className="flex justify-center">
+    <section aria-label="Player card" className="flex justify-start">
       <PlayerCard
         name={user?.name}
         username={user?.username}

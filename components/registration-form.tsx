@@ -413,7 +413,7 @@ export function RegistrationForm() {
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || "Registration failed. Please try again.")
       setDone(true)
-      toast.success("Card minted — confirm your email, then wait for admin approval.")
+      toast.success("Card minted — an admin will email you once approved.")
       setTimeout(() => router.push("/auth/login"), 1900)
     } catch (error) {
       setMinting(false)
@@ -724,7 +724,7 @@ export function RegistrationForm() {
             />
             <p className="max-w-[270px] text-center text-xs leading-relaxed text-[#7A7A7A]">
               {done
-                ? "Card minted. Confirm your email, then an admin will approve you."
+                ? "Card minted. An admin will review it and email you once approved."
                 : minting
                   ? "Minting your card…"
                   : "Your card builds itself as you go. The rating reveals when you mint."}

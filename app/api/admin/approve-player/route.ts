@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { updatePlayerStatusWithApprovalEmail } from "@/lib/admin/approval-confirmation"
+import { absoluteUrl } from "@/lib/site-url"
 
 export async function POST(request: Request) {
   const cookieStore = await cookies()
@@ -18,14 +20,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "action must be 'approve' or 'reject'" }, { status: 400 })
   }
 
-  const { error } = await createAdminClient()
-    .from("players")
-    .update({ status })
-    .eq("id", playerId)
-  if (error) {
-    console.error("Error updating player status:", error)
-    return NextResponse.json({ error: "Failed to update player" }, { status: 500 })
+  const result = await updatePlayerStatusWithApprovalEmail(createAdminClient(), {
+    playerId: String(playerId),
+    status,
+    loginUrl: absoluteUrl("/auth/login", request.url),
+  })
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.statusCode })
   }
 
-  return NextResponse.json({ ok: true, status })
+  return NextResponse.json({ ok: true, status: result.status, emailSent: result.emailSent, player: result.player })
 }

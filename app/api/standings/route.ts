@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { calculateStandings } from "@/lib/utils/standings"
 import type { Fixture } from "@/lib/types"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { readTournamentEntries } from "@/lib/tournaments/entry-config"
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +19,20 @@ export async function GET(request: NextRequest) {
       .eq("status", "approved")
     if (playersError) throw playersError
 
+    let selectedClubByPlayer = new Map<string, string>()
+    if (tournamentId) {
+      const { data: tournament } = await admin
+        .from("tournaments")
+        .select("config")
+        .eq("id", tournamentId)
+        .maybeSingle()
+      selectedClubByPlayer = new Map(
+        readTournamentEntries(tournament?.config)
+          .filter((entry) => entry.status === "accepted" && entry.selected_club)
+          .map((entry) => [entry.player_id, entry.selected_club as string]),
+      )
+    }
+
     // Fixtures, optionally scoped to one tournament.
     let fixturesQuery = admin
       .from("fixtures")
@@ -28,10 +43,15 @@ export async function GET(request: NextRequest) {
     const { data: fixtures, error: fixturesError } = await fixturesQuery
     if (fixturesError) throw fixturesError
 
-    let shapedPlayers = (players ?? []).map((p) => ({
+    const eligiblePlayers =
+      tournamentId && selectedClubByPlayer.size > 0
+        ? (players ?? []).filter((p) => selectedClubByPlayer.has(String(p.id)))
+        : (players ?? [])
+
+    let shapedPlayers = eligiblePlayers.map((p) => ({
       id: String(p.id),
       name: p.name,
-      assignedTeam: p.assigned_club || p.preferred_club || undefined,
+      assignedTeam: selectedClubByPlayer.get(String(p.id)) || p.assigned_club || p.preferred_club || undefined,
       preferredClub: p.preferred_club || undefined,
       console: p.console,
     }))

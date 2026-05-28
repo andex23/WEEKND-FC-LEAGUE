@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateRoundRobinFixtures } from "@/lib/utils/fixtures"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { readTournamentEntries } from "@/lib/tournaments/entry-config"
 
 function toISOAt17Local(d: Date): string {
   const copy = new Date(d)
@@ -62,17 +63,54 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient()
 
-    // Build the roster from approved players (caller may also supply one).
+    const { data: t } = await admin
+      .from("tournaments")
+      .select("start_at,config")
+      .eq("id", String(tournamentId))
+      .maybeSingle()
+
+    // Build the roster from accepted tournament entries. If an old tournament
+    // has no entries yet, fall back to approved players so existing local data
+    // does not break while the admin migrates to the invite flow.
     let roster: any[] = []
     if (Array.isArray(body.rosterRecords) && body.rosterRecords.length) {
       roster = body.rosterRecords
     } else {
-      const { data: rows, error } = await admin
-        .from("players")
-        .select("id, name, preferred_club, status")
-        .eq("status", "approved")
-      if (error) console.error("generate-fixtures: players query error", error)
-      roster = rows || []
+      const entries = readTournamentEntries((t as any)?.config)
+      const acceptedEntries = entries.filter((entry) => entry.status === "accepted")
+
+      if (entries.length > 0) {
+        if (acceptedEntries.length < 2) {
+          return NextResponse.json(
+            {
+              error: "Need at least 2 accepted players",
+              message: `Only ${acceptedEntries.length} invited players accepted this tournament.`,
+              acceptedCount: acceptedEntries.length,
+            },
+            { status: 400 },
+          )
+        }
+
+        const playerIds = acceptedEntries.map((entry) => entry.player_id)
+        const { data: rows, error } = await admin
+          .from("players")
+          .select("id, name")
+          .in("id", playerIds)
+        if (error) console.error("generate-fixtures: accepted players query error", error)
+        const byId = new Map((rows || []).map((player) => [String(player.id), player]))
+        roster = acceptedEntries.map((entry) => ({
+          id: entry.player_id,
+          name: byId.get(entry.player_id)?.name || "Player",
+          selected_club: entry.selected_club,
+        }))
+      } else {
+        const { data: rows, error } = await admin
+          .from("players")
+          .select("id, name, preferred_club, status")
+          .eq("status", "approved")
+        if (error) console.error("generate-fixtures: players query error", error)
+        roster = rows || []
+      }
     }
 
     if (roster.length < 2) {
@@ -86,17 +124,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const shaped = roster.map((p) => ({ id: String(p.id), name: p.name, assignedTeam: p.preferred_club || "" }))
+    const shaped = roster.map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      assignedTeam: p.selected_club || p.preferred_club || "",
+    }))
     const randomized = shuffle(shaped)
     const fixtures = generateRoundRobinFixtures(randomized, rounds, matchdaysPerWeekend)
 
     // One weekend date (Sat/Sun alternating) per matchday.
     const maxMd = fixtures.reduce((m, f) => Math.max(m, Number(f.matchday || 1)), 1)
-    const { data: t } = await admin
-      .from("tournaments")
-      .select("start_at")
-      .eq("id", String(tournamentId))
-      .maybeSingle()
     const weekendDates = computeWeekendDates((t as any)?.start_at || null, maxMd)
 
     // Regenerate cleanly: clear this tournament's fixtures, then insert the set.
@@ -109,6 +146,8 @@ export async function POST(request: NextRequest) {
         matchday: md,
         home_player_id: String(f.homePlayer),
         away_player_id: String(f.awayPlayer),
+        home_club: f.homeTeam || null,
+        away_club: f.awayTeam || null,
         status: "SCHEDULED" as const,
         scheduled_date: weekendDates[Math.max(0, md - 1)] || weekendDates[0] || null,
       }

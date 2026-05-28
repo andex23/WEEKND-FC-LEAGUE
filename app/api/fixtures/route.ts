@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     let query = client
       .from("fixtures")
       .select(`
-        id,tournament_id,matchday,home_player_id,away_player_id,home_score,away_score,status,scheduled_date,notes,
+        id,tournament_id,matchday,home_player_id,away_player_id,home_club,away_club,home_score,away_score,status,scheduled_date,notes,
         home_player:players!fixtures_home_player_id_fkey(id,status),
         away_player:players!fixtures_away_player_id_fkey(id,status)
       `)
@@ -41,7 +41,6 @@ export async function GET(request: NextRequest) {
     if (status && status !== "all") query = query.eq("status", status)
     if (playerId) query = query.or(`home_player_id.eq.${playerId},away_player_id.eq.${playerId}`)
 
-    console.log("Executing query for tournamentId:", tournamentId)
     const { data, error } = await query
     if (error) {
       console.error("Error fetching fixtures:", error)
@@ -53,8 +52,6 @@ export async function GET(request: NextRequest) {
       })
       throw error
     }
-    console.log("Raw fixtures data:", data)
-    console.log("Number of fixtures found:", data?.length || 0)
 
     const shaped = (data || []).map((f: any) => ({
       id: f.id,
@@ -62,6 +59,8 @@ export async function GET(request: NextRequest) {
       matchday: f.matchday,
       homePlayer: f.home_player_id,
       awayPlayer: f.away_player_id,
+      homeTeam: f.home_club,
+      awayTeam: f.away_club,
       homeScore: f.home_score,
       awayScore: f.away_score,
       status: f.status,
@@ -97,6 +96,8 @@ export async function POST(request: NextRequest) {
       matchday: Number(body.matchday || 1),
       home_player_id: String(body.homeId),
       away_player_id: String(body.awayId),
+      home_club: body.homeTeam || body.homeClub || null,
+      away_club: body.awayTeam || body.awayClub || null,
       home_score: body.homeScore ?? null,
       away_score: body.awayScore ?? null,
       status: String(body.status || "SCHEDULED").toUpperCase(),

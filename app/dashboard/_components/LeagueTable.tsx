@@ -17,12 +17,14 @@ export default function LeagueTable({ standings = [], limit = 8 }: { standings?:
         <div className="px-4 py-8 text-center text-sm text-[#7A7A7A]">No standings yet.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-[#7A7A7A]">
                 <th className="px-3 py-2 text-left font-bold">#</th>
                 <th className="px-3 py-2 text-left font-bold">Player</th>
                 <th className="px-3 py-2 text-right font-bold">P</th>
+                <th className="hidden px-3 py-2 text-right font-bold sm:table-cell">GF</th>
+                <th className="hidden px-3 py-2 text-right font-bold sm:table-cell">GA</th>
                 <th className="hidden px-3 py-2 text-right font-bold sm:table-cell">GD</th>
                 <th className="px-3 py-2 text-right font-bold">Pts</th>
                 <th className="hidden px-3 py-2 text-left font-bold md:table-cell">Form</th>
@@ -57,6 +59,12 @@ export default function LeagueTable({ standings = [], limit = 8 }: { standings?:
                       <div className="max-w-[12rem] truncate text-[11px] text-[#7A7A7A]">{s.team}</div>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-[#D1D1D1]">{s.played}</td>
+                    <td className="hidden px-3 py-2.5 text-right tabular-nums text-[#D1D1D1] sm:table-cell">
+                      {s.goalsFor}
+                    </td>
+                    <td className="hidden px-3 py-2.5 text-right tabular-nums text-[#D1D1D1] sm:table-cell">
+                      {s.goalsAgainst}
+                    </td>
                     <td className="hidden px-3 py-2.5 text-right tabular-nums sm:table-cell">
                       <span className={s.goalDifference >= 0 ? "text-emerald-400" : "text-rose-400"}>
                         {s.goalDifference > 0 ? "+" : ""}

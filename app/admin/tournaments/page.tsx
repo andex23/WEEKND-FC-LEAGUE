@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,9 +13,27 @@ import { downloadCSVFromObjects } from "@/lib/utils/csv"
 
 // Local storage removed; persistence is via Supabase only.
 
+type EntrySummary = {
+  invited: number
+  accepted: number
+  declined: number
+  total: number
+}
+
+const emptySummary: EntrySummary = { invited: 0, accepted: 0, declined: 0, total: 0 }
+
+function tournamentType(t: any) {
+  return String(t?.config?.type || t?.type || "DOUBLE").toUpperCase()
+}
+
+function tournamentPlayerCount(t: any) {
+  return Number(t?.config?.players ?? t?.players ?? 0)
+}
+
 export default function AdminTournamentsPage() {
   const router = useRouter()
   const [list, setList] = useState<any[]>([])
+  const [entryRows, setEntryRows] = useState<any[]>([])
   const [name, setName] = useState("")
   const [status, setStatus] = useState("DRAFT")
   const [season, setSeason] = useState("")
@@ -31,9 +49,28 @@ export default function AdminTournamentsPage() {
 
   const bumpRefresh = (id: string) => setRefreshKeys((m) => ({ ...m, [id]: Date.now() }))
   const load = async () => {
-    const r = await fetch("/api/admin/tournaments").then((x) => x.json()).catch(() => ({ tournaments: [] }))
-    setList(r.tournaments || [])
+    const [tournamentsResult, entriesResult] = await Promise.all([
+      fetch("/api/admin/tournaments").then((x) => x.json()).catch(() => ({ tournaments: [] })),
+      fetch("/api/admin/tournament-entries").then((x) => x.json()).catch(() => ({ entries: [] })),
+    ])
+    setList(tournamentsResult.tournaments || [])
+    setEntryRows(entriesResult.entries || [])
   }
+
+  const entryStatsByTournament = useMemo(() => {
+    const map = new Map<string, EntrySummary>()
+    for (const entry of entryRows) {
+      const tournamentId = String(entry.tournament_id)
+      const summary = map.get(tournamentId) || { ...emptySummary }
+      const status = String(entry.status || "invited").toLowerCase()
+      summary.total += 1
+      if (status === "accepted") summary.accepted += 1
+      else if (status === "declined") summary.declined += 1
+      else summary.invited += 1
+      map.set(tournamentId, summary)
+    }
+    return map
+  }, [entryRows])
 
   // Fetch active players from Supabase and compute active count
   async function fetchActivePlayers() {
@@ -119,20 +156,26 @@ export default function AdminTournamentsPage() {
     toast.success("Tournament deactivated")
     await load()
   }
-  const syncRoster = async (t: any) => {
-    const res = await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_roster", id: t.id }) })
-    if (!res.ok) { toast.error("Failed to sync roster"); return }
-    const data = await res.json().catch(() => null)
-    toast.success(`Roster synced (${data?.count ?? 0} players)`) 
+  const inviteAll = async (t: any) => {
+    const res = await fetch("/api/admin/tournament-entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "invite_all_approved", tournamentId: t.id }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast.error(data?.error || "Failed to send invitations")
+      return
+    }
+    toast.success(`Invitations ready for ${data?.summary?.total ?? 0} approved players`)
     await load()
-    bumpRefresh(t.id)
   }
   const generateNow = async (t: any) => {
-    const rounds = String(t.type || "DOUBLE").toUpperCase() === "SINGLE" ? 1 : 2
+    const rounds = tournamentType(t) === "SINGLE" ? 1 : 2
     const res = await fetch("/api/admin/generate-fixtures", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ rounds, tournamentId: t.id, season: t.season || "2024/25" }) })
     if (!res.ok) { 
       const e = await res.json().catch(() => ({})); 
-      toast.error(e?.error || "Failed to generate fixtures"); 
+      toast.error(e?.message || e?.error || "Failed to generate fixtures");
       return 
     }
     const data = await res.json().catch(() => null)
@@ -163,7 +206,7 @@ export default function AdminTournamentsPage() {
                   <div className="px-4 py-3 flex items-center justify-between border-b border-[#1E1E1E]">
                     <div>
                       <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-[#9E9E9E]">{t.season || "—"} · {t.status} · {t.type} · {t.players} players</div>
+                      <div className="text-xs text-[#9E9E9E]">{t.season || "—"} · {t.status} · {tournamentType(t)} · {tournamentPlayerCount(t)} player pool</div>
                       {(t.start_at || t.end_at) && <div className="text-xs text-[#9E9E9E]">{t.start_at ? new Date(t.start_at).toLocaleDateString() : ""} {t.end_at ? `→ ${new Date(t.end_at).toLocaleDateString()}` : ""}</div>}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -172,13 +215,14 @@ export default function AdminTournamentsPage() {
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => activate(t)}>Activate</Button>
                       )}
+                      <Button size="sm" variant="outline" onClick={() => inviteAll(t)}>Invite Approved</Button>
                       <Button size="sm" variant="outline" onClick={() => generateNow(t)}>Generate Fixtures</Button>
                       <Button size="sm" variant="outline" onClick={() => regenerate(t)}>Regenerate</Button>
-                      <Button size="sm" variant="outline" onClick={() => syncRoster(t)}>Sync Roster</Button>
                       <Button size="sm" variant="outline" onClick={() => openSettings(t)}>Settings</Button>
                       <Button size="sm" variant="outline" className="text-rose-400 border-rose-900 hover:bg-rose-900/20" onClick={() => remove(t.id)}>Delete</Button>
                     </div>
                   </div>
+                  <EntryStrip summary={entryStatsByTournament.get(String(t.id)) || emptySummary} approvedCount={activeCount} />
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-4">
                     <div className="lg:col-span-7">
                       <InlineFixtures tournamentId={t.id} refreshKey={refreshKeys[t.id]} />
@@ -199,9 +243,9 @@ export default function AdminTournamentsPage() {
                 <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm">Number of Players (active)</label>
+                <label className="text-sm">Approved Player Pool</label>
                 <Input className="mt-1 bg-transparent" type="number" value={overrideCount ? players : (activeCount || players)} onChange={(e) => setPlayers(Number(e.target.value || 0))} readOnly={!overrideCount} aria-readonly={!overrideCount} />
-                <div className="text-xs text-[#9E9E9E] mt-1">Active: {activeCount}. Auto from Players page{!overrideCount ? " (read-only)" : " (overridden)"}</div>
+                <div className="text-xs text-[#9E9E9E] mt-1">Approved players: {activeCount}. Invitations decide who enters each tournament.</div>
                 <div className="mt-1 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={overrideCount} onChange={(e) => setOverrideCount(e.target.checked)} /> Override count</label></div>
               </div>
               <div>
@@ -241,6 +285,26 @@ export default function AdminTournamentsPage() {
         onDelete={async (id) => { await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); toast.success("Deleted"); load() }}
         onRegen={async (t) => { await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) }); await generateNow(t); await load() }}
       />
+    </div>
+  )
+}
+
+function EntryStrip({ summary, approvedCount }: { summary: EntrySummary; approvedCount: number }) {
+  const available = Math.max(approvedCount - summary.total, 0)
+  const items = [
+    { label: "Invited", value: summary.invited, tone: "border-amber-500/25 bg-amber-500/[0.08] text-amber-100" },
+    { label: "Accepted", value: summary.accepted, tone: "border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-100" },
+    { label: "Declined", value: summary.declined, tone: "border-rose-500/25 bg-rose-500/[0.08] text-rose-100" },
+    { label: "Available", value: available, tone: "border-[#243026] bg-[#0B0E0C] text-[#DDE8D8]" },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-2 border-b border-[#1E1E1E] px-4 py-3 md:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className={`rounded-md border px-3 py-2 ${item.tone}`}>
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">{item.label}</div>
+          <div className="mt-1 text-lg font-extrabold tabular-nums">{item.value}</div>
+        </div>
+      ))}
     </div>
   )
 }

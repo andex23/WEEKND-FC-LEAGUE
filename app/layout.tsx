@@ -1,17 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Roboto } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
-
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["400", "500", "700", "900"],
-  display: "swap",
-  variable: "--font-roboto",
-})
 
 export const metadata: Metadata = {
   title: "Weekend Premier League - FIFA 25",
@@ -25,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${roboto.variable}`}>
+    <html lang="en">
       <head>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-F1DCSXWT0Q"

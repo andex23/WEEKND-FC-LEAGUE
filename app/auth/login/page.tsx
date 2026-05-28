@@ -2,17 +2,24 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import LoginForm from "@/components/auth/login-form"
 import { BackgroundVideo } from "@/components/background-video"
+import { safeNextPath } from "@/lib/safe-next-path"
 
-export default async function LoginPage() {
-  const supabase = await createClient()
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>
+}) {
+  const { next } = await searchParams
+  const postLoginPath = safeNextPath(next)
 
-  if (supabase) {
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    const supabase = await createClient()
     const {
       data: { session },
     } = await supabase.auth.getSession()
 
     if (session) {
-      redirect("/")
+      redirect(postLoginPath)
     }
   }
 

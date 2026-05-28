@@ -16,8 +16,6 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
   const name = config?.basics?.name || config?.name || "Weekend FC League"
-  const rounds = Number(config?.format?.rounds ?? config?.rounds ?? 2) || 2
-
   // Only one tournament can be active at a time.
   if (setActive) {
     await admin.from("tournaments").update({ is_active: false }).eq("is_active", true)
@@ -38,22 +36,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create tournament" }, { status: 500 })
   }
 
-  // Generate the round-robin fixtures. This needs approved players with
-  // assigned clubs; if there are none yet it fails softly so the admin can
-  // assign teams and regenerate.
-  const { error: genError } = await admin.rpc("generate_fixtures", {
-    tournament_id_param: tournament.id,
-    rounds_param: rounds,
-  })
-  if (genError) {
-    console.error("Fixture generation failed:", genError)
-  }
-
   return NextResponse.json({
     ok: true,
     tournament,
     setActive: Boolean(setActive),
-    fixturesGenerated: !genError,
-    ...(genError ? { fixturesError: genError.message } : {}),
+    fixturesGenerated: false,
+    message: "Tournament created. Invite players, then generate fixtures after enough players accept.",
   })
 }

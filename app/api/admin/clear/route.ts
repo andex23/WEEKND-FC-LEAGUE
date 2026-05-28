@@ -12,10 +12,18 @@ export async function POST() {
     }
 
     // Clear fixtures
-    await sb.from("fixtures").delete().neq("id", "").catch(() => null)
+    try {
+      await sb.from("fixtures").delete().neq("id", "")
+    } catch {
+      // Best-effort cleanup for local/dev environments.
+    }
 
     // Clear tournaments
-    await sb.from("tournaments").delete().neq("id", "").catch(() => null)
+    try {
+      await sb.from("tournaments").delete().neq("id", "")
+    } catch {
+      // Best-effort cleanup for local/dev environments.
+    }
 
     // Preserve users/profiles
 

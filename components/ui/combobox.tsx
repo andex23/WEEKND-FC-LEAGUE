@@ -27,6 +27,7 @@ export function Combobox({
   className,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const uniqueOptions = React.useMemo(() => Array.from(new Set(options)), [options])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -52,7 +53,7 @@ export function Combobox({
           <CommandList>
             <CommandEmpty className="py-6 text-center text-sm text-[#6B6B6B]">{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {uniqueOptions.map((option) => (
                 <CommandItem
                   key={option}
                   value={option}

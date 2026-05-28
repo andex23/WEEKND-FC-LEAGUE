@@ -7,8 +7,6 @@ import { cn } from "@/lib/utils"
 const LINKS = [
   { href: "/standings", label: "Standings" },
   { href: "/rules", label: "Rules" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/refer", label: "Invite" },
 ]
 
 export function Navbar() {
@@ -57,6 +55,13 @@ export function Navbar() {
               className="mt-1 rounded-md bg-emerald-500 px-4 py-2 text-center font-heading text-sm text-black transition-colors hover:bg-emerald-400 md:ml-2 md:mt-0"
             >
               Register
+            </Link>
+            <Link
+              href="/auth/login"
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-[#2A2A2A] px-4 py-2 text-center font-heading text-sm text-white transition-colors hover:border-emerald-500/40 hover:bg-white/5 md:ml-1"
+            >
+              Login
             </Link>
           </div>
         </div>

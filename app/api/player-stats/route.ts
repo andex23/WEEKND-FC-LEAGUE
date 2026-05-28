@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { readTournamentEntries } from "@/lib/tournaments/entry-config"
 
 type PlayerRow = {
   id: string
@@ -39,12 +41,27 @@ export async function GET(request: Request) {
       .select("id,name,preferred_club,assigned_club")
       .eq("status", "approved")
 
+    let selectedClubByPlayer = new Map<string, string>()
+    if (tournamentId) {
+      const admin = createAdminClient()
+      const { data: tournament } = await admin
+        .from("tournaments")
+        .select("config")
+        .eq("id", tournamentId)
+        .maybeSingle()
+      selectedClubByPlayer = new Map(
+        readTournamentEntries(tournament?.config)
+          .filter((entry) => entry.status === "accepted" && entry.selected_club)
+          .map((entry) => [entry.player_id, entry.selected_club as string]),
+      )
+    }
+
     const playerMap = new Map<string, PlayerRow>(
       ((players as PlayerRow[]) ?? []).map((p) => [p.id, p]),
     )
     const teamOf = (id: string) => {
       const p = playerMap.get(id)
-      return p?.assigned_club || p?.preferred_club || "-"
+      return selectedClubByPlayer.get(id) || p?.assigned_club || p?.preferred_club || "-"
     }
     const nameOf = (id: string) => playerMap.get(id)?.name ?? "Unknown"
 

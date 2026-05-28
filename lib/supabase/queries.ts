@@ -1,5 +1,4 @@
 import { createClient } from "./server"
-import { supabase } from "./client"
 
 // Player queries
 export async function getPlayers() {
@@ -45,6 +44,7 @@ export async function createPlayer(playerData: {
   preferred_club: string
   user_id?: string
 }) {
+  const supabase = await createClient()
   const { data, error } = await supabase.from("players").insert([playerData]).select().single()
 
   if (error) {
@@ -340,7 +340,7 @@ export async function upsertTournamentConfig(config: any, setActive?: boolean) {
 // Tournament queries
 export async function getTournaments() {
   const client = await createClient()
-  const { data, error } = client.from("league").select("*").order("created_at", { ascending: false })
+  const { data, error } = await client.from("league").select("*").order("created_at", { ascending: false })
   if (error) return []
   return data || []
 }
