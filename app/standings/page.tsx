@@ -118,34 +118,16 @@ export default function StandingsPage() {
   useEffect(() => {
     const loadActive = async () => {
       try {
-        // First try to get from settings
-        const s = await fetch("/api/admin/settings").then((r) => r.json())
-        let tournamentId = s?.tournament?.active_tournament_id
-
-        // If not found in settings, get active tournament directly
-        if (!tournamentId) {
-          try {
-            const tournamentsRes = await fetch("/api/admin/tournaments").then((r) => r.json()).catch(() => ({ tournaments: [] }))
-            const activeTournament = tournamentsRes.tournaments?.find((t: any) => t.status === "ACTIVE")
-            tournamentId = activeTournament?.id
-            setActiveTournament(activeTournament || null)
-            console.log("Standings page: Found active tournament:", tournamentId)
-          } catch (e) {
-            console.error("Error fetching active tournament:", e)
-          }
-        } else {
-          // If we have tournamentId from settings, get the tournament details
-          try {
-            const tournamentsRes = await fetch("/api/admin/tournaments").then((r) => r.json()).catch(() => ({ tournaments: [] }))
-            const tournament = tournamentsRes.tournaments?.find((t: any) => t.id === tournamentId)
-            setActiveTournament(tournament || null)
-          } catch (e) {
-            console.error("Error fetching tournament details:", e)
-          }
-        }
-
-        setActiveTournamentId(tournamentId ?? null)
+        // The tournaments list is the source of truth: a tournament becomes
+        // live once it's activated (status ACTIVE).
+        const { tournaments = [] } = await fetch("/api/admin/tournaments")
+          .then((r) => r.json())
+          .catch(() => ({ tournaments: [] }))
+        const active = tournaments.find((t: any) => t.status === "ACTIVE") ?? null
+        setActiveTournament(active)
+        setActiveTournamentId(active?.id ?? null)
       } catch {
+        setActiveTournament(null)
         setActiveTournamentId(null)
       }
     }
