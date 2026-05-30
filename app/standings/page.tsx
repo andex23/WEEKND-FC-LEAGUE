@@ -5,11 +5,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getTeamBadge } from "@/lib/badges"
 import { cn } from "@/lib/utils"
 import { Crown, Medal, Target, Zap, ShieldAlert, Trophy, User } from "lucide-react"
+import { PlayerBadge } from "@/components/player-badge"
 
 interface StandingRow {
   id: string
   name: string
   team: string
+  avatar_url: string | null
   played: number
   won: number
   drawn: number
@@ -174,6 +176,7 @@ export default function StandingsPage() {
             id,
             name: s.playerName || s.name,
             team: s.team || fallbackTeam,
+            avatar_url: s.avatarUrl ?? s.avatar_url ?? byId.get(String(id))?.avatar_url ?? null,
             played: s.played || 0,
             won: s.won || 0,
             drawn: s.drawn || 0,
@@ -400,7 +403,7 @@ export default function StandingsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center">
-                            <TeamBadge team={row.team} />
+                            <PlayerBadge avatarUrl={row.avatar_url} team={row.team} />
                             <span className="truncate font-heading text-base text-white">{row.name}</span>
                           </div>
                           <div className="mt-0.5 truncate text-xs text-[#9E9E9E]">{row.team}</div>
@@ -466,10 +469,10 @@ export default function StandingsPage() {
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="flex items-center">
-                              <TeamBadge team={s.team} />
+                              <PlayerBadge avatarUrl={s.avatar_url} team={s.team} />
                               <span className="font-medium text-white">{s.name}</span>
                             </div>
-                            <div className="ml-7 text-[11px] text-[#7A7A7A]">{s.team}</div>
+                            <div className="ml-11 text-[11px] text-[#7A7A7A]">{s.team}</div>
                           </td>
                           <td className="px-3 py-2.5"><FormDots results={formGuide.get(String(s.id))} /></td>
                           <td className="px-3 py-2.5 text-right tabular-nums text-[#D1D1D1]">{s.played}</td>

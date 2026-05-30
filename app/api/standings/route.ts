@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     // Approved players only.
     const { data: players, error: playersError } = await admin
       .from("players")
-      .select("id,name,preferred_club,assigned_club,console,status")
+      .select("id,name,preferred_club,assigned_club,console,status,avatar_url")
       .eq("status", "approved")
     if (playersError) throw playersError
 
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       assignedTeam: selectedClubByPlayer.get(String(p.id)) || p.assigned_club || p.preferred_club || undefined,
       preferredClub: p.preferred_club || undefined,
       console: p.console,
+      avatarUrl: p.avatar_url ?? null,
     }))
     if (consoleFilter && consoleFilter !== "all") {
       shapedPlayers = shapedPlayers.filter(

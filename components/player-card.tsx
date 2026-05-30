@@ -14,6 +14,7 @@ interface PlayerCardProps {
   tierLabel?: string
   minted?: boolean
   stats?: { label: string; value: string | number }[]
+  avatarUrl?: string | null
   className?: string
 }
 
@@ -50,6 +51,7 @@ export function PlayerCard({
   tierLabel = "Rookie",
   minted = false,
   stats,
+  avatarUrl,
   className,
 }: PlayerCardProps) {
   const crest = getTeamBadge(club)
@@ -119,8 +121,12 @@ export function PlayerCard({
               className="animate-fut-float flex h-28 w-28 items-center justify-center rounded-full"
               style={{ background: "radial-gradient(circle at 50% 38%, rgba(246,221,147,0.22), transparent 68%)" }}
             >
-              <div className="flex h-24 w-24 items-center justify-center rounded-full border border-amber-400/25 bg-gradient-to-b from-[#211d12] to-[#0c0c0c]">
-                <span className="font-heading text-4xl tracking-wide text-amber-50">{monogram}</span>
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-amber-400/25 bg-gradient-to-b from-[#211d12] to-[#0c0c0c]">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="font-heading text-4xl tracking-wide text-amber-50">{monogram}</span>
+                )}
               </div>
             </div>
           </div>

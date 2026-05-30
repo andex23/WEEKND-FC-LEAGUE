@@ -27,6 +27,7 @@ export interface Standing {
   playerId: string
   playerName: string
   team: string
+  avatarUrl?: string | null
   played: number
   won: number
   drawn: number
