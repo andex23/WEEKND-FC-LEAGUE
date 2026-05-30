@@ -5,6 +5,11 @@ export const FPS = 30;
 export const SCENE = 90; // 3 seconds per scene
 export const DURATION = SCENE * 5; // 450 frames = 15s
 
+// Vertical "safe area" insets so nothing important sits where a phone / social
+// player crops or overlays UI (caption bars, buttons). Bottom is larger.
+export const SAFE_TOP = 120;
+export const SAFE_BOTTOM = 200;
+
 // ── Brand palette ───────────────────────────────────────────────────────────
 // Pulled straight from the live weekendfc.online design tokens so the trailer
 // matches the real product (dark UI, emerald primary, amber/gold accent).

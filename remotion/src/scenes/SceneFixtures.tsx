@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill } from "remotion";
-import { C, rgba } from "../theme";
+import { C, rgba, SAFE_TOP, SAFE_BOTTOM } from "../theme";
 import { HEADING, MONO } from "../fonts";
 import { useScene } from "../useScene";
 import { Reveal } from "../components/Reveal";
@@ -31,7 +31,7 @@ export const SceneFixtures: React.FC = () => {
   const { appear } = useScene();
 
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear, paddingTop: SAFE_TOP, paddingBottom: SAFE_BOTTOM, boxSizing: "border-box" }}>
       <div style={{ width: 900, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <Reveal delay={2} y={-16}>
           <Pill fontSize={24} icon={<span style={{ fontSize: 22 }}>📅</span>} dot={false}>

@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
-import { C, rgba, CTA_GRADIENT } from "../theme";
+import { C, rgba, CTA_GRADIENT, SAFE_TOP, SAFE_BOTTOM } from "../theme";
 import { HEADING, MONO } from "../fonts";
 import { useScene } from "../useScene";
 import { Reveal } from "../components/Reveal";
@@ -35,7 +35,7 @@ export const SceneRegister: React.FC = () => {
   const zoom = 0.9 + through * 0.12;
 
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear, paddingTop: SAFE_TOP, paddingBottom: SAFE_BOTTOM, boxSizing: "border-box" }}>
       <div
         style={{
           display: "flex",

@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
-import { C, rgba } from "../theme";
+import { C, rgba, SAFE_TOP, SAFE_BOTTOM } from "../theme";
 import { HEADING, MONO } from "../fonts";
 import { EASE_IN_OUT } from "../anim";
 import { useScene } from "../useScene";
@@ -39,18 +39,18 @@ const HEAD_H = 60;
 
 /** 9–12s · League table; the highlighted player climbs to the top. */
 export const SceneStandings: React.FC = () => {
-  const { appear } = useScene();
+  const { appear } = useScene({ out: 10 }); // hold the final table a touch longer
   const frame = useCurrentFrame();
 
-  // climb progress
-  const climb = interpolate(frame, [36, 66], [0, 1], {
+  // climb progress — eased and unhurried (starts once the table has settled)
+  const climb = interpolate(frame, [30, 72], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: EASE_IN_OUT,
   });
 
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: appear, paddingTop: SAFE_TOP, paddingBottom: SAFE_BOTTOM, boxSizing: "border-box" }}>
       <div style={{ width: 960, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <Reveal delay={2} y={-16}>
           <Pill fontSize={24} icon={<span style={{ fontSize: 22 }}>🏆</span>} dot={false}>
@@ -78,7 +78,7 @@ export const SceneStandings: React.FC = () => {
           </h2>
         </Reveal>
 
-        <Reveal delay={14} y={36} blur={12} style={{ marginTop: 44, width: "100%" }}>
+        <Reveal delay={10} y={36} blur={12} style={{ marginTop: 44, width: "100%" }}>
           <div
             style={{
               width: "100%",
@@ -121,8 +121,8 @@ export const SceneStandings: React.FC = () => {
               {ROWS.map((row, i) => {
                 const slot = row.startSlot + (row.endSlot - row.startSlot) * climb;
                 const rank = Math.round(slot) + 1;
-                const pts = row.hl ? Math.round(interpolate(frame, [36, 60], [18, row.pts], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })) : row.pts;
-                const lift = row.hl ? interpolate(frame, [36, 50, 66], [0, 1, 0.55], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
+                const pts = row.hl ? Math.round(interpolate(frame, [30, 66], [18, row.pts], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })) : row.pts;
+                const lift = row.hl ? interpolate(frame, [30, 54, 72], [0, 1, 0.55], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
                 return (
                   <TableRow key={i} row={row} top={slot * ROW_H} rank={rank} pts={pts} lift={lift} />
                 );

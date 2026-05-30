@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
-import { C, rgba, CTA_GRADIENT } from "../theme";
+import { C, rgba, CTA_GRADIENT, SAFE_TOP, SAFE_BOTTOM } from "../theme";
 import { HEADING, MONO } from "../fonts";
 import { useScene } from "../useScene";
 import { Reveal } from "../components/Reveal";
@@ -21,7 +21,7 @@ export const SceneCTA: React.FC = () => {
   const shine = interpolate(t, [0, period], [-140, 140]);
 
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: enter }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: enter, paddingTop: SAFE_TOP, paddingBottom: SAFE_BOTTOM, boxSizing: "border-box" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "0 90px" }}>
         <Reveal delay={2} y={30} scaleFrom={0.84} blur={12} style={{ transform: `translateY(${float}px)` }}>
           <Logo size={360} />

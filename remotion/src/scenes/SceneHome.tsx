@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill } from "remotion";
-import { C, rgba } from "../theme";
+import { C, rgba, SAFE_TOP, SAFE_BOTTOM } from "../theme";
 import { HEADING, MONO } from "../fonts";
 import { useScene } from "../useScene";
 import { Reveal } from "../components/Reveal";
@@ -19,6 +19,9 @@ export const SceneHome: React.FC = () => {
         alignItems: "center",
         justifyContent: "center",
         opacity: appear,
+        paddingTop: SAFE_TOP,
+        paddingBottom: SAFE_BOTTOM,
+        boxSizing: "border-box",
       }}
     >
       <div
