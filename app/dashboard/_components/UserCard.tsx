@@ -32,6 +32,7 @@ export default function UserCard({ user, stats }: { user: any; stats?: any }) {
         rating={rating}
         tierLabel={tier}
         stats={statLine}
+        avatarUrl={user?.avatar_url}
       />
     </section>
   )

@@ -13,6 +13,7 @@ import PersonalStats from "./_components/PersonalStats"
 import LeagueTable from "./_components/LeagueTable"
 import TournamentInvites from "./_components/TournamentInvites"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AvatarUpload } from "@/components/avatar-upload"
 
 type PlayerFixture = {
   id: string
@@ -190,7 +191,21 @@ export default function DashboardPage() {
         )}
 
         <div className="grid items-start gap-4 md:grid-cols-[290px_minmax(0,1fr)]">
-          <UserCard user={user} stats={data.stats} />
+          <div className="space-y-3">
+            <UserCard user={user} stats={data.stats} />
+            {user.id ? (
+              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
+                <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]">
+                  Profile picture
+                </div>
+                <AvatarUpload
+                  userId={String(user.id)}
+                  initialUrl={(user.avatar_url as string | null) ?? null}
+                  onChange={(url) => setData((d) => (d ? { ...d, user: { ...d.user, avatar_url: url } } : d))}
+                />
+              </div>
+            ) : null}
+          </div>
           <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
               <KpiCard label="Position" value={(user.position as string) || "-"} />

@@ -9,6 +9,7 @@ export function calculateStandings(fixtures: Fixture[], players: any[]): Standin
       playerId: player.id,
       playerName: player.name,
       team: player.assignedTeam || player.preferredClub,
+      avatarUrl: player.avatarUrl ?? null,
       played: 0,
       won: 0,
       drawn: 0,

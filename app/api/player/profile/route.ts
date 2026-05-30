@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data: player, error } = await supabase
     .from("players")
-    .select("id,username,name,preferred_club,assigned_club,console,status,available")
+    .select("id,username,name,preferred_club,assigned_club,console,status,available,avatar_url")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -51,9 +51,49 @@ export async function GET() {
       console: player.console,
       status: player.status,
       available: player.available,
+      avatar_url: player.avatar_url ?? null,
       season_name: settings?.season_name ?? "Season 1",
       position: index >= 0 ? index + 1 : null,
       points: index >= 0 ? rows[index].points : 0,
     },
   })
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  }
+
+  let body: { avatar_url?: string | null }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  // Only avatar_url is editable here for now. Accept an explicit null to clear.
+  if (!Object.prototype.hasOwnProperty.call(body, "avatar_url")) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
+  }
+
+  const next = body.avatar_url
+  if (next !== null && (typeof next !== "string" || next.length > 1024)) {
+    return NextResponse.json({ error: "Invalid avatar_url" }, { status: 400 })
+  }
+
+  const { error } = await supabase
+    .from("players")
+    .update({ avatar_url: next })
+    .eq("id", user.id)
+
+  if (error) {
+    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, avatar_url: next })
 }
