@@ -1,4 +1,3 @@
-import { continueRender, delayRender } from "remotion";
 import {
   ROBOTO_400,
   ROBOTO_500,
@@ -9,11 +8,16 @@ import {
   MONO_700,
 } from "./fonts-data";
 
-// Fonts are base64-embedded (scripts/embed-fonts.mjs) and registered via the
-// FontFace API straight from data: URIs — no render-time fetch and no reliance
-// on document.fonts.ready (which can hang in recycled render tabs). The
-// delayRender handle is always cleared in `finally`, so a render can never
-// stall on fonts, while still waiting for them so type is consistent.
+// Fonts are base64-embedded (scripts/embed-fonts.mjs) and registered with a
+// SYNCHRONOUS @font-face <style> injection from data: URIs.
+//
+// No delayRender(), no async font loading, no network. This matters: Remotion
+// reloads the render tab in chunks, re-evaluating this module each time. A
+// delayRender tied to an async font load can stall a reloaded tab forever
+// (the promise never settles → render times out). Pure synchronous injection
+// can never stall, is idempotent across reloads, and decodes instantly because
+// the woff2 is inline. font-display:block keeps type consistent; Remotion waits
+// for document.fonts before capturing each frame.
 type Face = { family: string; weight: number; src: string };
 
 const FACES: Face[] = [
@@ -26,31 +30,31 @@ const FACES: Face[] = [
   { family: "Roboto Mono", weight: 700, src: MONO_700 },
 ];
 
-const handle = delayRender("Loading Weekend FC fonts", {
-  timeoutInMilliseconds: 30000,
-});
-
-(async () => {
-  try {
-    if (typeof document !== "undefined" && "fonts" in document) {
-      await Promise.all(
-        FACES.map((f) => {
-          const face = new FontFace(f.family, `url(${f.src}) format("woff2")`, {
-            weight: String(f.weight),
-            style: "normal",
-            display: "block",
-          });
-          document.fonts.add(face);
-          return face.load();
-        }),
-      );
-    }
-  } catch {
-    // ignore — fall back to system fonts in the stacks below
-  } finally {
-    continueRender(handle);
+if (typeof document !== "undefined") {
+  const ID = "weekendfc-fonts";
+  if (!document.getElementById(ID)) {
+    const style = document.createElement("style");
+    style.id = ID;
+    style.textContent = FACES.map(
+      (f) =>
+        `@font-face{font-family:'${f.family}';font-style:normal;font-weight:${f.weight};font-display:block;src:url(${f.src}) format('woff2');}`,
+    ).join("");
+    document.head.appendChild(style);
   }
-})();
+
+  // Kick decoding immediately — fire-and-forget (data: URIs decode without a
+  // network round-trip). Never awaited, so it can never block a render.
+  const fontSet = (document as Document & { fonts?: FontFaceSet }).fonts;
+  if (fontSet && typeof fontSet.load === "function") {
+    for (const f of FACES) {
+      try {
+        void fontSet.load(`${f.weight} 40px '${f.family}'`);
+      } catch {
+        /* ignore — fall back to the system stacks below */
+      }
+    }
+  }
+}
 
 export const HEADING = `"Roboto", "Arial Black", system-ui, sans-serif`;
 export const SANS = `"Roboto", system-ui, -apple-system, sans-serif`;
