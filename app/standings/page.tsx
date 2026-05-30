@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getTeamBadge } from "@/lib/badges"
 import { cn } from "@/lib/utils"
-import { Crown, Medal, Target, Zap, ShieldAlert, Trophy } from "lucide-react"
+import { Crown, Medal, Target, Zap, ShieldAlert, Trophy, User } from "lucide-react"
 
 interface StandingRow {
   id: string
@@ -94,10 +94,9 @@ function TeamBadge({ team }: { team?: string | null }) {
   if (url) {
     return <img src={url} alt="" className="h-5 w-5 mr-2 rounded-full bg-[#0F0F0F] border border-[#1E1E1E] object-contain" />
   }
-  const init = (team || "").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || ""
   return (
-    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full border border-[#1E1E1E] bg-[#0F0F0F] text-[10px] mr-2">
-      {init}
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#1E1E1E] bg-[#0F0F0F] text-[#5C5C5C] mr-2">
+      <User className="h-3 w-3" aria-hidden />
     </span>
   )
 }
