@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 
 const TRACKER_URL = "https://yerwptchfksahaiiezki.supabase.co/functions/v1/site-track"
 const SITE_KEY = "94f9aa04-d15f-499a-825e-0bf8cab939d0"
-const HOSTS = new Set(["weekendfc.site", "www.weekendfc.site", "weekendfc.online", "www.weekendfc.online"])
+const HOSTS = new Set(["weekendfc.site", "www.weekendfc.site"])
 
 function storedId(storage: Storage, key: string, fallback: string) {
   const value = storage.getItem(key) || fallback
