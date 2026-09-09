@@ -2,6 +2,8 @@
 import Link from "next/link"
 import { useLeague, isFinal } from "@/components/league/use-league"
 import { FeedState, Table, MatchRow } from "@/components/league/ui"
+import { HomeHero } from "@/components/league/home-hero"
+import { HomePlaybook } from "@/components/league/home-playbook"
 export default function HomePage() {
   const { data, loading, error, retry } = useLeague()
   const next = data.fixtures.find((f) => !isFinal(f) && f.status !== "CANCELLED")
@@ -11,36 +13,7 @@ export default function HomePage() {
     .slice(0, 2)
   return (
     <div className="fc-site">
-      <section className="club-hero">
-        <h1>
-          WEEKEND<span>FC</span>
-        </h1>
-        <p className="club-subtitle">A football club for your weekends.</p>
-        <div className="club-hero-image">
-          <img
-            src="/weekend-ball.jpg"
-            alt="A black leather football in soft studio light"
-            fetchPriority="high"
-            width={1536}
-            height={1024}
-          />
-        </div>
-        <div className="club-hero-intro">
-          <p>
-            Pick your club. Play your rivals. Make your mark.
-            <br />
-            An independent online EA FC league.
-          </p>
-          <div>
-            <Link href="/register" className="fc-button">
-              Create your player
-            </Link>
-            <Link href="/standings" className="club-secondary">
-              Explore the league
-            </Link>
-          </div>
-        </div>
-      </section>
+      <HomeHero />
       <div className="fc-wrap club-season">
         <FeedState loading={loading} error={error} retry={retry} />
         {!loading &&
@@ -91,6 +64,7 @@ export default function HomePage() {
             </div>
           ))}
       </div>
+      <HomePlaybook />
     </div>
   )
 }
