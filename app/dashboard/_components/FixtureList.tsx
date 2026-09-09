@@ -8,8 +8,8 @@ export default function FixtureList({ fixtures = [] as any[] }) {
   const filtered = fixtures
     .filter((f) =>
       tab === "UPCOMING"
-        ? String(f.status || "").toUpperCase() !== "PLAYED"
-        : String(f.status || "").toUpperCase() === "PLAYED",
+        ? !["PLAYED", "FORFEIT", "CANCELLED"].includes(String(f.status || "").toUpperCase())
+        : ["PLAYED", "FORFEIT"].includes(String(f.status || "").toUpperCase()),
     )
     .slice(0, 6)
 

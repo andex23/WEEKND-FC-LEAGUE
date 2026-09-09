@@ -34,6 +34,7 @@ type DashboardData = {
   next: PlayerFixture | null
   recent: PlayerFixture | null
   standings: unknown[]
+  activeTournament: { id: string; name: string } | null
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -77,9 +78,9 @@ export default function DashboardPage() {
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
+    const load = async () => {
       try {
-        const profileRes = await fetch("/api/player/profile")
+        const profileRes = await fetch("/api/player/profile", { signal: AbortSignal.timeout(15000) })
         if (profileRes.status === 401) {
           window.location.href = "/auth/login?next=/dashboard"
           return
@@ -87,19 +88,32 @@ export default function DashboardPage() {
         if (!profileRes.ok) throw new Error("We couldn't load your profile. Please try again.")
         const { player } = await profileRes.json()
 
-        const [stats, fixturesData, standingsData] = await Promise.all([
-          fetch("/api/player-stats").then((r) => (r.ok ? r.json() : {})),
-          fetch("/api/player/fixtures").then((r) => (r.ok ? r.json() : { fixtures: [] })),
-          fetch("/api/standings").then((r) => (r.ok ? r.json() : { standings: [] })),
-        ])
+        const getJSON = async (url: string) => {
+          const response = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          if (!response.ok) throw new Error("We couldn't load your league data. Please try again.")
+          return response.json()
+        }
+        const { activeTournament } = await getJSON("/api/tournaments")
+        const qs = activeTournament ? `?tournamentId=${encodeURIComponent(activeTournament.id)}` : ""
+        const [stats, fixturesData, standingsData] = activeTournament ? await Promise.all([
+          getJSON(`/api/player-stats${qs}`),
+          getJSON("/api/player/fixtures"),
+          getJSON(`/api/standings${qs}`),
+        ]) : [{ goals: 0, assists: 0, yellow: 0, red: 0 }, { fixtures: [] }, { standings: [] }]
 
         const all: PlayerFixture[] = fixturesData.fixtures || []
-        const upcoming = all.filter((f) => String(f.status).toUpperCase() !== "PLAYED")
-        const played = all.filter((f) => String(f.status).toUpperCase() === "PLAYED")
+        const upcoming = all.filter((f) => !["PLAYED", "FORFEIT", "CANCELLED"].includes(String(f.status).toUpperCase()))
+        const played = all.filter((f) => ["PLAYED", "FORFEIT"].includes(String(f.status).toUpperCase()))
+        const position = standingsData.standings.findIndex((row: any) => row.playerId === player.id)
+        const myStanding = standingsData.standings[position]
+        Object.assign(player, { position: position >= 0 ? position + 1 : null, points: myStanding?.points ?? 0 })
+        Object.assign(stats, { wins: myStanding?.won ?? 0, draws: myStanding?.drawn ?? 0, losses: myStanding?.lost ?? 0 })
 
         if (!cancelled) {
+          setError(null)
           setData({
             user: player,
+            activeTournament,
             stats,
             fixtures: all,
             next: upcoming[0] || null,
@@ -112,10 +126,15 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) setLoading(false)
       }
-    })()
-
+    }
+    load()
+    const refresh = () => { if (!document.hidden) load() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener("focus", refresh)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refresh)
     }
   }, [])
 
@@ -184,9 +203,14 @@ export default function DashboardPage() {
           <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              Your registration is awaiting admin approval. You&apos;ll appear in fixtures and standings once an admin
-              approves your account.
+              Your registration is awaiting admin approval. Once approved, you can accept a tournament invitation. Fixtures and standings appear when the league goes live.
             </span>
+          </div>
+        )}
+
+        {!data.activeTournament && user.status !== "pending" && (
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+            You&apos;re registered. Your tournament invitation will appear here when the next league is ready. Fixtures and standings follow once it goes live.
           </div>
         )}
 

@@ -12,6 +12,7 @@ type FixtureOption = {
   awayTeam?: string
   scheduledDate?: string
   status: string
+  isHome?: boolean
 }
 
 export default function ReportPage() {
@@ -26,28 +27,33 @@ export default function ReportPage() {
   const [notes, setNotes] = useState<string>("")
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "conflict" | "error"; text: string } | null>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
-        const profile = await fetch("/api/player/profile").then((r) => r.json()).catch(() => ({ player: { id: "1", name: "Player One", preferredClub: "Arsenal" } }))
+        const profileResponse = await fetch("/api/player/profile")
+        if (!profileResponse.ok) throw new Error("Couldn't load your player profile.")
+        const profile = await profileResponse.json()
         setUser(profile.player)
-        const fx = await fetch(`/api/fixtures?playerId=${encodeURIComponent(profile.player.id)}`).then((r) => r.json()).catch(() => ({ fixtures: [] }))
+        const response = await fetch("/api/player/fixtures")
+        if (!response.ok) throw new Error("Couldn't load your fixtures.")
+        const fx = await response.json()
         const msgs = await fetch("/api/player/notifications").then((r) => r.json()).catch(() => ({ messages: [] }))
-        setFixtures(fx.fixtures || [])
-        // Eligible: SCHEDULED or PLAYED without approval marker (mock: include SCHEDULED only)
-        setEligible((fx.fixtures || []).filter((f: any) => String(f.status).toUpperCase() === "SCHEDULED" || String(f.status).toUpperCase() === "PLAYED"))
+        const rows = (fx.fixtures || []).map((f: any) => ({ ...f, homeTeam: f.homeClub || f.homePlayer, awayTeam: f.awayClub || f.awayPlayer }))
+        setFixtures(rows)
+        setEligible(rows.filter((f: any) => String(f.status).toUpperCase() === "SCHEDULED"))
         setMessages(msgs.messages || [])
       } catch (e) {
-        setEligible([])
-        setMessages([])
-      }
+        setLoadError("Couldn't load your fixtures. Please refresh to try again.")
+      } finally { setLoading(false) }
     })()
   }, [])
 
   const selectedFixture = useMemo(() => eligible.find((f) => String(f.id) === String(selectedId)), [eligible, selectedId])
-  const youAreHome = useMemo(() => selectedFixture && user && selectedFixture.homePlayer === user.id, [selectedFixture, user])
+  const youAreHome = useMemo(() => selectedFixture && user && selectedFixture.isHome === true, [selectedFixture, user])
   const labels = useMemo(() => {
     if (!selectedFixture || !user) return { left: "You", right: "Opponent" }
     const youTeam = youAreHome ? selectedFixture.homeTeam || "You" : selectedFixture.awayTeam || "You"
@@ -63,9 +69,13 @@ export default function ReportPage() {
     try {
       let screenshotBase64: string | null = null
       if (file) {
-        const buf = await file.arrayBuffer()
-        const b64 = Buffer.from(buf).toString("base64")
-        screenshotBase64 = `data:${file.type};base64,${b64}`
+        if (file.size > 2 * 1024 * 1024 || !["image/png", "image/jpeg"].includes(file.type)) throw new Error("Use a PNG or JPEG screenshot smaller than 2 MB.")
+        screenshotBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error("Couldn't read your screenshot. Try another image."))
+          reader.readAsDataURL(file)
+        })
       }
       const payload: any = {
         fixtureId: selectedFixture.id,
@@ -77,8 +87,9 @@ export default function ReportPage() {
         reportedByPlayerId: user?.id,
       }
       const res = await fetch("/api/result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error("Failed")
-      setStatusMsg({ type: "success", text: "Result submitted. Pending admin approval." })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result.error || "Couldn't submit the result. Please try again.")
+      setStatusMsg({ type: result.status === "CONFLICT" ? "conflict" : "success", text: result.message || "Result submitted. Pending admin approval." })
       setSelectedId("")
       setHomeScore("")
       setAwayScore("")
@@ -86,8 +97,7 @@ export default function ReportPage() {
       setNotes("")
       setFile(null)
     } catch (err: any) {
-      // naive conflict detection could be implemented server-side; show generic message
-      setStatusMsg({ type: "conflict", text: "Opponent reported a different score. Admin will resolve." })
+      setStatusMsg({ type: "error", text: err.message || "Couldn't submit the result. Please try again." })
     } finally {
       setSubmitting(false)
     }
@@ -105,7 +115,7 @@ export default function ReportPage() {
           {/* Left: form */}
           <div className="lg:col-span-8">
             <form onSubmit={onSubmit} className="rounded-2xl bg-[#141414] border p-4 space-y-4">
-              {eligible.length === 0 ? (
+              {loading ? <p>Loading your fixtures...</p> : loadError ? <p role="alert" className="text-rose-300">{loadError}</p> : eligible.length === 0 ? (
                 <EmptyState
                   icon="📋"
                   title="Nothing to report yet"
@@ -124,7 +134,7 @@ export default function ReportPage() {
                     >
                       <option value="" className="bg-[#141414]">Choose a fixture…</option>
                       {eligible.map((f) => {
-                        const isHome = user && f.homePlayer === user.id
+                        const isHome = user && f.isHome === true
                         const opponent = isHome ? f.awayTeam || f.awayPlayer : f.homeTeam || f.homePlayer
                         const homeAway = isHome ? "Home" : "Away"
                         const dt = f.scheduledDate ? new Date(f.scheduledDate) : null
@@ -146,6 +156,8 @@ export default function ReportPage() {
                         <input
                           type="number"
                           min={0}
+                          max={99}
+                          step={1}
                           value={homeScore}
                           onChange={(e) => setHomeScore(e.target.value)}
                           className="w-full bg-transparent border rounded px-3 py-2 text-sm"
@@ -158,6 +170,8 @@ export default function ReportPage() {
                         <input
                           type="number"
                           min={0}
+                          max={99}
+                          step={1}
                           value={awayScore}
                           onChange={(e) => setAwayScore(e.target.value)}
                           className="w-full bg-transparent border rounded px-3 py-2 text-sm"
@@ -215,7 +229,7 @@ export default function ReportPage() {
             <div className="rounded-2xl bg-[#141414] border p-4">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-base font-semibold">Admin Announcements</h2>
-                <a href="/dashboard?messages=1" className="text-xs underline text-[#9E9E9E]">View All →</a>
+
               </div>
               {messages.length === 0 ? (
                 <div className="text-sm text-[#9E9E9E]">No new messages.</div>

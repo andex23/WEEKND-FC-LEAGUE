@@ -18,7 +18,6 @@ function shapePlayerEntry(entry: any, tournament: any) {
       is_active: tournament.is_active,
       start_at: tournament.start_at,
       end_at: tournament.end_at,
-      config: tournament.config,
     },
   }
 }

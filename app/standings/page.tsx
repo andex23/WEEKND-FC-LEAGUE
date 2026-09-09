@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getTeamBadge } from "@/lib/badges"
 import { cn } from "@/lib/utils"
@@ -122,11 +123,10 @@ export default function StandingsPage() {
       try {
         // The tournaments list is the source of truth: a tournament becomes
         // live once it's activated (status ACTIVE).
-        const response = await fetch("/api/admin/tournaments", { signal: AbortSignal.timeout(15000) })
+        const response = await fetch("/api/tournaments", { signal: AbortSignal.timeout(15000) })
         if (!response.ok) throw new Error("Tournament request failed")
-        const { tournaments } = await response.json()
-        if (!Array.isArray(tournaments)) throw new Error("Invalid tournament response")
-        const active = tournaments.find((t: any) => t.status === "ACTIVE") ?? null
+        const { activeTournament: active } = await response.json()
+        setLoadError(null)
         setActiveTournament(active)
         setActiveTournamentId(active?.id ?? null)
       } catch {
@@ -135,6 +135,10 @@ export default function StandingsPage() {
       }
     }
     loadActive()
+    const refresh = () => { if (!document.hidden) loadActive() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener("focus", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh) }
   }, [])
 
   useEffect(() => {
@@ -144,11 +148,15 @@ export default function StandingsPage() {
       return
     }
     fetchData()
+    const refresh = () => { if (!document.hidden) fetchData(false) }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener("focus", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh) }
   }, [consoleFilter, activeTournamentId])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoading = true) => {
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       setLoadError(null)
       console.log("Standings page: Fetching data for tournament:", activeTournamentId)
       const qs = activeTournamentId ? `?tournamentId=${encodeURIComponent(String(activeTournamentId))}` : ""
@@ -168,7 +176,7 @@ export default function StandingsPage() {
       // Also fetch players for team names
       let byId: Map<string, any> = new Map()
       try {
-        const playersResponse = await fetch("/api/admin/players", { signal: AbortSignal.timeout(15000) })
+        const playersResponse = await fetch("/api/players", { signal: AbortSignal.timeout(15000) })
         if (playersResponse.ok) {
           const pj = await playersResponse.json()
           byId = new Map((pj.players || []).map((p: any) => [String(p.id), p]))
@@ -375,7 +383,7 @@ export default function StandingsPage() {
             )}
           </div>
 
-          <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#111111] p-1">
+          {activeTournamentId && <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#111111] p-1">
             {consoles.map((c) => (
               <button
                 key={c.value}
@@ -388,7 +396,7 @@ export default function StandingsPage() {
                 {c.label}
               </button>
             ))}
-          </div>
+          </div>}
         </header>
 
         {!activeTournamentId && (
@@ -396,8 +404,13 @@ export default function StandingsPage() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1A1A1A]">
               <Trophy className="h-6 w-6 text-[#5C5C5C]" />
             </div>
-            <div className="font-heading text-lg text-white">No active tournament</div>
-            <div className="mt-1 text-sm text-[#9E9E9E]">Check back when a tournament kicks off.</div>
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">Registration open</span>
+            <h2 className="mt-3 font-heading text-2xl text-white">The next league starts with you.</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#9E9E9E]">Register your player now. Once registration is complete and the league goes live, fixtures and standings will appear here.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/register" className="rounded-lg bg-emerald-500 px-5 py-3 font-heading text-sm text-black">Register to play</Link>
+              <Link href="/dashboard" className="rounded-lg border border-[#2A2A2A] px-5 py-3 font-heading text-sm text-white">Already registered?</Link>
+            </div>
           </div>
         )}
 
