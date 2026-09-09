@@ -1,3 +1,4 @@
+import { FIFA_CLUBS } from "@/lib/constants"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -85,6 +86,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   }
 
+  if (action === "accept" && !FIFA_CLUBS.includes(body.selectedClub)) return NextResponse.json({ error: "Choose a valid club." }, { status: 400 })
+  const { data: fixtures, error: fixturesError } = await admin.from("fixtures").select("id").eq("tournament_id", tournament.id).limit(1)
+  if (fixturesError) return NextResponse.json({ error: "Could not check tournament schedule" }, { status: 503 })
+  if (fixtures?.length) return NextResponse.json({ error: "The schedule is already generated. Contact the organizer to change your entry." }, { status: 409 })
+
   const result = respondToTournamentEntry(
     existing,
     playerId,
@@ -100,7 +106,7 @@ export async function POST(request: Request) {
   const { data: updated, error: updateError } = await admin
     .from("tournaments")
     .update({ config, updated_at: new Date().toISOString() })
-    .eq("id", String(tournament.id))
+    .eq("id", String(tournament.id)).eq("config", JSON.stringify(tournament.config))
     .select("id,name,status,season,is_active,start_at,end_at,config")
     .single()
 

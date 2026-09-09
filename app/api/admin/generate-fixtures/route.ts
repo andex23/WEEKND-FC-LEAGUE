@@ -9,7 +9,7 @@ function toISOAt17Local(d: Date): string {
   return copy.toISOString()
 }
 
-function computeWeekendDates(startAt: string | null, count: number): string[] {
+function computeWeekendDates(startAt: string | null, count: number, matchdaysPerWeekend: number): string[] {
   const dates: string[] = []
   let d = startAt ? new Date(startAt) : new Date()
   const day = d.getDay() // 0 Sun .. 6 Sat
@@ -29,6 +29,11 @@ function computeWeekendDates(startAt: string | null, count: number): string[] {
       use.setDate(use.getDate() + diff)
     }
     dates.push(toISOAt17Local(use))
+    if (matchdaysPerWeekend === 1) {
+      d = new Date(use)
+      d.setDate(d.getDate() + 7)
+      continue
+    }
     if (isSat) {
       d = new Date(use)
       d.setDate(d.getDate() + 1)
@@ -61,13 +66,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "tournamentId is required" }, { status: 400 })
     }
 
+    if (![1, 2].includes(rounds) || ![1, 2].includes(matchdaysPerWeekend)) {
+      return NextResponse.json({ error: "Choose one or two rounds and matchdays per weekend." }, { status: 400 })
+    }
     const admin = createAdminClient()
 
-    const { data: t } = await admin
+    const { data: t, error: tournamentError } = await admin
       .from("tournaments")
       .select("start_at,config")
       .eq("id", String(tournamentId))
       .maybeSingle()
+
+    if (tournamentError || !t) return NextResponse.json({ error: "Tournament not found" }, { status: 404 })
+    const { count, error: existingError } = await admin.from("fixtures").select("id", { count: "exact", head: true }).eq("tournament_id", tournamentId)
+    if (existingError) return NextResponse.json({ error: "Could not check existing fixtures" }, { status: 503 })
+    if (count) return NextResponse.json({ error: "This tournament already has fixtures. Clear them explicitly before generating a new schedule." }, { status: 409 })
 
     // Build the roster from accepted tournament entries. If an old tournament
     // has no entries yet, fall back to approved players so existing local data
@@ -134,10 +147,8 @@ export async function POST(request: NextRequest) {
 
     // One weekend date (Sat/Sun alternating) per matchday.
     const maxMd = fixtures.reduce((m, f) => Math.max(m, Number(f.matchday || 1)), 1)
-    const weekendDates = computeWeekendDates((t as any)?.start_at || null, maxMd)
+    const weekendDates = computeWeekendDates((t as any)?.start_at || null, maxMd, matchdaysPerWeekend)
 
-    // Regenerate cleanly: clear this tournament's fixtures, then insert the set.
-    await admin.from("fixtures").delete().eq("tournament_id", tournamentId)
 
     const rows = fixtures.map((f) => {
       const md = Number(f.matchday || 1)

@@ -41,7 +41,7 @@ export default function AdminPlayersPage() {
       const status = String(p.status || "pending").toLowerCase()
       if (statusFilter !== "all" && status !== statusFilter) return false
       if (!query) return true
-      return [p.name, p.username, p.email, (p as any).gamer_tag, p.psn_name, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query))
+      return [p.name, p.username, p.email, (p as any).gamer_tag, p.psn_id, p.preferred_club, p.console, p.location].some((v) => String(v || "").toLowerCase().includes(query))
     })
   }, [players, q, statusFilter])
 
@@ -100,6 +100,7 @@ export default function AdminPlayersPage() {
       
       const toAdd = rows.map((r) => ({
         name: r.name || "Unnamed",
+        email: r.email || "",
         gamer_tag: r.gamer_tag || r.gamertag || "",
         console: (r.console || "PS5").toUpperCase(),
         preferred_club: r.preferred_club || "",
@@ -115,6 +116,7 @@ export default function AdminPlayersPage() {
           body: JSON.stringify({
             action: "add",
             name: p.name,
+            email: p.email,
             username: p.gamer_tag || null,
             psn_name: p.gamer_tag || null,
             console: p.console,
@@ -321,7 +323,7 @@ export default function AdminPlayersPage() {
                   {filtered.map((p) => (
                     <tr key={p.id} className="border-t border-[#1E1E1E]">
                       <td className="px-3 py-2">{p.name}</td>
-                      <td className="px-3 py-2">{p.username || p.psn_name || "—"}</td>
+                      <td className="px-3 py-2">{p.username || p.psn_id || "—"}</td>
                       <td className="px-3 py-2">{p.email || "—"}</td>
                       <td className="px-3 py-2">{p.preferred_club || "—"}</td>
                       <td className="px-3 py-2">{p.console}</td>
@@ -435,17 +437,18 @@ function RosterStatusPill({ status }: { status: string | null | undefined }) {
 }
 
 function AddForm({ onAdded }: { onAdded: () => void }) {
+  const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [gamerTag, setGamerTag] = useState("")
   const [consoleType, setConsoleType] = useState("PS5")
   const [club, setClub] = useState("")
   const [location, setLocation] = useState("")
-  const [active, setActive] = useState(true)
+  const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
-    if (!name.trim()) {
-      toast.error("Name is required")
+    if (!name.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      toast.error("Name and a valid email are required")
       return
     }
     setLoading(true)
@@ -456,6 +459,7 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
         body: JSON.stringify({
           action: "add",
           name: name,
+          email: email.trim(),
           username: gamerTag || null,
           psn_name: gamerTag || null,
           console: consoleType,
@@ -466,13 +470,13 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
       })
       
       if (!response.ok) {
-        throw new Error(`Failed to add player: ${response.statusText}`)
+        throw new Error((await response.json()).error || "Failed to add player")
       }
       
       const result = await response.json()
       if (result.success) {
         toast.success("Player added successfully")
-        setName(""); setGamerTag(""); setClub(""); setLocation(""); setActive(true)
+        setName(""); setEmail(""); setGamerTag(""); setClub(""); setLocation(""); setActive(false)
         onAdded()
       } else {
         throw new Error(result.error || "Failed to add player")
@@ -489,12 +493,16 @@ function AddForm({ onAdded }: { onAdded: () => void }) {
     <div className="rounded-lg border border-[#243026] bg-[#0E120F] p-4">
       <div className="mb-4">
         <div className="text-sm font-semibold">Add Player</div>
-        <div className="mt-1 text-xs text-[#8A9A8D]">Manual adds are useful for seeded league rosters and late replacements.</div>
+        <div className="mt-1 text-xs text-[#8A9A8D]">Create a player account with their email. After approval, they can set their password using Forgot password on the sign-in page.</div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
         <div className="sm:col-span-2 lg:col-span-1">
           <Label className="text-sm">Name (required)</Label>
           <Input className="mt-1 bg-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player name" />
+        </div>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <Label className="text-sm">Email (required)</Label>
+          <Input type="email" className="mt-1 bg-transparent" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="player@example.com" />
         </div>
         <div className="sm:col-span-2 lg:col-span-1">
           <Label className="text-sm">Gamer Tag</Label>
@@ -539,7 +547,7 @@ function EditDialog({ player, onClose, onSaved }: { player: any | null; onClose:
     if (player) {
       setForm({
         ...player,
-        gamer_tag: player.username || player.psn_name || "",
+        gamer_tag: player.username || player.psn_id || "",
         active: String(player.status) === "approved",
       })
     }

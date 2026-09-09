@@ -105,26 +105,30 @@ export async function POST(request: Request) {
     }
 
     if (action === "add") {
-      // Only include columns that exist in DB schema
-      const insertData: any = {
-        user_id: data.user_id || null,
-        username: data.username || null,
-        name: data.name,
-        psn_name: data.psn_name || null,
-        location: data.location || null,
-        console: data.console,
-        preferred_club: data.preferred_club,
-        assigned_club: data.assigned_club || null,
-        role: data.role || 'PLAYER',
-        status: (data.status || 'pending')
+      const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : ""
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || typeof data.name !== "string" || !data.name.trim()) {
+        return NextResponse.json({ error: "A player name and valid email address are required." }, { status: 400 })
       }
-      console.log("Attempting to insert player:", insertData)
-      const { data: created, error } = await admin.from("players").insert([insertData]).select().single()
+      const { data: auth, error: authError } = await admin.auth.admin.createUser({
+        email, password: crypto.randomUUID() + "Aa1!", email_confirm: false,
+        user_metadata: { name: data.name.trim(), username: data.username || null },
+      })
+      if (authError || !auth.user) return NextResponse.json({ error: authError?.message || "Could not create player account" }, { status: 400 })
+      const { data: created, error } = await admin.from("players").insert({
+        id: auth.user.id, email, name: data.name.trim(), username: data.username || null,
+        psn_id: data.psn_id || data.psn_name || null, location: data.location || null,
+        console: data.console || "PS5", preferred_club: data.preferred_club || null,
+        assigned_club: data.assigned_club || null, role: "PLAYER", status: "pending",
+      }).select().single()
       if (error) {
-        console.error("Database error:", error)
+        await admin.auth.admin.deleteUser(auth.user.id)
         throw error
       }
-      console.log("Successfully created player:", created)
+      if (data.status === "approved") {
+        const result = await updatePlayerStatusWithApprovalEmail(admin, { playerId: created.id, status: "approved", loginUrl })
+        if (!result.ok) return NextResponse.json({ error: result.error, player: created, message: "The account was created as pending. Retry approval after correcting email delivery." }, { status: result.statusCode })
+        return NextResponse.json({ success: true, player: result.player, emailSent: result.emailSent })
+      }
       return NextResponse.json({ success: true, player: created })
     }
 
@@ -134,7 +138,7 @@ export async function POST(request: Request) {
       const patch: any = {}
       if (typeof src.username !== 'undefined') patch.username = src.username
       if (typeof src.name !== 'undefined') patch.name = src.name
-      if (typeof src.psn_name !== 'undefined') patch.psn_name = src.psn_name
+      if (typeof src.psn_name !== 'undefined') patch.psn_id = src.psn_name
       if (typeof src.location !== 'undefined') patch.location = src.location
       if (typeof src.console !== 'undefined') patch.console = src.console
       if (typeof src.preferred_club !== 'undefined') patch.preferred_club = src.preferred_club
@@ -212,9 +216,9 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: true, note: "No-op for non-uuid id" })
         }
         let q = admin.from("players").update(patch).eq("name", fallbackName)
-        if (fallbackUsername && fallbackPsn) q = q.or(`username.eq.${fallbackUsername},psn_name.eq.${fallbackPsn}`)
+        if (fallbackUsername && fallbackPsn) q = q.or(`username.eq.${fallbackUsername},psn_id.eq.${fallbackPsn}`)
         else if (fallbackUsername) q = q.eq("username", fallbackUsername)
-        else if (fallbackPsn) q = q.eq("psn_name", fallbackPsn)
+        else if (fallbackPsn) q = q.eq("psn_id", fallbackPsn)
         const { error } = await q
         if (error) throw error
         return NextResponse.json({ success: true })
@@ -239,7 +243,7 @@ export async function POST(request: Request) {
         const username = data.username || null
         const psn = data.psn_name || null
         if (name && (username || psn)) {
-          const { error: deleteError } = await admin.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_name.eq.${psn}` : ""}`)
+          const { error: deleteError } = await admin.from("players").delete().eq("name", name).or(`${username ? `username.eq.${username}` : ""}${username && psn ? "," : ""}${psn ? `psn_id.eq.${psn}` : ""}`)
           error = deleteError
         } else {
           // As a last resort, do nothing to avoid accidental mass deletions

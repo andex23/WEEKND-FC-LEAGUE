@@ -8,10 +8,10 @@ export async function POST(request: Request) {
     if (!id) return NextResponse.json({ error: "Missing fixture ID" }, { status: 400 })
     const db = createAdminClient()
     const { data: fixture, error } = await db.from("fixtures")
-      .select("id,report_status,reported_home_score,reported_away_score").eq("id", id).maybeSingle()
+      .select("id,status,report_status,reported_home_score,reported_away_score").eq("id", id).maybeSingle()
     if (error) throw error
     if (!fixture) return NextResponse.json({ error: "Fixture not found" }, { status: 404 })
-    if (!["PENDING", "CONFLICT"].includes(fixture.report_status) || !validScore(fixture.reported_home_score) || !validScore(fixture.reported_away_score)) {
+    if (fixture.status !== "SCHEDULED" || !["PENDING", "CONFLICT"].includes(fixture.report_status) || !validScore(fixture.reported_home_score) || !validScore(fixture.reported_away_score)) {
       return NextResponse.json({ error: "This fixture has no valid pending report." }, { status: 409 })
     }
     const { data: updated, error: updateError } = await db.from("fixtures").update({

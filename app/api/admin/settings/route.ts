@@ -129,10 +129,11 @@ export async function POST(request: Request) {
     }
 
     if (tournament?.id) {
-      await client
+      const { error: storageError } = await client
         .from("tournaments")
         .update({ config: { ...(tournament.config || {}), admin_settings: sections } })
         .eq("id", tournament.id)
+      if (storageError) throw storageError
     }
 
     const basePatch = {

@@ -74,12 +74,15 @@ export default function TournamentSetupPage() {
   const saveDraft = async () => {
     setSaving(true)
     try {
-      await fetch("/api/tournament/config", {
+      const res = await fetch("/api/tournament/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config }),
       })
+      if (!res.ok) throw new Error("Could not save setup draft")
       toast.success("Setup draft saved")
+    } catch {
+      toast.error("Could not save setup draft. Please try again.")
     } finally {
       setSaving(false)
     }

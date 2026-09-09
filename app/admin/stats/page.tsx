@@ -138,7 +138,8 @@ export default function AdminStatsPage() {
 
   const saveFixture = async (row: Row) => {
     try {
-      await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, tournamentId, season: row.season, matchday: row.matchday, homeId: row.homeId, awayId: row.awayId, homeScore: row.homeScore, awayScore: row.awayScore, status: row.status }) })
+      const response = await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.id, tournamentId, season: row.season, matchday: row.matchday, homeId: row.homeId, awayId: row.awayId, homeScore: row.homeScore, awayScore: row.awayScore, status: row.status }) })
+      if (!response.ok) throw new Error("Failed to save fixture")
       if (tournamentId) {
         await refreshFromTournament()
       }
@@ -147,11 +148,11 @@ export default function AdminStatsPage() {
   }
 
   const overrideNumber = async (table: string, id: string, field: string, val: number) => {
-    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "override", table, id, field, value: val }) })
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tournamentId, action: "override", table, id, field, value: val }) })
     if (!res.ok) toast.error("Failed to update")
   }
   const updateMeta = async (table: string, id: string, patch: { name?: string; team?: string }) => {
-    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_meta", table, id, ...patch }) })
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tournamentId, action: "update_meta", table, id, ...patch }) })
     if (!res.ok) toast.error("Failed to update")
   }
   const addRow = async (table: string, name: string, team?: string) => {
@@ -167,7 +168,9 @@ export default function AdminStatsPage() {
         ...(table === "discipline" ? { YC: 0, RC: 0 } : {})
       }
       
-      if (table === "scorers") {
+      if (table === "standings") {
+        setTableStandings(prev => [...prev, { ...newRow, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }])
+      } else if (table === "scorers") {
         setLeadersScorers(prev => [...prev, newRow])
       } else if (table === "assists") {
         setLeadersAssists(prev => [...prev, newRow])
@@ -178,13 +181,13 @@ export default function AdminStatsPage() {
     }
     
     // If name is provided, save to server
-    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add_row", table, name, team }) })
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tournamentId, action: "add_row", table, name, team }) })
     if (!res.ok) toast.error("Failed to add")
     else toast.success("Added")
     load()
   }
   const deleteRow = async (table: string, id: string) => {
-    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_row", table, id }) })
+    const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tournamentId, action: "delete_row", table, id }) })
     if (!res.ok) toast.error("Failed to delete")
     else toast.success("Deleted")
     load()
@@ -231,10 +234,15 @@ export default function AdminStatsPage() {
   }
 
   const publishStandings = async () => {
-    await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recompute" }) }).catch(() => null)
-    await fetch("/api/standings").catch(() => null)
-    await refreshFromTournament()
-    toast.success("Standings published")
+    if (!tournamentId) { toast.error("Activate a tournament first"); return }
+    try {
+      for (const [table, rows] of Object.entries({ standings: tableStandings, scorers: leadersScorers, assists: leadersAssists, discipline: leadersDiscipline })) {
+        const res = await fetch("/api/admin/stats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tournamentId, action: "save_table", table, rows }) })
+        if (!res.ok) throw new Error((await res.json()).error || "Could not save statistics")
+      }
+      await refreshFromTournament()
+      toast.success("Statistics saved and published")
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save statistics") }
   }
 
   return (

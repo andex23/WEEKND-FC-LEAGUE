@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { validScore } from "@/lib/matches/validation"
 import { randomUUID } from "crypto"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -14,13 +15,10 @@ export async function GET(request: NextRequest) {
     const client = await createClient()
 
     if (!tournamentId) {
-      // Try to get active tournament from DB settings
-      try {
-        const { data: s } = await client.from("league_settings").select("active_tournament_id").limit(1).single()
-        tournamentId = s?.active_tournament_id || null
-      } catch {
-        tournamentId = null
-      }
+      const { data: active, error: activeError } = await client.from("tournaments")
+        .select("id").eq("status", "ACTIVE").order("updated_at", { ascending: false }).limit(1).maybeSingle()
+      if (activeError) throw activeError
+      tournamentId = active?.id || null
       if (!tournamentId) return NextResponse.json({ fixtures: [], totalFixtures: 0 })
     }
 
@@ -29,8 +27,8 @@ export async function GET(request: NextRequest) {
       .from("fixtures")
       .select(`
         id,tournament_id,matchday,home_player_id,away_player_id,home_club,away_club,home_score,away_score,status,scheduled_date,notes,
-        home_player:players!fixtures_home_player_id_fkey(id,status),
-        away_player:players!fixtures_away_player_id_fkey(id,status)
+        home_player:players!fixtures_home_player_id_fkey!inner(id,status),
+        away_player:players!fixtures_away_player_id_fkey!inner(id,status)
       `)
       .eq("tournament_id", tournamentId)
       .eq("home_player.status", "approved")
@@ -115,6 +113,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid awayId (player_id)", received: row.away_player_id }, { status: 400 })
     }
 
+    if (row.home_player_id === row.away_player_id || !Number.isInteger(row.matchday) || row.matchday < 1) {
+      return NextResponse.json({ error: "Choose two different players and a valid matchday." }, { status: 400 })
+    }
+    if (!["SCHEDULED", "PLAYED", "FORFEIT", "CANCELLED"].includes(row.status) ||
+        [row.home_score, row.away_score].some((score) => score !== null && !validScore(score)) ||
+        (["PLAYED", "FORFEIT"].includes(row.status) && (!validScore(row.home_score) || !validScore(row.away_score)))) {
+      return NextResponse.json({ error: "Final results require whole-number scores between 0 and 99." }, { status: 400 })
+    }
+    // Editing a score must not erase the existing clubs or scheduled date.
+    if (body.id && uuidLike.test(body.id)) {
+      if (body.date === undefined && body.scheduledDate === undefined) delete row.scheduled_date
+      if (body.homeTeam === undefined && body.homeClub === undefined) delete row.home_club
+      if (body.awayTeam === undefined && body.awayClub === undefined) delete row.away_club
+    }
+    if (body.scheduledDate !== undefined) row.scheduled_date = body.scheduledDate
+
     // Use upsert to handle both new and existing records reliably
     // Saving fixture to database
     
@@ -170,7 +184,7 @@ export async function DELETE(request: NextRequest) {
       tournamentId = searchParams.get("tournamentId")
     }
 
-    const client = await createClient()
+    const client = createAdminClient()
 
     if (tournamentId) {
       const { error } = await client.from("fixtures").delete().eq("tournament_id", tournamentId)
@@ -181,7 +195,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
     if (id === "__all__") {
-      const { error } = await client.from("fixtures").delete().neq("id", "")
+      const { error } = await client.from("fixtures").delete().not("id", "is", null)
       if (error) throw error
       return NextResponse.json({ ok: true, cleared: true })
     }
