@@ -12,6 +12,7 @@ export function SiteFooter() {
             Weekend FC
           </Link>
           <nav aria-label="Footer navigation">
+            <Link href="/how-to-play">How we play</Link>
             <Link href="/standings">Standings</Link>
             <Link href="/fixtures">Matchdays</Link>
             <Link href="/rules">Rules</Link>

@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
 const LINKS = [
+  { href: "/how-to-play", label: "How we play" },
   { href: "/standings", label: "Standings" },
   { href: "/fixtures", label: "Matchdays" },
   { href: "/rules", label: "Rules" },

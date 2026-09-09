@@ -47,7 +47,7 @@ export function HomeHero() {
             <Link href="/register" className="fc-button">
               Create your player
             </Link>
-            <Link href="#the-game" className="club-secondary">
+            <Link href="/how-to-play" className="club-secondary">
               How we play
             </Link>
           </div>
