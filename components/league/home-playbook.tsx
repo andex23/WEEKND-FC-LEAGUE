@@ -17,7 +17,7 @@ const stages = [
   {
     title: "Play",
     heading: "A familiar game. A new rival every matchday.",
-    text: "Check your fixtures, arrange a time with your opponent, and play on Friday, Saturday or Sunday. Clubs only, six-minute halves, with the same rules for everyone.",
+    text: "Check your fixtures, arrange a time with your opponent, and play on Friday, Saturday or Sunday. Clubs only, with the same rules for everyone.",
     detail: "Keep a screenshot of your final score",
     link: "/fixtures",
     action: "Explore matchdays",

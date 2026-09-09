@@ -56,7 +56,6 @@ export function HomeHero() {
       <div className="club-format" aria-label="Competition format">
         <span>Friday – Sunday</span>
         <span>Clubs only</span>
-        <span>6-minute halves</span>
         <span>Round-robin league</span>
       </div>
     </section>
