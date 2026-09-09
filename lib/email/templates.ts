@@ -18,65 +18,41 @@ function layout(opts: {
   footerNote?: string
 }): string {
   const { heading, intro, bodyHtml, cta, footerNote } = opts
+  const actionUrl = cta ? escapeHtml(cta.url) : ""
   return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<meta name="color-scheme" content="dark"/>
-</head>
-<body style="margin:0;padding:0;background-color:#0A0A0A;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0A;">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#111111;border:1px solid #1E1E1E;border-radius:16px;overflow:hidden;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<tr><td style="padding:28px 32px 0 32px;">
-<table role="presentation" cellpadding="0" cellspacing="0"><tr>
-<td style="width:40px;height:40px;background-color:#10b981;border-radius:10px;text-align:center;vertical-align:middle;font-size:20px;font-weight:800;color:#0A0A0A;">W</td>
-<td style="padding-left:12px;font-size:13px;font-weight:700;letter-spacing:2px;color:#8A8A8A;text-transform:uppercase;">Weekend FC League</td>
-</tr></table>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="color-scheme" content="light"/><meta name="supported-color-schemes" content="light"/><title>Weekend FC</title>
+<style>@media only screen and (max-width:600px){.mail-shell{padding:20px 12px!important}.mail-content{padding:32px 24px!important}.mail-heading{font-size:29px!important}.mail-logo{padding:30px 24px 20px!important}}</style></head>
+<body style="margin:0;padding:0;background:#eeefec;color:#1c1e20;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${heading.replace(/<[^>]*>/g, "")} — your Weekend FC update.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eeefec;"><tr><td class="mail-shell" align="center" style="padding:48px 16px;">
+<!--[if mso]><table role="presentation" width="560"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e1e3de;border-radius:4px;">
+<tr><td class="mail-logo" align="center" style="padding:40px 40px 25px;"><a href="https://weekendfc.site" style="text-decoration:none;color:#111214;"><img src="https://weekendfc.site/logo.png" alt="Weekend FC" width="58" height="58" style="display:block;border:0;border-radius:50%;margin:0 auto 15px;"/><span style="font-size:16px;line-height:1.4;font-weight:700;letter-spacing:-.4px;">Weekend FC</span></a></td></tr>
+<tr><td class="mail-content" style="padding:15px 44px 42px;">
+<h1 class="mail-heading" style="margin:0 0 22px;text-align:center;font-size:34px;line-height:1.2;letter-spacing:-1.2px;font-weight:600;color:#111214;">${heading}</h1>
+<p style="margin:0;font-size:15px;line-height:1.85;color:#5e6167;">${intro}</p>
+${bodyHtml ? `<div style="margin-top:26px;">${bodyHtml}</div>` : ""}
+${cta ? `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:32px auto 0;"><tr><td bgcolor="#d3ed9b" style="background:#d3ed9b;border-radius:5px;text-align:center;mso-padding-alt:15px 30px;"><a href="${actionUrl}" style="display:inline-block;padding:15px 30px;color:#171c10;text-decoration:none;font-size:14px;font-weight:600;line-height:20px;">${escapeHtml(cta.label)}</a></td></tr></table>` : ""}
 </td></tr>
-<tr><td style="padding:24px 32px 8px 32px;">
-<h1 style="margin:0 0 12px 0;font-size:23px;line-height:1.3;color:#FFFFFF;font-weight:800;">${heading}</h1>
-<p style="margin:0;font-size:15px;line-height:1.6;color:#B0B0B0;">${intro}</p>
-</td></tr>
-${bodyHtml ? `<tr><td style="padding:16px 32px 0 32px;">${bodyHtml}</td></tr>` : ""}
-${
-  cta
-    ? `<tr><td style="padding:24px 32px 8px 32px;">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
-<td align="center" style="border-radius:10px;background:linear-gradient(90deg,#f5c54a,#10b981);">
-<a href="${cta.url}" target="_blank" style="display:block;padding:14px 24px;font-size:15px;font-weight:800;color:#0A0A0A;text-decoration:none;">${escapeHtml(cta.label)}</a>
-</td></tr></table>
-</td></tr>`
-    : ""
-}
-<tr><td style="padding:24px 32px;">
-<div style="height:1px;background-color:#1E1E1E;"></div>
-<p style="margin:20px 0 0 0;font-size:12px;line-height:1.6;color:#6C6C6C;">${
-    footerNote ? escapeHtml(footerNote) : "Weekend FC League"
-  }</p>
-</td></tr>
+<tr><td style="padding:24px 32px;border-top:1px solid #eceee8;background:#fafbf8;text-align:center;"><p style="margin:0;font-size:11px;line-height:1.8;color:#797d83;">${footerNote ? escapeHtml(footerNote) : "A message for your next Weekend FC matchday."}</p></td></tr>
 </table>
-<p style="margin:20px 0 0 0;font-size:11px;color:#5C5C5C;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Weekend FC League &middot; The weekend is for football</p>
-</td></tr>
-</table>
-</body>
-</html>`
+<!--[if mso]></td></tr></table><![endif]-->
+<p style="margin:25px 0 0;font-size:11px;line-height:1.8;color:#83878c;text-align:center;">Football for your weekends.<br/><a href="https://weekendfc.site" style="color:#555b61;text-decoration:none;">weekendfc.site</a></p>
+</td></tr></table></body></html>`
 }
 
 export type EmailContent = { subject: string; html: string }
 
 export function approvalConfirmedEmail(name: string, loginUrl: string): EmailContent {
   return {
-    subject: "Your Weekend FC League account is approved",
+    subject: "Welcome to Weekend FC — your registration is approved",
     html: layout({
-      heading: "Registration approved",
+      heading: "Welcome to the club.",
       intro: `Hi ${escapeHtml(
         name,
-      )}, an admin has approved your Weekend FC League registration. Your email is confirmed and your account is ready to use.`,
+      )}, your Weekend FC registration is approved. Your account is ready. Sign in to check your tournament invitations and choose your club.`,
       cta: { label: "Sign in", url: loginUrl },
-      footerNote:
-        "You're receiving this because your Weekend FC League registration was approved.",
+      footerNote: "You're receiving this because your Weekend FC League registration was approved.",
     }),
   }
 }
@@ -113,7 +89,7 @@ export function announcementEmail(title: string, message: string): EmailContent 
     .filter((p) => p.trim())
     .map(
       (p) =>
-        `<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#B0B0B0;">${escapeHtml(
+        `<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#5e6167;">${escapeHtml(
           p.trim(),
         ).replace(/\n/g, "<br/>")}</p>`,
     )
@@ -138,21 +114,25 @@ export type FixtureLine = {
   oppClub: string
 }
 
-export function fixturesEmail(name: string, fixtures: FixtureLine[], dashboardUrl: string): EmailContent {
+export function fixturesEmail(
+  name: string,
+  fixtures: FixtureLine[],
+  dashboardUrl: string,
+): EmailContent {
   const rows = fixtures.length
     ? fixtures
         .map(
-          (f) => `<tr><td style="padding:10px 0;border-bottom:1px solid #1E1E1E;">
-<span style="font-size:14px;color:#E0E0E0;"><span style="color:#10b981;font-weight:700;">MD${f.matchday}</span> &middot; ${escapeHtml(
+          (f) => `<tr><td style="padding:10px 0;border-bottom:1px solid #e6e9e0;">
+<span style="font-size:14px;color:#1c1e20;"><span style="color:#344124;font-weight:700;">MD${f.matchday}</span> &middot; ${escapeHtml(
             f.dateLabel,
           )}</span><br/>
-<span style="color:#9E9E9E;font-size:13px;">${f.isHome ? "Home" : "Away"} vs ${escapeHtml(
+<span style="color:#6a7077;font-size:13px;">${f.isHome ? "Home" : "Away"} vs ${escapeHtml(
             f.opponent,
           )} &middot; ${escapeHtml(f.yourClub)} v ${escapeHtml(f.oppClub)}</span>
 </td></tr>`,
         )
         .join("")
-    : `<tr><td style="padding:10px 0;font-size:14px;color:#9E9E9E;">No fixtures scheduled for you yet.</td></tr>`
+    : `<tr><td style="padding:10px 0;font-size:14px;color:#6a7077;">No fixtures scheduled for you yet.</td></tr>`
   return {
     subject: "Your Weekend FC League fixtures",
     html: layout({
@@ -174,13 +154,13 @@ export function matchReminderEmail(opts: {
   dashboardUrl: string
 }): EmailContent {
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 0;font-size:14px;color:#9E9E9E;">${label}</td><td style="padding:6px 0;font-size:14px;color:#E0E0E0;text-align:right;font-weight:700;">${escapeHtml(
+    `<tr><td style="padding:6px 0;font-size:14px;color:#6a7077;">${label}</td><td style="padding:6px 0;font-size:14px;color:#1c1e20;text-align:right;font-weight:700;">${escapeHtml(
       value,
     )}</td></tr>`
   return {
     subject: `Upcoming match — vs ${opts.opponent}`,
     html: layout({
-      heading: "You've got a match coming up",
+      heading: "Your next match awaits.",
       intro: `Hi ${escapeHtml(opts.name)}, this is a reminder about your upcoming Weekend FC League fixture.`,
       bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 ${row("Opponent", opts.opponent)}
@@ -200,14 +180,14 @@ export function referralEmail(opts: {
   note?: string
 }): EmailContent {
   const noteHtml = opts.note?.trim()
-    ? `<p style="margin:0;font-size:15px;line-height:1.6;color:#B0B0B0;font-style:italic;">&ldquo;${escapeHtml(
+    ? `<p style="margin:0;font-size:15px;line-height:1.6;color:#5e6167;font-style:italic;">&ldquo;${escapeHtml(
         opts.note.trim(),
       )}&rdquo;</p>`
     : ""
   return {
     subject: `${opts.inviterName} invited you to the Weekend FC League`,
     html: layout({
-      heading: "You've been invited to play",
+      heading: "There’s a place for you.",
       intro: `${escapeHtml(
         opts.inviterName,
       )} thinks you'd be a good fit for the Weekend FC League — a weekend EA FC competition with real fixtures, standings and stats.`,

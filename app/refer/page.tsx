@@ -39,7 +39,7 @@ export default function ReferPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] px-4 py-12 text-white">
+    <div className="fc-recovery">
       <div className="mx-auto max-w-md">
         <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8">
           <div className="text-center">
@@ -48,7 +48,7 @@ export default function ReferPage() {
             </div>
             <h1 className="mt-4 font-heading text-2xl">Invite a friend</h1>
             <p className="mt-1 text-sm text-[#8A8A8A]">
-              Send a branded invite to register for the Weekend FC League.
+              Football is better with a familiar rival. Invite them to the club.
             </p>
           </div>
 
@@ -91,7 +91,7 @@ export default function ReferPage() {
               type="submit"
               disabled={sending}
               className="h-12 w-full font-heading text-black"
-              style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+              style={{ background: "#d3ed9b" }}
             >
               {sending ? (
                 <>

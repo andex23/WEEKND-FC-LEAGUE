@@ -28,10 +28,16 @@ import {
   Wifi,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Combobox } from "@/components/ui/combobox"
-import { PlayerCard } from "@/components/player-card"
 import { registrationSchema, type RegistrationFormData } from "@/lib/validations"
 import { FIFA_CLUBS, CONSOLE_OPTIONS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
@@ -55,7 +61,7 @@ const STEPS: {
     id: "club",
     name: "Club",
     title: "Pick your colours",
-    blurb: "Your platform and club — the identity printed on your card.",
+    blurb: "Choose your platform and the club you want to play.",
     fields: ["console", "preferredClub", "location"],
   },
   {
@@ -69,7 +75,7 @@ const STEPS: {
     id: "account",
     name: "Account",
     title: "Lock it in",
-    blurb: "Secure your account, then mint your player card.",
+    blurb: "Secure your account and finish your registration.",
     fields: ["email", "password", "confirmPassword"],
   },
 ]
@@ -204,11 +210,16 @@ function PasswordField({
                   {[0, 1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      className={cn("h-1 flex-1 rounded-full transition-colors", i < score ? meter.bar : "bg-[#2A2A2A]")}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-colors",
+                        i < score ? meter.bar : "bg-[#2A2A2A]",
+                      )}
                     />
                   ))}
                 </div>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", meter.text)}>{meter.label}</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", meter.text)}>
+                  {meter.label}
+                </span>
               </div>
             ) : null}
             <FormMessage className="text-xs text-rose-400" />
@@ -403,7 +414,6 @@ export function RegistrationForm() {
     setIsSubmitting(true)
     setMinting(true)
     setSubmitError(null)
-    animateRating(rookieRating(data.name))
     try {
       const res = await fetch("/api/register", {
         method: "POST",
@@ -413,7 +423,7 @@ export function RegistrationForm() {
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || "Registration failed. Please try again.")
       setDone(true)
-      toast.success("Card minted — an admin will email you once approved.")
+      toast.success("Registration received — an admin will email you once approved.")
       setTimeout(() => router.push("/auth/login"), 1900)
     } catch (error) {
       setMinting(false)
@@ -431,8 +441,8 @@ export function RegistrationForm() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:gap-12">
+    <div className="mx-auto max-w-xl">
+      <div className="grid gap-8">
         {/* ===== WIZARD ===== */}
         <div className="order-2 rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8 lg:order-1">
           <StepProgress current={current} />
@@ -449,7 +459,7 @@ export function RegistrationForm() {
               {STEPS[current].title}
             </h2>
             <p className="mt-1 text-sm text-[#8A8A8A]">
-              {done ? "Card minted. Taking you to sign in…" : STEPS[current].blurb}
+              {done ? "Registration received. Taking you to sign in…" : STEPS[current].blurb}
             </p>
           </div>
 
@@ -499,7 +509,9 @@ export function RegistrationForm() {
                                 <button
                                   key={opt.value}
                                   type="button"
-                                  onClick={() => field.onChange(opt.value as RegistrationFormData["console"])}
+                                  onClick={() =>
+                                    field.onChange(opt.value as RegistrationFormData["console"])
+                                  }
                                   className={cn(
                                     "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 transition-all",
                                     active
@@ -574,15 +586,17 @@ export function RegistrationForm() {
                             onClick={runSpeedTest}
                             disabled={testing}
                             className="h-9 font-heading text-black"
-                            style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+                            style={{ background: "#d3ed9b" }}
                           >
                             {testing ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" /> {testStatus || "Testing…"}
+                                <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                                {testStatus || "Testing…"}
                               </>
                             ) : (
                               <>
-                                <Gauge className="h-4 w-4" /> {testDone ? "Test again" : "Test my speed"}
+                                <Gauge className="h-4 w-4" />{" "}
+                                {testDone ? "Test again" : "Test my speed"}
                               </>
                             )}
                           </Button>
@@ -673,15 +687,15 @@ export function RegistrationForm() {
                     type="submit"
                     disabled={isSubmitting || done}
                     className="h-11 flex-1 font-heading text-black"
-                    style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+                    style={{ background: "#d3ed9b" }}
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Minting…
+                        <Loader2 className="h-4 w-4 animate-spin" /> Creating your player…
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4" /> Mint my card
+                        <Sparkles className="h-4 w-4" /> Create my player
                       </>
                     )}
                   </Button>
@@ -706,30 +720,6 @@ export function RegistrationForm() {
               </p>
             </form>
           </Form>
-        </div>
-
-        {/* ===== LIVE CARD ===== */}
-        <div className="order-1 lg:order-2">
-          <div className="flex flex-col items-center gap-4 lg:sticky lg:top-24">
-            <PlayerCard
-              name={values.name}
-              username={values.username}
-              gamertag={values.psnName}
-              club={values.preferredClub}
-              consoleType={values.console}
-              location={values.location}
-              rating={displayRating}
-              tierLabel={done ? "Day One" : "Rookie"}
-              minted={done}
-            />
-            <p className="max-w-[270px] text-center text-xs leading-relaxed text-[#7A7A7A]">
-              {done
-                ? "Card minted. An admin will review it and email you once approved."
-                : minting
-                  ? "Minting your card…"
-                  : "Your card builds itself as you go. The rating reveals when you mint."}
-            </p>
-          </div>
         </div>
       </div>
     </div>

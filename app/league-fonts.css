@@ -1,0 +1,53 @@
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/weekend-0.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/weekend-1.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/weekend-2.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(/fonts/weekend-3.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/weekend-4.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/weekend-5.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/weekend-6.ttf) format("truetype");
+}

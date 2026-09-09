@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const sent = await sendEmail(email, subject, html)
 
   if (!sent) {
-    return NextResponse.json({ error: "Could not send the reset email. Check SMTP settings." }, { status: 502 })
+    return NextResponse.json({ error: "Could not send the reset email. Please try again shortly." }, { status: 502 })
   }
 
   return ok()

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Mail } from "lucide-react"
 import { ErrorBanner } from "@/components/ui/error-banner"
-import { BackgroundVideo } from "@/components/background-video"
 
 const labelClass = "text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]"
 const inputClass =
@@ -41,14 +40,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-12">
-      <BackgroundVideo />
-
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute left-1/2 top-0 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8">
+    <div className="fc-form-page fc-recovery">
+      <div className="fc-recovery-panel">
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 font-heading text-xl text-black">
             W
@@ -63,8 +56,8 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4 text-center">
               <p className="text-sm leading-6 text-[#B0B0B0]">
-                If an account exists for <span className="font-medium">{email}</span>, a reset
-                link is on its way. Check your inbox.
+                If an account exists for <span className="font-medium">{email}</span>, a reset link
+                is on its way. Check your inbox.
               </p>
               <Link
                 href="/auth/login"
@@ -97,7 +90,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={sending}
                 className="h-12 w-full font-heading text-black"
-                style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+                style={{ background: "#d6f66b" }}
               >
                 {sending ? (
                   <>
