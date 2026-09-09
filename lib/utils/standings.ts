@@ -24,7 +24,12 @@ export function calculateStandings(fixtures: Fixture[], players: any[]): Standin
 
   // Process played fixtures
   fixtures
-    .filter((fixture) => fixture.status === "PLAYED" && fixture.homeScore !== null && fixture.awayScore !== null)
+    .filter((fixture) =>
+      ["PLAYED", "FORFEIT"].includes(String(fixture.status).toUpperCase()) &&
+      Number.isInteger(fixture.homeScore) && Number.isInteger(fixture.awayScore) &&
+      fixture.homeScore! >= 0 && fixture.awayScore! >= 0,
+    )
+    .sort((a, b) => a.matchday - b.matchday)
     .forEach((fixture) => {
       const homeStanding = standings[fixture.homePlayer]
       const awayStanding = standings[fixture.awayPlayer]

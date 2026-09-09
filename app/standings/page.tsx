@@ -48,7 +48,7 @@ function formatTime(dt?: string | null) {
 function computeForm(fixtures: any[]) {
   const acc = new Map<string, { md: number; r: "W" | "D" | "L" }[]>()
   for (const f of fixtures) {
-    if (String(f.status || "").toUpperCase() !== "PLAYED") continue
+    if (!["PLAYED", "FORFEIT"].includes(String(f.status || "").toUpperCase())) continue
     const home = String(f.homePlayer)
     const away = String(f.awayPlayer)
     const hs = Number(f.homeScore ?? 0)
@@ -109,6 +109,7 @@ export default function StandingsPage() {
   const [fixtures, setFixtures] = useState<any[]>([])
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [consoleFilter, setConsoleFilter] = useState("all")
   const [tab, setTab] = useState<"UPCOMING" | "COMPLETED">("UPCOMING")
   const [activeTournamentId, setActiveTournamentId] = useState<string | null | undefined>(undefined)
@@ -121,44 +122,53 @@ export default function StandingsPage() {
       try {
         // The tournaments list is the source of truth: a tournament becomes
         // live once it's activated (status ACTIVE).
-        const { tournaments = [] } = await fetch("/api/admin/tournaments")
-          .then((r) => r.json())
-          .catch(() => ({ tournaments: [] }))
+        const response = await fetch("/api/admin/tournaments", { signal: AbortSignal.timeout(15000) })
+        if (!response.ok) throw new Error("Tournament request failed")
+        const { tournaments } = await response.json()
+        if (!Array.isArray(tournaments)) throw new Error("Invalid tournament response")
         const active = tournaments.find((t: any) => t.status === "ACTIVE") ?? null
         setActiveTournament(active)
         setActiveTournamentId(active?.id ?? null)
       } catch {
-        setActiveTournament(null)
-        setActiveTournamentId(null)
+        setLoadError("We couldn't load the league. Please try again.")
+        setLoading(false)
       }
     }
     loadActive()
   }, [])
 
   useEffect(() => {
-    // Only skip while unknown (undefined). If null, still fetch to show mock/fallback data.
     if (activeTournamentId === undefined) return
+    if (activeTournamentId === null) {
+      setLoading(false)
+      return
+    }
     fetchData()
   }, [consoleFilter, activeTournamentId])
 
   const fetchData = async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       console.log("Standings page: Fetching data for tournament:", activeTournamentId)
       const qs = activeTournamentId ? `?tournamentId=${encodeURIComponent(String(activeTournamentId))}` : ""
       const standingsUrl = consoleFilter === "all" ? `/api/standings${qs}` : `/api/standings${qs ? `${qs}&` : "?"}console=${consoleFilter}`
       const playerStatsUrl = `/api/player-stats${qs}`
       const fixturesUrl = `/api/fixtures${qs}`
       const [standingsResponse, statsResponse, fixturesResponse] = await Promise.all([
-        fetch(standingsUrl),
-        fetch(playerStatsUrl),
-        fetch(fixturesUrl),
+        fetch(standingsUrl, { signal: AbortSignal.timeout(15000) }),
+        fetch(playerStatsUrl, { signal: AbortSignal.timeout(15000) }),
+        fetch(fixturesUrl, { signal: AbortSignal.timeout(15000) }),
       ])
+
+      if (!standingsResponse.ok || !statsResponse.ok || !fixturesResponse.ok) {
+        throw new Error("League data request failed")
+      }
 
       // Also fetch players for team names
       let byId: Map<string, any> = new Map()
       try {
-        const playersResponse = await fetch("/api/admin/players")
+        const playersResponse = await fetch("/api/admin/players", { signal: AbortSignal.timeout(15000) })
         if (playersResponse.ok) {
           const pj = await playersResponse.json()
           byId = new Map((pj.players || []).map((p: any) => [String(p.id), p]))
@@ -256,6 +266,7 @@ export default function StandingsPage() {
       }
     } catch (error) {
       console.error("Error fetching data:", error)
+      setLoadError("We couldn't load the standings and fixtures. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -295,6 +306,20 @@ export default function StandingsPage() {
     }
     return Array.from(entries.values()).sort((a, b) => a.md - b.md)
   }, [shown])
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] px-4 py-16 text-white">
+        <div role="alert" className="mx-auto max-w-lg rounded-2xl border border-[#1E1E1E] bg-[#111111] p-8 text-center">
+          <h1 className="font-heading text-2xl">League temporarily unavailable</h1>
+          <p className="mt-3 text-sm text-[#9E9E9E]">{loadError}</p>
+          <button onClick={() => window.location.reload()} className="mt-6 rounded-lg bg-emerald-500 px-5 py-3 font-semibold text-black">
+            Try again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -554,7 +579,7 @@ export default function StandingsPage() {
                       </div>
                       <div className="space-y-2">
                         {g.items.map((f: any) => {
-                          const isPlayed = String(f.status || "").toUpperCase() === "PLAYED"
+                          const isPlayed = ["PLAYED", "FORFEIT"].includes(String(f.status || "").toUpperCase())
                           const hs = Number(f.homeScore ?? 0)
                           const as = Number(f.awayScore ?? 0)
                           const draw = isPlayed && hs === as

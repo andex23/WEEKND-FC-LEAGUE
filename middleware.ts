@@ -1,3 +1,4 @@
+import { verifyAdminSession } from "@/lib/admin/session"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
@@ -13,7 +14,7 @@ export async function middleware(request: NextRequest) {
 
   // Admin area uses a separate cookie-based gate.
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
-    const isAdmin = request.cookies.get("wfc_admin")?.value === "1"
+    const isAdmin = await verifyAdminSession(request.cookies.get("wfc_admin")?.value)
     if (!isAdmin) {
       const url = request.nextUrl.clone()
       url.pathname = "/admin/login"
@@ -35,7 +36,7 @@ export async function middleware(request: NextRequest) {
     (pathname === "/api/fixtures" && isWrite) ||
     ((pathname === "/api/tournament/publish" || pathname === "/api/tournament/config") && isWrite)
 
-  if (needsAdmin && request.cookies.get("wfc_admin")?.value !== "1") {
+  if (needsAdmin && !(await verifyAdminSession(request.cookies.get("wfc_admin")?.value))) {
     return NextResponse.json({ error: "Forbidden — admin access required" }, { status: 403 })
   }
 

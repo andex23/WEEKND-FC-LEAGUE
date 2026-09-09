@@ -3,19 +3,22 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { updatePlayerStatusWithApprovalEmail } from "@/lib/admin/approval-confirmation"
 import { absoluteUrl } from "@/lib/site-url"
+import { cookies } from "next/headers"
+import { verifyAdminSession } from "@/lib/admin/session"
 
 export async function GET() {
   try {
-    const client = await createClient()
+    const isAdmin = await verifyAdminSession((await cookies()).get("wfc_admin")?.value)
+    const client = isAdmin ? createAdminClient() : await createClient()
     const { data, error } = await client
       .from("players")
-      .select("*")
+      .select(isAdmin ? "*" : "id,name,preferred_club,assigned_club,console,avatar_url")
       .order("created_at", { ascending: true })
     if (error) throw error
     return NextResponse.json({ players: data || [] })
   } catch (error) {
     console.error("Error loading players:", error)
-    return NextResponse.json({ players: [] })
+    return NextResponse.json({ error: "Unable to load players. Please try again." }, { status: 503 })
   }
 }
 

@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ tournaments: data || [] })
   } catch (error) {
     console.error("Error loading tournaments:", error)
-    return NextResponse.json({ tournaments: [] })
+    return NextResponse.json({ error: "Unable to load tournaments. Please try again." }, { status: 503 })
   }
 }
 

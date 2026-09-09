@@ -1,3 +1,4 @@
+import { verifyAdminSession } from "@/lib/admin/session"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -11,7 +12,7 @@ import {
 
 async function requireAdmin() {
   const cookieStore = await cookies()
-  return cookieStore.get("wfc_admin")?.value === "1"
+  return verifyAdminSession(cookieStore.get("wfc_admin")?.value)
 }
 
 function playerMap(players: any[] | null) {
