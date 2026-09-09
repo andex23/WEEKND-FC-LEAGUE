@@ -3,48 +3,7 @@ import { generateRoundRobinFixtures } from "@/lib/utils/fixtures"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { readTournamentEntries } from "@/lib/tournaments/entry-config"
 
-function toISOAt17Local(d: Date): string {
-  const copy = new Date(d)
-  copy.setHours(17, 0, 0, 0)
-  return copy.toISOString()
-}
-
-function computeWeekendDates(startAt: string | null, count: number, matchdaysPerWeekend: number): string[] {
-  const dates: string[] = []
-  let d = startAt ? new Date(startAt) : new Date()
-  const day = d.getDay() // 0 Sun .. 6 Sat
-  if (day !== 0 && day !== 6) {
-    const daysUntilSat = (6 - day + 7) % 7
-    d.setDate(d.getDate() + (daysUntilSat === 0 ? 7 : daysUntilSat))
-  }
-  let isSat = d.getDay() === 6
-  for (let i = 0; i < count; i++) {
-    const use = new Date(d)
-    if (isSat && use.getDay() !== 6) {
-      const diff = (6 - use.getDay() + 7) % 7
-      use.setDate(use.getDate() + diff)
-    }
-    if (!isSat && use.getDay() !== 0) {
-      const diff = (7 - use.getDay()) % 7
-      use.setDate(use.getDate() + diff)
-    }
-    dates.push(toISOAt17Local(use))
-    if (matchdaysPerWeekend === 1) {
-      d = new Date(use)
-      d.setDate(d.getDate() + 7)
-      continue
-    }
-    if (isSat) {
-      d = new Date(use)
-      d.setDate(d.getDate() + 1)
-    } else {
-      d = new Date(use)
-      d.setDate(d.getDate() + 6)
-    }
-    isSat = !isSat
-  }
-  return dates
-}
+import { computeWeekendDates } from "@/lib/utils/weekend-dates"
 
 function shuffle<T>(input: T[]): T[] {
   const arr = [...input]
@@ -60,14 +19,14 @@ function shuffle<T>(input: T[]): T[] {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { rounds = 2, matchdaysPerWeekend = 2, tournamentId } = body
+    const { rounds = 2, matchdaysPerWeekend = 3, tournamentId } = body
 
     if (!tournamentId) {
       return NextResponse.json({ error: "tournamentId is required" }, { status: 400 })
     }
 
-    if (![1, 2].includes(rounds) || ![1, 2].includes(matchdaysPerWeekend)) {
-      return NextResponse.json({ error: "Choose one or two rounds and matchdays per weekend." }, { status: 400 })
+    if (![1, 2].includes(rounds) || ![1, 2, 3].includes(matchdaysPerWeekend)) {
+      return NextResponse.json({ error: "Choose 1–2 rounds and 1–3 matchdays per weekend." }, { status: 400 })
     }
     const admin = createAdminClient()
 
@@ -145,7 +104,7 @@ export async function POST(request: NextRequest) {
     const randomized = shuffle(shaped)
     const fixtures = generateRoundRobinFixtures(randomized, rounds, matchdaysPerWeekend)
 
-    // One weekend date (Sat/Sun alternating) per matchday.
+    // One Friday–Sunday date per matchday.
     const maxMd = fixtures.reduce((m, f) => Math.max(m, Number(f.matchday || 1)), 1)
     const weekendDates = computeWeekendDates((t as any)?.start_at || null, maxMd, matchdaysPerWeekend)
 

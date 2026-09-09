@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { pageMetadata, SITE_URL } from "@/lib/seo"
 import Script from "next/script"
 import "./globals.css"
 import "./league-fonts.css"
@@ -10,9 +11,12 @@ import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
 
 export const metadata: Metadata = {
-  title: "Weekend FC | EA FC Community League",
-  description:
-    "Join Weekend FC, compete in EA FC tournaments, and follow fixtures, results, and league standings.",
+  metadataBase: new URL(SITE_URL),
+  ...pageMetadata(
+    "Weekend FC | Online EA FC League",
+    "Join Weekend FC, an online EA FC community league. Play Friday to Sunday, build your player card and follow fixtures, results and standings.",
+    "/",
+  ),
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
@@ -44,6 +48,19 @@ export default function RootLayout({
         <a className="fc-skip" href="#main-content">
           Skip to content
         </a>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Weekend FC",
+              url: SITE_URL,
+              description:
+                "An independent online EA FC community league with Friday–Sunday matchdays.",
+            }),
+          }}
+        />
         <Navbar />
         <main id="main-content">{children}</main>
         <SiteFooter />

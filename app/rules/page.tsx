@@ -80,7 +80,7 @@ export default function RulesPage() {
             <div className="space-y-3">
               <Section number={1} icon={CalendarDays} title="Matchdays & Format">
                 <ul className="space-y-1.5">
-                  <li>• Matchdays: Saturday &amp; Sunday only.</li>
+                  <li>• Matchdays: Friday through Sunday.</li>
                   <li>• Game: EA FC (current edition).</li>
                   <li>• Teams: Clubs only for league play.</li>
                   <li>• Match length: 6 minutes per half.</li>
@@ -216,7 +216,7 @@ export default function RulesPage() {
                   <h2 className="font-heading text-sm text-white sm:text-base">TL;DR</h2>
                 </div>
                 <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#C4C4C4]">
-                  <li>• Sat/Sun, clubs only, 6-min halves.</li>
+                  <li>• Fri–Sun, clubs only, 6-min halves.</li>
                   <li>
                     •{" "}
                     <strong className="text-white">

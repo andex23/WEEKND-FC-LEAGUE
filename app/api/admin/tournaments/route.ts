@@ -43,7 +43,7 @@ export async function POST(req: Request) {
           players: data.players || 0,
           rules: data.rules || "",
           match_length: data.match_length || 6,
-          matchdays: data.matchdays || ["Sat", "Sun"],
+          matchdays: data.matchdays || ["Fri", "Sat", "Sun"],
         },
       }
       const { data: created, error } = await admin.from("tournaments").insert([insertData]).select().single()

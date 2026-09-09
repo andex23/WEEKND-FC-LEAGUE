@@ -1,5 +1,7 @@
 "use client"
 
+import { adminMutation } from "@/lib/admin/request"
+
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
@@ -132,7 +134,7 @@ export default function AdminFixturesPage() {
 
   const clearTournament = async () => {
     if (!activeTournamentId) { toast.error("No active tournament set"); return }
-    await fetch("/api/admin/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_tournament", tournamentId: activeTournamentId }) })
+    if (!(await adminMutation("/api/admin/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_tournament", tournamentId: activeTournamentId }) }))) return;
     await reloadFixtures(activeTournamentId)
     toast.success("Tournament cleared")
   }
@@ -180,7 +182,7 @@ export default function AdminFixturesPage() {
     // Optimistic
     setFixtures((prev) => prev.filter((x) => x.id !== editId))
     try {
-      await fetch("/api/fixtures", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editId }) })
+      if (!(await adminMutation("/api/fixtures", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editId }) }))) return;
       toast.success("Fixture deleted")
     } catch { toast.error("Failed to delete") }
     setEditorOpen(false)
@@ -213,7 +215,7 @@ export default function AdminFixturesPage() {
 
     // Persist
     try {
-      await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      if (!(await adminMutation("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }))) return;
       toast.success("Fixture saved")
     } catch { toast.error("Failed to save fixture") }
 

@@ -184,6 +184,7 @@ export function SettingsPage() {
                   <div className="md:col-span-2">
                     <label className="text-sm">Matchdays</label>
                     <div className="mt-2 flex items-center gap-4 text-sm">
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={(data?.tournament?.matchdays || []).includes("Fri")} onChange={() => toggleMatchday("Fri")} disabled={isCompleted} /> Fri</label>
                       <label className="flex items-center gap-2"><input type="checkbox" checked={(data?.tournament?.matchdays || []).includes("Sat")} onChange={() => toggleMatchday("Sat")} disabled={isCompleted} /> Sat</label>
                       <label className="flex items-center gap-2"><input type="checkbox" checked={(data?.tournament?.matchdays || []).includes("Sun")} onChange={() => toggleMatchday("Sun")} disabled={isCompleted} /> Sun</label>
                     </div>

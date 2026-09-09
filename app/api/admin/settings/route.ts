@@ -5,8 +5,8 @@ const DEFAULT_SETTINGS = {
   tournament: {
     name: "Weekend FC League",
     status: "DRAFT",
-    matchdays: ["Sat", "Sun"],
-    match_length: 8,
+    matchdays: ["Fri", "Sat", "Sun"],
+    match_length: 6,
   },
   branding: {
     league_name: "Weekend FC League",
