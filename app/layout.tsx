@@ -9,6 +9,7 @@ import "./home.css"
 import { SiteFooter } from "@/components/site-footer"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
+import { DruAnalytics } from "@/components/dru-analytics"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -45,6 +46,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body suppressHydrationWarning>
+        <DruAnalytics />
         <a className="fc-skip" href="#main-content">
           Skip to content
         </a>
