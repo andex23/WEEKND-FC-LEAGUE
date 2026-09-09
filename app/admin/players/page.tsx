@@ -105,9 +105,12 @@ export default function AdminPlayersPage() {
         console: (r.console || "PS5").toUpperCase(),
         preferred_club: r.preferred_club || "",
         location: r.location || "",
-        active: String(r.status || "active").toLowerCase() !== "inactive",
+        active: ["active", "approved"].includes(String(r.status || "pending").toLowerCase()),
       })).filter(p => p.name && p.name !== "Unnamed") // Filter out rows without names
-      console.log("Players to add:", toAdd)
+      if (!toAdd.length || toAdd.some(p => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email))) {
+        toast.error("Every imported player needs a name and valid email address.")
+        return
+      }
       
       const results = await Promise.allSettled(toAdd.map(async (p) => {
         const response = await fetch("/api/admin/players", { 
@@ -166,8 +169,8 @@ export default function AdminPlayersPage() {
 
   const downloadTemplate = () => {
     const csv = [
-      ["name","gamer_tag","console","preferred_club","location","status"].join(","),
-      ["Alex","alex99","PS5","Arsenal","London","active"].join(","),
+      ["name","email","gamer_tag","console","preferred_club","location","status"].join(","),
+      ["Alex","alex@example.com","alex99","PS5","Arsenal","London","pending"].join(","),
     ].join("\n")
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
     const a = document.createElement("a"); a.href = url; a.download = "players_template.csv"; a.click(); URL.revokeObjectURL(url)
@@ -266,7 +269,7 @@ export default function AdminPlayersPage() {
                 <Label className="text-sm">Or paste CSV rows</Label>
                 <textarea 
                   className="mt-1 w-full h-28 bg-transparent border rounded p-2 text-sm" 
-                  placeholder="name,gamer_tag,console,preferred_club,location,status\nAlex,alex99,PS5,Arsenal,London,active" 
+                  placeholder="name,email,gamer_tag,console,preferred_club,location,status\nAlex,alex@example.com,alex99,PS5,Arsenal,London,pending" 
                   disabled={importing}
                   onBlur={async (e) => { const ta = e.currentTarget; const v = ta.value.trim(); if (v) { await importFromText(v); ta.value = "" } }} 
                 />
