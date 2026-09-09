@@ -17,7 +17,7 @@ export async function GET() {
       id: league?.id || "default", name: active.data?.name || league?.season_name || "Weekend FC League",
       status: active.data?.status || league?.status || "DRAFT", startDate: active.data?.start_at || league?.start_date || null,
       endDate: active.data?.end_at || league?.end_date || null, rounds: options.rounds || 2,
-      matchdaysPerWeekend: options.matchdaysPerWeekend || 2, teamsLocked: league?.teams_locked || false,
+      matchdaysPerWeekend: options.matchdaysPerWeekend || 3, teamsLocked: league?.teams_locked || false,
       totalPlayers: players.count || 0, maxPlayers: options.maxPlayers || 20, activeTournamentId: active.data?.id || null,
     })
   } catch {
@@ -29,7 +29,7 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json()
     if (body.status !== undefined && !["DRAFT", "ACTIVE", "INACTIVE", "COMPLETED"].includes(body.status)) return NextResponse.json({ error: "Invalid league status" }, { status: 400 })
-    if ((body.rounds !== undefined && ![1, 2].includes(body.rounds)) || (body.matchdaysPerWeekend !== undefined && ![1, 2].includes(body.matchdaysPerWeekend))) return NextResponse.json({ error: "Choose one or two rounds and matchdays" }, { status: 400 })
+    if ((body.rounds !== undefined && ![1, 2].includes(body.rounds)) || (body.matchdaysPerWeekend !== undefined && ![1, 2, 3].includes(body.matchdaysPerWeekend))) return NextResponse.json({ error: "Choose 1–2 rounds and 1–3 matchdays" }, { status: 400 })
     if (body.teamsLocked !== undefined && typeof body.teamsLocked !== "boolean") return NextResponse.json({ error: "Invalid teamsLocked value" }, { status: 400 })
     const db = createAdminClient()
     const { data: league, error } = await db.from("league_settings").select("id").limit(1).maybeSingle()

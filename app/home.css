@@ -65,21 +65,7 @@
   margin-bottom: 23px;
   color: #b9bbc0;
 }
-.club-motion-control {
-  position: absolute;
-  right: max(28px, calc((100vw - 1280px) / 2));
-  top: 22px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 10px;
-  color: #b9bbc0;
-  padding: 8px;
-  border: 1px solid #ffffff20;
-  border-radius: 30px;
-  background: #11121488;
-  z-index: 3;
-}
+
 .club-format {
   max-width: 1120px;
   margin: 43px auto 0;
@@ -314,12 +300,7 @@
     min-width: 0;
     padding: 12px 19px;
   }
-  .club-motion-control {
-    top: 6px;
-    right: 17px;
-    font-size: 9px;
-    padding: 6px;
-  }
+
   .club-format {
     margin-top: 30px;
     display: grid;
@@ -425,5 +406,62 @@
   }
   .club-stages button {
     transition: none;
+  }
+}
+
+/* The original player card, given enough room to read at every size. */
+.club-stage-panel {
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 32px;
+  padding: 36px;
+}
+.club-player-preview {
+  min-width: 0;
+  width: 230px;
+  justify-self: center;
+}
+.club-home-player-card {
+  width: 100%;
+}
+.club-card-caption {
+  display: block;
+  text-align: center;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+  color: var(--fc-muted);
+  margin-top: 18px;
+}
+@media (max-width: 1100px) {
+  .club-playbook-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .club-stage-panel {
+    gap: 24px;
+    padding: 28px;
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+  .club-player-preview {
+    width: 210px;
+  }
+}
+@media (max-width: 600px) {
+  .club-stage-panel {
+    grid-template-columns: 1fr;
+    padding: 30px 0;
+    gap: 30px;
+  }
+  .club-player-preview {
+    width: 250px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-home-player-card,
+  .club-home-player-card * {
+    animation: none !important;
+  }
+}
+@media (max-width: 700px) {
+  .club-playbook-layout {
+    grid-template-columns: 1fr;
   }
 }

@@ -32,12 +32,13 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // Registration must be open.
-  const { data: settings } = await supabase
+  const { data: settings, error: settingsError } = await supabase
     .from("league_settings")
     .select("registration_open")
     .limit(1)
     .maybeSingle()
-  if (settings && settings.registration_open === false) {
+  if (settingsError || !settings) return NextResponse.json({ error: "Could not check registration availability. Please try again shortly." }, { status: 503 })
+  if (settings.registration_open === false) {
     return NextResponse.json({ error: "Registration is currently closed." }, { status: 400 })
   }
 

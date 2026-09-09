@@ -1,5 +1,7 @@
 "use client"
 
+import { adminMutation } from "@/lib/admin/request"
+
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -144,15 +146,15 @@ export default function AdminTournamentsPage() {
   }
   const remove = async (id: string) => { setConfirmState({ type: "delete", id }) }
   const activate = async (t: any) => {
-    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) })
-    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", active_tournament_id: t.id, season: t.season || "", format: t.type, matchdays: ["Sat","Sun"], match_length: 8 } }) })
-    await fetch("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"branding", data: { league_name: t.name } }) })
+    if (!(await adminMutation("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) }))) return;
+    if (!(await adminMutation("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"tournament", data: { name: t.name, status: "ACTIVE", active_tournament_id: t.id, season: t.season || "", format: t.type, matchdays: ["Fri","Sat","Sun"], match_length: 6 } }) }))) return;
+    if (!(await adminMutation("/api/admin/settings", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ section:"branding", data: { league_name: t.name } }) }))) return;
     toast.success("Tournament activated")
     await load()
   }
   const openSettings = (t: any) => { router.push(`/admin/tournaments/${t.id}`) }
   const deactivateGlobal = async (t: any) => {
-    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) })
+    if (!(await adminMutation("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) }))) return;
     toast.success("Tournament deactivated")
     await load()
   }
@@ -179,7 +181,7 @@ export default function AdminTournamentsPage() {
       return 
     }
     const data = await res.json().catch(() => null)
-    toast.success(`Fixtures generated: ${data?.totalFixtures ?? data?.count ?? "90"} fixtures`)
+    toast.success(`Fixtures generated: ${data?.totalFixtures ?? data?.count ?? 0} fixtures`)
     await load()
     bumpRefresh(t.id)
   }
@@ -282,8 +284,8 @@ export default function AdminTournamentsPage() {
       <ConfirmModals
         state={confirmState}
         onClose={() => setConfirmState(null)}
-        onDelete={async (id) => { await fetch("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }); toast.success("Deleted"); load() }}
-        onRegen={async (t) => { await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) }); await generateNow(t); await load() }}
+        onDelete={async (id) => { if (!(await adminMutation("/api/admin/tournaments", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"delete", id }) }))) return;; toast.success("Deleted"); load() }}
+        onRegen={async (t) => { if (!(await adminMutation("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) }))) return;; await generateNow(t); await load() }}
       />
     </div>
   )

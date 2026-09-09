@@ -1,12 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { Pause, Play } from "lucide-react"
 
 export function HomeHero() {
   const video = useRef<HTMLVideoElement>(null)
-  const [playing, setPlaying] = useState(false)
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)")
     const sync = () => {
@@ -20,15 +18,7 @@ export function HomeHero() {
   return (
     <section className="club-hero club-hero-alive">
       <div className="club-film" aria-hidden="true">
-        <video
-          ref={video}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-        >
+        <video ref={video} muted loop playsInline preload="metadata">
           <source src="/hero-bg.mp4" type="video/mp4" />
         </video>
       </div>
@@ -63,19 +53,8 @@ export function HomeHero() {
           </div>
         </div>
       </div>
-      <button
-        className="club-motion-control"
-        onClick={() => {
-          if (playing) video.current?.pause()
-          else video.current?.play().catch(() => {})
-        }}
-        aria-label={playing ? "Pause background animation" : "Play background animation"}
-      >
-        {playing ? <Pause size={14} /> : <Play size={14} />}
-        <span>{playing ? "Pause motion" : "Play motion"}</span>
-      </button>
       <div className="club-format" aria-label="Competition format">
-        <span>Saturday & Sunday</span>
+        <span>Friday – Sunday</span>
         <span>Clubs only</span>
         <span>6-minute halves</span>
         <span>Round-robin league</span>

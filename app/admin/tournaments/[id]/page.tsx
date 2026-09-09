@@ -1,5 +1,7 @@
 "use client"
 
+import { adminMutation } from "@/lib/admin/request"
+
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,34 +12,38 @@ import { toast } from "sonner"
 export default function TournamentSettingsPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [t, setT] = useState<any | null>(null)
   const [entrySummary, setEntrySummary] = useState({ invited: 0, accepted: 0, declined: 0, total: 0 })
 
   useEffect(() => {
     ;(async () => {
+      try {
       const [tournamentsResult, entriesResult] = await Promise.all([
-        fetch("/api/admin/tournaments").then((x) => x.json()),
+        fetch("/api/admin/tournaments").then((x) => { if (!x.ok) throw new Error("Could not load tournament"); return x.json() }),
         fetch(`/api/admin/tournament-entries?tournamentId=${encodeURIComponent(String(id))}`).then((x) => x.json()).catch(() => ({ summary: null })),
       ])
       const found = (tournamentsResult.tournaments || []).find((x: any) => String(x.id) === String(id))
       setT(found ? { ...found, type: found?.config?.type || found.type || "DOUBLE" } : null)
       setEntrySummary(entriesResult.summary || { invited: 0, accepted: 0, declined: 0, total: 0 })
+      } catch { setLoadError(true) } finally { setLoading(false) }
     })()
   }, [id])
 
   const save = async () => {
     if (!t) return
-    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: t.id, patch: { name: t.name, season: t.season, type: t.type, status: t.status } }) })
+    if (!(await adminMutation("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", id: t.id, patch: { name: t.name, season: t.season, type: t.type, status: t.status } }) }))) return;
     toast.success("Saved")
   }
   const activate = async () => {
     if (!t) return
-    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) })
+    if (!(await adminMutation("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", id: t.id }) }))) return;
     toast.success("Activated")
   }
   const deactivate = async () => {
     if (!t) return
-    await fetch("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) })
+    if (!(await adminMutation("/api/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "deactivate", id: t.id }) }))) return;
     toast.success("Deactivated")
   }
 
@@ -55,7 +61,7 @@ export default function TournamentSettingsPage() {
 
   const clearFixtures = async () => {
     if (!t) return
-    await fetch("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) })
+    if (!(await adminMutation("/api/fixtures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_for_tournament", tournamentId: t.id }) }))) return;
     toast.success("Cleared fixtures")
   }
 
@@ -69,7 +75,7 @@ export default function TournamentSettingsPage() {
   }
 
   if (!t) return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white"><div className="container-5xl section-pad"><Button variant="outline" onClick={() => router.push("/admin/tournaments")}>← Back</Button><div className="mt-6 text-sm text-[#9E9E9E]">Tournament not found.</div></div></div>
+    <div className="min-h-screen bg-[#0D0D0D] text-white"><div className="container-5xl section-pad"><Button variant="outline" onClick={() => router.push("/admin/tournaments")}>← Back</Button><div className="mt-6 text-sm text-[#9E9E9E]">{loading ? "Loading tournament…" : loadError ? "Could not load this tournament. Reload to try again." : "Tournament not found."}</div></div></div>
   )
 
   return (

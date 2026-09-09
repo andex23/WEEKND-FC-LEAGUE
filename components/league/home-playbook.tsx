@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Check, Gamepad2, Trophy, UserRound } from "lucide-react"
+import { PlayerCard } from "@/components/player-card"
+import { ArrowUpRight, Check } from "lucide-react"
 
 const stages = [
   {
@@ -12,16 +13,14 @@ const stages = [
     detail: "PS5, Xbox Series X/S and PC registration",
     link: "/register",
     action: "Join the league",
-    icon: UserRound,
   },
   {
     title: "Play",
     heading: "A familiar game. A new rival every matchday.",
-    text: "Check your fixtures, arrange a time with your opponent, and play on Saturday or Sunday. Clubs only, six-minute halves, with the same rules for everyone.",
+    text: "Check your fixtures, arrange a time with your opponent, and play on Friday, Saturday or Sunday. Clubs only, six-minute halves, with the same rules for everyone.",
     detail: "Keep a screenshot of your final score",
     link: "/fixtures",
     action: "Explore matchdays",
-    icon: Gamepad2,
   },
   {
     title: "Climb",
@@ -30,13 +29,11 @@ const stages = [
     detail: "Points, goal difference, then goals scored",
     link: "/standings",
     action: "View the table",
-    icon: Trophy,
   },
 ]
 export function HomePlaybook() {
   const [selected, setSelected] = useState(0)
   const stage = stages[selected]
-  const Icon = stage.icon
   return (
     <section id="the-game" className="club-playbook fc-wrap">
       <div className="club-playbook-heading">
@@ -44,9 +41,7 @@ export function HomePlaybook() {
           A proper league.
           <br />A weekend thing.
         </h2>
-        <p>
-          A season to follow, opponents to get to know, and a reason to come back next Saturday.
-        </p>
+        <p>A season to follow, opponents to get to know, and a reason to come back next Friday.</p>
       </div>
       <div className="club-playbook-layout">
         <div className="club-stages" role="tablist" aria-label="How Weekend FC works">
@@ -85,15 +80,14 @@ export function HomePlaybook() {
           tabIndex={0}
           className="club-stage-panel"
         >
-          <div className="club-stage-symbol" aria-hidden="true">
-            <Icon size={60} strokeWidth={1} />
-            <span>
-              {selected === 0
-                ? "Your place in the club"
-                : selected === 1
-                  ? "The weekend fixture"
-                  : "The season so far"}
-            </span>
+          <div className="club-player-preview">
+            <PlayerCard
+              name="Your Name"
+              tierLabel="Rookie"
+              stats={["GP", "W", "D", "L", "GF", "PTS"].map((label) => ({ label, value: "—" }))}
+              className="club-home-player-card"
+            />
+            <span className="club-card-caption">YOUR PLAYER CARD · BUILD YOUR LEGACY</span>
           </div>
           <div>
             <h3>{stage.heading}</h3>
