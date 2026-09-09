@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, AlertTriangle } from "lucide-react"
-import UserCard from "./_components/UserCard"
+import { PageHeading } from "@/components/league/ui"
 import UsefulLinks from "./_components/UsefulLinks"
 import NextMatchCard from "./_components/NextMatchCard"
 import RecentMatchCard from "./_components/RecentMatchCard"
@@ -80,7 +80,9 @@ export default function DashboardPage() {
 
     const load = async () => {
       try {
-        const profileRes = await fetch("/api/player/profile", { signal: AbortSignal.timeout(15000) })
+        const profileRes = await fetch("/api/player/profile", {
+          signal: AbortSignal.timeout(15000),
+        })
         if (profileRes.status === 401) {
           window.location.href = "/auth/login?next=/dashboard"
           return
@@ -94,20 +96,35 @@ export default function DashboardPage() {
           return response.json()
         }
         const { activeTournament } = await getJSON("/api/tournaments")
-        const qs = activeTournament ? `?tournamentId=${encodeURIComponent(activeTournament.id)}` : ""
-        const [stats, fixturesData, standingsData] = activeTournament ? await Promise.all([
-          getJSON(`/api/player-stats${qs}`),
-          getJSON("/api/player/fixtures"),
-          getJSON(`/api/standings${qs}`),
-        ]) : [{ goals: 0, assists: 0, yellow: 0, red: 0 }, { fixtures: [] }, { standings: [] }]
+        const qs = activeTournament
+          ? `?tournamentId=${encodeURIComponent(activeTournament.id)}`
+          : ""
+        const [stats, fixturesData, standingsData] = activeTournament
+          ? await Promise.all([
+              getJSON(`/api/player-stats${qs}`),
+              getJSON("/api/player/fixtures"),
+              getJSON(`/api/standings${qs}`),
+            ])
+          : [{ goals: 0, assists: 0, yellow: 0, red: 0 }, { fixtures: [] }, { standings: [] }]
 
         const all: PlayerFixture[] = fixturesData.fixtures || []
-        const upcoming = all.filter((f) => !["PLAYED", "FORFEIT", "CANCELLED"].includes(String(f.status).toUpperCase()))
-        const played = all.filter((f) => ["PLAYED", "FORFEIT"].includes(String(f.status).toUpperCase()))
+        const upcoming = all.filter(
+          (f) => !["PLAYED", "FORFEIT", "CANCELLED"].includes(String(f.status).toUpperCase()),
+        )
+        const played = all.filter((f) =>
+          ["PLAYED", "FORFEIT"].includes(String(f.status).toUpperCase()),
+        )
         const position = standingsData.standings.findIndex((row: any) => row.playerId === player.id)
         const myStanding = standingsData.standings[position]
-        Object.assign(player, { position: position >= 0 ? position + 1 : null, points: myStanding?.points ?? 0 })
-        Object.assign(stats, { wins: myStanding?.won ?? 0, draws: myStanding?.drawn ?? 0, losses: myStanding?.lost ?? 0 })
+        Object.assign(player, {
+          position: position >= 0 ? position + 1 : null,
+          points: myStanding?.points ?? 0,
+        })
+        Object.assign(stats, {
+          wins: myStanding?.won ?? 0,
+          draws: myStanding?.drawn ?? 0,
+          losses: myStanding?.lost ?? 0,
+        })
 
         if (!cancelled) {
           setError(null)
@@ -128,7 +145,9 @@ export default function DashboardPage() {
       }
     }
     load()
-    const refresh = () => { if (!document.hidden) load() }
+    const refresh = () => {
+      if (!document.hidden) load()
+    }
     const timer = window.setInterval(refresh, 30000)
     window.addEventListener("focus", refresh)
     return () => {
@@ -173,95 +192,86 @@ export default function DashboardPage() {
       const f = data.recent
       const mine = f.isHome ? f.homeScore : f.awayScore
       const theirs = f.isHome ? f.awayScore : f.homeScore
-      const result = mine == null || theirs == null ? "D" : mine > theirs ? "W" : mine < theirs ? "L" : "D"
+      const result =
+        mine == null || theirs == null ? "D" : mine > theirs ? "W" : mine < theirs ? "L" : "D"
       return {
         opponent_name: opponentOf(f),
         matchday: f.matchday,
-        home_score: f.isHome ? f.homeScore ?? 0 : f.awayScore ?? 0,
-        away_score: f.isHome ? f.awayScore ?? 0 : f.homeScore ?? 0,
+        home_score: f.isHome ? (f.homeScore ?? 0) : (f.awayScore ?? 0),
+        away_score: f.isHome ? (f.awayScore ?? 0) : (f.homeScore ?? 0),
         result,
       }
     })()
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0A] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute -top-40 left-1/2 h-[400px] w-[720px] -translate-x-1/2 rounded-full bg-emerald-500/[0.07] blur-[120px]" />
-      </div>
-
-      <div className="relative container-5xl section-pad space-y-6">
-        <header>
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> My Dashboard
-          </span>
-          <h1 className="mt-3 font-heading text-3xl text-white md:text-4xl">
-            {user.name ? `Welcome back, ${user.name}` : "Dashboard"}
-          </h1>
-        </header>
-
-        {user.status === "pending" && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Your registration is awaiting admin approval. Once approved, you can accept a tournament invitation. Fixtures and standings appear when the league goes live.
-            </span>
+    <div className="fc-site fc-dashboard">
+      <div className="fc-wrap">
+        <PageHeading
+          eyebrow={data.activeTournament?.name || "Player dashboard / the dressing room"}
+          title={user.name ? `Welcome back, ${user.name}.` : "Your dashboard"}
+          description="Your fixtures, your form, your next move."
+        />
+        <div className="fc-dashboard-layout">
+          <div className="fc-dashboard-main">
+            {user.status === "pending" && (
+              <div className="fc-dashboard-notice">
+                Your registration is awaiting approval. Once approved, you can accept a tournament
+                invitation and choose your club.
+              </div>
+            )}
+            <NextMatchCard match={next} />
+            <TournamentInvites />
+            {data.activeTournament && (
+              <div className="fc-record">
+                {[
+                  ["Position", user.position || "—"],
+                  ["Points", user.points ?? 0],
+                  ["Wins", data.stats.wins ?? 0],
+                ].map(([label, value]) => (
+                  <div key={String(label)}>
+                    <span className="fc-eyebrow">{String(label)}</span>
+                    <strong>{String(value)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.activeTournament && (
+              <>
+                <RecentMatchCard match={recent} />
+                <LeagueTable standings={data.standings as never} />
+                <FixtureList fixtures={data.fixtures} />
+              </>
+            )}
           </div>
-        )}
-
-        {!data.activeTournament && user.status !== "pending" && (
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-            You&apos;re registered. Your tournament invitation will appear here when the next league is ready. Fixtures and standings follow once it goes live.
-          </div>
-        )}
-
-        <div className="grid items-start gap-4 md:grid-cols-[290px_minmax(0,1fr)]">
-          <div className="space-y-3">
-            <UserCard user={user} stats={data.stats} />
+          <aside className="fc-dashboard-side">
+            <section className="fc-member">
+              <span className="fc-eyebrow">Your player</span>
+              <h2>{user.name}</h2>
+              <p>
+                {String(
+                  user.preferred_club ||
+                    user.assigned_club ||
+                    "Club selection opens with your invitation",
+                )}
+              </p>
+            </section>
             {user.id ? (
-              <div className="rounded-2xl border border-[#1E1E1E] bg-[#111111] p-4">
-                <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]">
-                  Profile picture
+              <div>
+                <div className="fc-eyebrow" style={{ marginBottom: 15 }}>
+                  Your player photo
                 </div>
                 <AvatarUpload
                   userId={String(user.id)}
                   initialUrl={(user.avatar_url as string | null) ?? null}
-                  onChange={(url) => setData((d) => (d ? { ...d, user: { ...d.user, avatar_url: url } } : d))}
+                  onChange={(url) =>
+                    setData((d) => (d ? { ...d, user: { ...d.user, avatar_url: url } } : d))
+                  }
                 />
               </div>
             ) : null}
-          </div>
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-              <KpiCard label="Position" value={(user.position as string) || "-"} />
-              <KpiCard label="Points" value={(user.points as number) ?? "-"} />
-            </div>
-            <TournamentInvites />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="space-y-6 lg:col-span-8">
-            <NextMatchCard match={next} />
-            <RecentMatchCard match={recent} />
-            <LeagueTable standings={data.standings as never} />
-          </div>
-
-          <div className="space-y-6 lg:col-span-4">
-            <FixtureList fixtures={data.fixtures} />
-            <PersonalStats stats={data.stats} />
-          </div>
-        </div>
-
-        <UsefulLinks reportHref="/report" />
-
-        <div className="text-center">
-          <Link
-            href="/report"
-            className="inline-flex h-11 items-center gap-2 rounded-lg px-6 font-heading text-sm text-black"
-            style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
-          >
-            Report a result <ArrowRight className="h-4 w-4" />
-          </Link>
+            {data.activeTournament && <PersonalStats stats={data.stats} />}
+            <UsefulLinks reportHref="/report" />
+          </aside>
         </div>
       </div>
     </div>

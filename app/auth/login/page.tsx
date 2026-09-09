@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import LoginForm from "@/components/auth/login-form"
-import { BackgroundVideo } from "@/components/background-video"
+import { Pitch } from "@/components/league/ui"
 import { safeNextPath } from "@/lib/safe-next-path"
 
 export default async function LoginPage({
@@ -24,14 +24,19 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-12">
-      <BackgroundVideo />
-
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute left-1/2 top-0 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-      <div className="relative z-10 w-full max-w-md">
-        <LoginForm />
+    <div className="fc-form-page">
+      <div className="fc-wrap fc-login-layout">
+        <aside className="fc-login-story">
+          <img src="/weekend-ball.jpg" alt="" />
+          <h2>
+            Your weekend
+            <br />
+            starts here.
+          </h2>
+        </aside>
+        <div className="fc-login-panel">
+          <LoginForm />
+        </div>
       </div>
     </div>
   )

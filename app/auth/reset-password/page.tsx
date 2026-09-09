@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { KeyRound, Loader2, Lock } from "lucide-react"
 import { ErrorBanner } from "@/components/ui/error-banner"
-import { BackgroundVideo } from "@/components/background-video"
 
 const labelClass = "text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E9E9E]"
 const inputClass =
@@ -112,14 +111,8 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-12">
-      <BackgroundVideo />
-
-      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-        <div className="absolute left-1/2 top-0 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#1E1E1E] bg-[#111111] p-6 md:p-8">
+    <div className="fc-form-page fc-recovery">
+      <div className="fc-recovery-panel">
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-black">
             <KeyRound className="h-6 w-6" />
@@ -140,11 +133,14 @@ export default function ResetPasswordPage() {
               <Button
                 asChild
                 className="h-12 w-full font-heading text-black"
-                style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+                style={{ background: "#d6f66b" }}
               >
                 <Link href="/auth/forgot-password">Request a new link</Link>
               </Button>
-              <Link href="/auth/login" className="text-sm font-medium text-emerald-400 hover:underline">
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-emerald-400 hover:underline"
+              >
                 Back to sign in
               </Link>
             </div>
@@ -187,7 +183,7 @@ export default function ResetPasswordPage() {
                 type="submit"
                 disabled={saving}
                 className="h-12 w-full font-heading text-black"
-                style={{ background: "linear-gradient(90deg,#f5c54a,#10b981)" }}
+                style={{ background: "#d6f66b" }}
               >
                 {saving ? (
                   <>
