@@ -25,7 +25,7 @@ function Section({
   title,
   children,
 }: {
-  number: number
+  number?: number
   icon: LucideIcon
   title: string
   children: React.ReactNode
@@ -36,9 +36,11 @@ function Section({
       role="group"
     >
       <summary className="flex cursor-pointer list-none select-none items-center gap-3 p-4">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 font-heading text-sm text-emerald-400">
-          {number}
-        </span>
+        {number !== undefined && (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/25 bg-emerald-500/10 font-heading text-sm text-emerald-400">
+            {number}
+          </span>
+        )}
         <Icon className="h-4 w-4 shrink-0 text-[#7A7A7A]" />
         <h2 className="flex-1 font-heading text-sm text-white sm:text-base">{title}</h2>
         <ChevronDown className="h-4 w-4 shrink-0 text-[#7A7A7A] transition-transform group-open:rotate-180" />
@@ -83,7 +85,7 @@ export default function RulesPage() {
                   <li>• Matchdays: Friday through Sunday.</li>
                   <li>• Game: EA FC (current edition).</li>
                   <li>• Teams: Clubs only for league play.</li>
-                  <li>• Match length: 6 minutes per half.</li>
+                  <li>• Match length: 5 or 6 minutes per half, as announced for the tournament.</li>
                   <li>
                     • Season format: Round-robin (single or double). Admin announces before kickoff.
                   </li>
@@ -209,14 +211,9 @@ export default function RulesPage() {
                 </ul>
               </Section>
 
-              {/* TL;DR */}
-              <div className="overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-emerald-500/10 to-[#101010] p-4">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-emerald-400" />
-                  <h2 className="font-heading text-sm text-white sm:text-base">TL;DR</h2>
-                </div>
+              <Section icon={Zap} title="Quick summary">
                 <ul className="mt-3 space-y-1.5 text-sm leading-relaxed text-[#C4C4C4]">
-                  <li>• Fri–Sun, clubs only, 6-min halves.</li>
+                  <li>• Fri–Sun, clubs only, 5- or 6-minute halves.</li>
                   <li>
                     •{" "}
                     <strong className="text-white">
@@ -231,7 +228,7 @@ export default function RulesPage() {
                   <li>• Win 3 / Draw 1 / Loss 0; tiebreakers: Pts → GD → GF → H2H.</li>
                   <li>• Meet up IRL to avoid lag; be respectful or get benched.</li>
                 </ul>
-              </div>
+              </Section>
             </div>
           </div>
         </div>

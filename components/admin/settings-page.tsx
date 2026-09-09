@@ -194,7 +194,7 @@ export function SettingsPage() {
                     <Select value={String(data?.tournament?.match_length || 6)} onValueChange={(v) => update("tournament", { match_length: Number(v) })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {[6,8,10].map((n) => (<SelectItem key={n} value={String(n)}>{n} mins</SelectItem>))}
+                        {[5,6].map((n) => (<SelectItem key={n} value={String(n)}>{n} mins</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
