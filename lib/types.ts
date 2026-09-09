@@ -18,7 +18,7 @@ export interface Fixture {
   awayTeam: string
   homeScore?: number
   awayScore?: number
-  status: "SCHEDULED" | "PLAYED" | "CANCELLED"
+  status: "SCHEDULED" | "PLAYED" | "FORFEIT" | "CANCELLED"
   scheduledDate?: Date
   playedDate?: Date
 }

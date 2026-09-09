@@ -1,3 +1,4 @@
+import { getActiveTournament } from "@/lib/tournaments/active"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -26,7 +27,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
-  const limit = Number(new URL(request.url).searchParams.get("limit") || 50)
+  const active = await getActiveTournament(supabase)
+  if (!active) return NextResponse.json({ fixtures: [] })
+  const requestedLimit = Number(new URL(request.url).searchParams.get("limit") || 100)
+  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, Math.floor(requestedLimit))) : 100
 
   const { data, error } = await supabase
     .from("fixtures")
@@ -36,6 +40,7 @@ export async function GET(request: Request) {
        home_player:players!fixtures_home_player_id_fkey(name),
        away_player:players!fixtures_away_player_id_fkey(name)`,
     )
+    .eq("tournament_id", active.id)
     .or(`home_player_id.eq.${user.id},away_player_id.eq.${user.id}`)
     .order("matchday", { ascending: true })
     .limit(limit)
@@ -48,6 +53,8 @@ export async function GET(request: Request) {
   const fixtures = rows.map((f) => ({
     id: f.id,
     matchday: f.matchday,
+    homePlayerId: f.home_player_id,
+    awayPlayerId: f.away_player_id,
     homePlayer: f.home_player?.name ?? "TBD",
     awayPlayer: f.away_player?.name ?? "TBD",
     homeClub: f.home_club,

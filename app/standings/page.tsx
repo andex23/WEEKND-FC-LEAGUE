@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getTeamBadge } from "@/lib/badges"
 import { cn } from "@/lib/utils"
@@ -48,7 +49,7 @@ function formatTime(dt?: string | null) {
 function computeForm(fixtures: any[]) {
   const acc = new Map<string, { md: number; r: "W" | "D" | "L" }[]>()
   for (const f of fixtures) {
-    if (String(f.status || "").toUpperCase() !== "PLAYED") continue
+    if (!["PLAYED", "FORFEIT"].includes(String(f.status || "").toUpperCase())) continue
     const home = String(f.homePlayer)
     const away = String(f.awayPlayer)
     const hs = Number(f.homeScore ?? 0)
@@ -109,6 +110,7 @@ export default function StandingsPage() {
   const [fixtures, setFixtures] = useState<any[]>([])
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [consoleFilter, setConsoleFilter] = useState("all")
   const [tab, setTab] = useState<"UPCOMING" | "COMPLETED">("UPCOMING")
   const [activeTournamentId, setActiveTournamentId] = useState<string | null | undefined>(undefined)
@@ -121,44 +123,60 @@ export default function StandingsPage() {
       try {
         // The tournaments list is the source of truth: a tournament becomes
         // live once it's activated (status ACTIVE).
-        const { tournaments = [] } = await fetch("/api/admin/tournaments")
-          .then((r) => r.json())
-          .catch(() => ({ tournaments: [] }))
-        const active = tournaments.find((t: any) => t.status === "ACTIVE") ?? null
+        const response = await fetch("/api/tournaments", { signal: AbortSignal.timeout(15000) })
+        if (!response.ok) throw new Error("Tournament request failed")
+        const { activeTournament: active } = await response.json()
+        setLoadError(null)
         setActiveTournament(active)
         setActiveTournamentId(active?.id ?? null)
       } catch {
-        setActiveTournament(null)
-        setActiveTournamentId(null)
+        setLoadError("We couldn't load the league. Please try again.")
+        setLoading(false)
       }
     }
     loadActive()
+    const refresh = () => { if (!document.hidden) loadActive() }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener("focus", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh) }
   }, [])
 
   useEffect(() => {
-    // Only skip while unknown (undefined). If null, still fetch to show mock/fallback data.
     if (activeTournamentId === undefined) return
+    if (activeTournamentId === null) {
+      setLoading(false)
+      return
+    }
     fetchData()
+    const refresh = () => { if (!document.hidden) fetchData(false) }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener("focus", refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh) }
   }, [consoleFilter, activeTournamentId])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoading = true) => {
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
+      setLoadError(null)
       console.log("Standings page: Fetching data for tournament:", activeTournamentId)
       const qs = activeTournamentId ? `?tournamentId=${encodeURIComponent(String(activeTournamentId))}` : ""
       const standingsUrl = consoleFilter === "all" ? `/api/standings${qs}` : `/api/standings${qs ? `${qs}&` : "?"}console=${consoleFilter}`
       const playerStatsUrl = `/api/player-stats${qs}`
       const fixturesUrl = `/api/fixtures${qs}`
       const [standingsResponse, statsResponse, fixturesResponse] = await Promise.all([
-        fetch(standingsUrl),
-        fetch(playerStatsUrl),
-        fetch(fixturesUrl),
+        fetch(standingsUrl, { signal: AbortSignal.timeout(15000) }),
+        fetch(playerStatsUrl, { signal: AbortSignal.timeout(15000) }),
+        fetch(fixturesUrl, { signal: AbortSignal.timeout(15000) }),
       ])
+
+      if (!standingsResponse.ok || !statsResponse.ok || !fixturesResponse.ok) {
+        throw new Error("League data request failed")
+      }
 
       // Also fetch players for team names
       let byId: Map<string, any> = new Map()
       try {
-        const playersResponse = await fetch("/api/admin/players")
+        const playersResponse = await fetch("/api/players", { signal: AbortSignal.timeout(15000) })
         if (playersResponse.ok) {
           const pj = await playersResponse.json()
           byId = new Map((pj.players || []).map((p: any) => [String(p.id), p]))
@@ -256,6 +274,7 @@ export default function StandingsPage() {
       }
     } catch (error) {
       console.error("Error fetching data:", error)
+      setLoadError("We couldn't load the standings and fixtures. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -295,6 +314,20 @@ export default function StandingsPage() {
     }
     return Array.from(entries.values()).sort((a, b) => a.md - b.md)
   }, [shown])
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] px-4 py-16 text-white">
+        <div role="alert" className="mx-auto max-w-lg rounded-2xl border border-[#1E1E1E] bg-[#111111] p-8 text-center">
+          <h1 className="font-heading text-2xl">League temporarily unavailable</h1>
+          <p className="mt-3 text-sm text-[#9E9E9E]">{loadError}</p>
+          <button onClick={() => window.location.reload()} className="mt-6 rounded-lg bg-emerald-500 px-5 py-3 font-semibold text-black">
+            Try again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -350,7 +383,7 @@ export default function StandingsPage() {
             )}
           </div>
 
-          <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#111111] p-1">
+          {activeTournamentId && <div className="inline-flex rounded-lg border border-[#1E1E1E] bg-[#111111] p-1">
             {consoles.map((c) => (
               <button
                 key={c.value}
@@ -363,7 +396,7 @@ export default function StandingsPage() {
                 {c.label}
               </button>
             ))}
-          </div>
+          </div>}
         </header>
 
         {!activeTournamentId && (
@@ -371,8 +404,13 @@ export default function StandingsPage() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1A1A1A]">
               <Trophy className="h-6 w-6 text-[#5C5C5C]" />
             </div>
-            <div className="font-heading text-lg text-white">No active tournament</div>
-            <div className="mt-1 text-sm text-[#9E9E9E]">Check back when a tournament kicks off.</div>
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">Registration open</span>
+            <h2 className="mt-3 font-heading text-2xl text-white">The next league starts with you.</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#9E9E9E]">Register your player now. Once registration is complete and the league goes live, fixtures and standings will appear here.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/register" className="rounded-lg bg-emerald-500 px-5 py-3 font-heading text-sm text-black">Register to play</Link>
+              <Link href="/dashboard" className="rounded-lg border border-[#2A2A2A] px-5 py-3 font-heading text-sm text-white">Already registered?</Link>
+            </div>
           </div>
         )}
 
@@ -554,7 +592,7 @@ export default function StandingsPage() {
                       </div>
                       <div className="space-y-2">
                         {g.items.map((f: any) => {
-                          const isPlayed = String(f.status || "").toUpperCase() === "PLAYED"
+                          const isPlayed = ["PLAYED", "FORFEIT"].includes(String(f.status || "").toUpperCase())
                           const hs = Number(f.homeScore ?? 0)
                           const as = Number(f.awayScore ?? 0)
                           const draw = isPlayed && hs === as

@@ -120,10 +120,12 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
+      setError(null)
       
       // First get tournaments to find active tournament
       const tournamentsRes = await fetch("/api/admin/tournaments").catch(() => null)
-      const tournamentsData = tournamentsRes ? await tournamentsRes.json() : null
+      if (!tournamentsRes?.ok) throw new Error("Couldn't load tournaments. Please retry.")
+      const tournamentsData = await tournamentsRes.json()
       const tournaments = tournamentsData?.tournaments || []
       const activeTournament = tournaments.find((t: any) => t.status === "ACTIVE") || null
       
@@ -138,6 +140,9 @@ export default function AdminDashboard() {
         fetch(activeTournament ? `/api/admin/tournament-entries?tournamentId=${encodeURIComponent(String(activeTournament.id))}` : "/api/admin/tournament-entries").catch(() => null),
       ])
 
+      if (!playersRes.ok || !standingsRes.ok || !statusRes.ok || !entriesRes?.ok) {
+        throw new Error("Couldn't load the admin dashboard. Please retry.")
+      }
       const playersData = await playersRes.json()
       const standingsData = await standingsRes.json()
       const statusData = await statusRes.json()
@@ -220,17 +225,10 @@ export default function AdminDashboard() {
         setPlayerStats(null)
       }
 
-      try {
-        const rq = await fetch("/api/admin/results")
-        if (rq.ok) {
-          const rqData = await rq.json()
-          setResultsQueue(rqData.results || [])
-        } else {
-          setResultsQueue([])
-        }
-      } catch {
-        setResultsQueue([])
-      }
+      const rq = await fetch("/api/admin/results")
+      if (!rq.ok) throw new Error("Couldn't load result reports.")
+      const rqData = await rq.json()
+      setResultsQueue(rqData.results || [])
     } catch (err) {
       console.error("Error fetching data:", err)
       setError("Failed to load data")
@@ -296,9 +294,12 @@ export default function AdminDashboard() {
   const approveAllReports = async () => {
     try {
       const res = await fetch("/api/admin/results/approve-all", { method: "POST" })
-      if (!res.ok) throw new Error("fallback")
-    } catch {
-      setResultsQueue([])
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result.error || "Couldn't approve reports.")
+      toast.success(`${result.approved} reports approved. Conflicts remain for review.`)
+      await fetchAllData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't approve reports.")
     }
   }
 
@@ -468,9 +469,12 @@ export default function AdminDashboard() {
   const approveReport = async (id: string) => {
     try {
       const res = await fetch("/api/admin/results/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
-      if (!res.ok) throw new Error("fallback")
-    } catch {
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result.error || "Couldn't approve this report.")
       setResultsQueue((prev) => prev.filter((r) => r.id !== id))
+      toast.success("Result approved")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't approve this report.")
     }
   }
 
@@ -1012,12 +1016,13 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">
                             <span className="px-2 py-0.5 text-xs rounded border bg-amber-600/15 text-amber-300">{r.status || "Pending"}</span>
                           </td>
-                          <td className="px-3 py-2 text-[#9E9E9E]">{r.reason || "Awaiting opponent confirmation"}</td>
+                          <td className="px-3 py-2 text-[#9E9E9E]">{r.reason || "Awaiting admin review"}
+                            {r.evidenceUrl?.startsWith("data:image/") ? <details className="mt-2"><summary className="cursor-pointer text-emerald-400">View screenshot</summary><img src={r.evidenceUrl} alt="Match result evidence" className="mt-2 max-h-64 max-w-xs rounded" /></details> : /^https?:\/\//i.test(r.evidenceUrl || "") ? <a href={r.evidenceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-emerald-400 underline">View evidence</a> : null}
+                          </td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
                               <Button size="sm" className="" onClick={async () => { await approveReport(r.id) }} disabled={String(leagueSettings?.status || "").toUpperCase() === "COMPLETED"}>Approve</Button>
-                            <Button size="sm" variant="outline">Override</Button>
-                            <Button size="sm" variant="outline">Flag/Dispute</Button>
+                            <Button size="sm" variant="outline" onClick={() => router.push("/admin/fixtures")}>Review fixture</Button>
                           </div>
                           </td>
                         </tr>

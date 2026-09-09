@@ -20,12 +20,14 @@ export async function GET(request: NextRequest) {
     if (playersError) throw playersError
 
     let selectedClubByPlayer = new Map<string, string>()
+    let hasEntryRoster = false
     if (tournamentId) {
       const { data: tournament } = await admin
         .from("tournaments")
         .select("config")
         .eq("id", tournamentId)
         .maybeSingle()
+      hasEntryRoster = Array.isArray(tournament?.config?.entries)
       selectedClubByPlayer = new Map(
         readTournamentEntries(tournament?.config)
           .filter((entry) => entry.status === "accepted" && entry.selected_club)
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     if (fixturesError) throw fixturesError
 
     const eligiblePlayers =
-      tournamentId && selectedClubByPlayer.size > 0
+      tournamentId && hasEntryRoster
         ? (players ?? []).filter((p) => selectedClubByPlayer.has(String(p.id)))
         : (players ?? [])
 
@@ -56,11 +58,6 @@ export async function GET(request: NextRequest) {
       console: p.console,
       avatarUrl: p.avatar_url ?? null,
     }))
-    if (consoleFilter && consoleFilter !== "all") {
-      shapedPlayers = shapedPlayers.filter(
-        (p) => String(p.console || "").toUpperCase() === consoleFilter.toUpperCase(),
-      )
-    }
 
     const shapedFixtures = (fixtures ?? []).map((f) => ({
       id: f.id,
@@ -74,9 +71,11 @@ export async function GET(request: NextRequest) {
       scheduledDate: f.scheduled_date,
     }))
 
-    const standings = calculateStandings(shapedFixtures as unknown as Fixture[], shapedPlayers)
+    const visiblePlayerIds = new Set(shapedPlayers.filter((p) => !consoleFilter || consoleFilter === "all" || String(p.console || "").toUpperCase() === consoleFilter.toUpperCase()).map((p) => p.id))
+    // Calculate before filtering so cross-console opponents still contribute results.
+    const standings = calculateStandings(shapedFixtures as unknown as Fixture[], shapedPlayers).filter((row) => visiblePlayerIds.has(row.playerId))
 
-    return NextResponse.json({ standings, totalPlayers: shapedPlayers.length })
+    return NextResponse.json({ standings, totalPlayers: standings.length })
   } catch (error) {
     console.error("Error fetching standings:", error)
     return NextResponse.json({ error: "Failed to fetch standings" }, { status: 500 })

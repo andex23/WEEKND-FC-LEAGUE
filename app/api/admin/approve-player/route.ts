@@ -1,3 +1,4 @@
+import { verifyAdminSession } from "@/lib/admin/session"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -6,7 +7,7 @@ import { absoluteUrl } from "@/lib/site-url"
 
 export async function POST(request: Request) {
   const cookieStore = await cookies()
-  if (cookieStore.get("wfc_admin")?.value !== "1") {
+  if (!(await verifyAdminSession(cookieStore.get("wfc_admin")?.value))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

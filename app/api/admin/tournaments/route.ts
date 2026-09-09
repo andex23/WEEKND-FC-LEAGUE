@@ -4,19 +4,19 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET() {
   try {
-    const client = await createClient()
+    const client = createAdminClient()
     const { data, error } = await client.from("tournaments").select("*").order("created_at", { ascending: false })
     if (error) throw error
     return NextResponse.json({ tournaments: data || [] })
   } catch (error) {
     console.error("Error loading tournaments:", error)
-    return NextResponse.json({ tournaments: [] })
+    return NextResponse.json({ error: "Unable to load tournaments. Please try again." }, { status: 503 })
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const client = await createClient()
+    const client = createAdminClient()
     const admin = createAdminClient()
     const body = await req.json()
     const { action, ...data } = body

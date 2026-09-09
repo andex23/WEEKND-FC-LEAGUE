@@ -39,10 +39,10 @@ export async function GET() {
     // Build league status from database data
     const leagueStatus = {
       id: leagueSettings?.id || "default",
-      name: activeTournament?.name || leagueSettings?.name || "Weekend Premier League - FIFA 25",
+      name: activeTournament?.name || leagueSettings?.name || "Weekend FC League",
       status: activeTournament?.status || leagueSettings?.status || "DRAFT",
-      startDate: activeTournament?.start_at || leagueSettings?.start_date || new Date("2024-01-15"),
-      endDate: activeTournament?.end_at || leagueSettings?.end_date || new Date("2024-03-15"),
+      startDate: activeTournament?.start_at || leagueSettings?.start_date || null,
+      endDate: activeTournament?.end_at || leagueSettings?.end_date || null,
       rounds: leagueSettings?.rounds || 2,
       matchdaysPerWeekend: leagueSettings?.matchdays_per_weekend || 2,
       teamsLocked: leagueSettings?.teams_locked || false,

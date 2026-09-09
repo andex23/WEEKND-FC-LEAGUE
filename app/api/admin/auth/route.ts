@@ -1,3 +1,4 @@
+import { createAdminSession, ADMIN_SESSION_SECONDS } from "@/lib/admin/session"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
@@ -22,20 +23,18 @@ export async function POST(req: NextRequest) {
       // Set secure httpOnly cookie for admin gate
       res.cookies.set({
         name: "wfc_admin",
-        value: "1",
+        value: await createAdminSession(),
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 12, // 12 hours
+        maxAge: ADMIN_SESSION_SECONDS,
       })
       return res
     }
     return NextResponse.json(
       {
-        message: !emailMatch
-          ? "That email doesn't match the admin email configured in Vercel."
-          : "Email is correct, but the password doesn't match. Re-check the ADMIN_PASSWORD value in Vercel — watch for surrounding quotes or extra characters.",
+        message: "Incorrect email or password.",
       },
       { status: 401 },
     )

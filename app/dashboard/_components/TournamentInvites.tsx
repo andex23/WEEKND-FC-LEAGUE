@@ -28,14 +28,18 @@ export default function TournamentInvites() {
   const [entries, setEntries] = useState<TournamentInvite[]>([])
   const [selectedClubByTournament, setSelectedClubByTournament] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = async () => {
     try {
       const res = await fetch("/api/player/tournament-entries")
-      if (!res.ok) return
+      if (!res.ok) throw new Error("Couldn't load tournament invitations.")
       const data = await res.json()
       setEntries(data.entries || [])
+      setError(null)
+    } catch {
+      setError("Couldn't load invitations. Please refresh to try again.")
     } finally {
       setLoading(false)
     }
@@ -69,6 +73,8 @@ export default function TournamentInvites() {
       }
       toast.success(action === "accept" ? "Tournament accepted" : "Tournament declined")
       await load()
+    } catch {
+      toast.error("Couldn't save your response. Please try again.")
     } finally {
       setBusyId(null)
     }
@@ -77,6 +83,8 @@ export default function TournamentInvites() {
   if (loading) {
     return <PanelShell title="Tournament Invites" muted="Loading invitations..." />
   }
+
+  if (error) return <PanelShell title="Tournament Invites" muted={error} />
 
   if (entries.length === 0) {
     return <PanelShell title="Tournament Invites" muted="No tournament invitations yet." />

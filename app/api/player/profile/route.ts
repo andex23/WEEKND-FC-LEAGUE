@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data: player, error } = await supabase
     .from("players")
-    .select("id,username,name,preferred_club,assigned_club,console,status,available,avatar_url")
+    .select("id,username,name,psn_id,location,preferred_club,assigned_club,console,status,available,avatar_url")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -47,6 +47,8 @@ export async function GET() {
       id: player.id,
       username: player.username,
       name: player.name,
+      psn_id: player.psn_id,
+      location: player.location,
       preferredClub: player.assigned_club || player.preferred_club,
       console: player.console,
       status: player.status,

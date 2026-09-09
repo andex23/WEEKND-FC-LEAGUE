@@ -14,10 +14,10 @@ export default function LeagueTable({ standings = [], limit = 8 }: { standings?:
       </div>
 
       {rows.length === 0 ? (
-        <div className="px-4 py-8 text-center text-sm text-[#7A7A7A]">No standings yet.</div>
+        <div className="px-4 py-8 text-center text-sm text-[#7A7A7A]">Your league table will appear here once the league goes live.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[300px] text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-[#7A7A7A]">
                 <th className="px-3 py-2 text-left font-bold">#</th>
