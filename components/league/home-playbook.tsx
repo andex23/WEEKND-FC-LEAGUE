@@ -89,7 +89,7 @@ export function HomePlaybook() {
             />
             <span className="club-card-caption">YOUR PLAYER CARD · BUILD YOUR LEGACY</span>
           </div>
-          <div>
+          <div className="club-stage-copy" aria-live="polite" aria-atomic="true">
             <h3>{stage.heading}</h3>
             <p>{stage.text}</p>
             <p className="club-stage-detail">
