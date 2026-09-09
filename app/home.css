@@ -465,3 +465,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 700px) {
+  .club-stage-panel {
+    grid-template-columns: 1fr;
+    padding: 24px 0;
+  }
+  .club-stage-copy {
+    order: -1;
+    min-height: 245px;
+  }
+}
