@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  await admin.from("notifications").insert({ title: subject, body: message })
+  const { error: notificationError } = await admin.from("notifications").insert({ title: subject, body: message })
+  if (notificationError) return NextResponse.json({ error: "Could not save announcement" }, { status: 503 })
 
   const { data: players } = await admin.from("players").select("email").eq("status", "approved")
   const emails = ((players || []) as { email: string | null }[])
@@ -31,5 +32,5 @@ export async function POST(request: NextRequest) {
   const { html } = announcementEmail(subject, message)
   const sent = await sendBroadcast(emails, subject, html)
 
-  return NextResponse.json({ ok: true, sent, recipients: emails.length })
+  return NextResponse.json({ ok: sent === emails.length, sent, recipients: emails.length, ...(sent < emails.length ? { error: "Announcement posted, but some emails could not be sent. Check email delivery settings." } : {}) }, { status: sent < emails.length ? 502 : 200 })
 }

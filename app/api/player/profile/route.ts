@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { Standing } from "@/lib/supabase/types"
@@ -12,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
-  const { data: player, error } = await supabase
+  const { data: player, error } = await createAdminClient()
     .from("players")
     .select("id,username,name,psn_id,location,preferred_club,assigned_club,console,status,available,avatar_url")
     .eq("id", user.id)

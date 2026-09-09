@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       hasExisting &&
       (fixture.reported_home_score !== homeScore || fixture.reported_away_score !== awayScore)
 
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await createAdminClient()
       .from("fixtures")
       .update({
         reported_home_score: homeScore,
@@ -67,19 +67,12 @@ export async function POST(request: Request) {
         report_notes: notes || null,
         report_status: conflict ? "CONFLICT" : "PENDING",
       })
-      .eq("id", fixtureId)
+      .eq("id", fixtureId).eq("status", "SCHEDULED").select("id").maybeSingle()
+    if (!updated && !updateError) return NextResponse.json({ error: "This match changed. Refresh before reporting." }, { status: 409 })
     if (updateError) throw updateError
 
-    // Notify admins (service-role client: players cannot insert notifications).
-    await createAdminClient()
-      .from("notifications")
-      .insert({
-        user_id: null,
-        title: conflict ? "Result conflict" : "New result report",
-        body: conflict
-          ? `Fixture ${fixtureId} has conflicting reports and needs admin review.`
-          : `Fixture ${fixtureId} reported and is pending approval.`,
-      })
+    // Report details are visible through the private admin results endpoint.
+    // A null notification recipient is a player-wide broadcast, not an admin inbox.
 
     if (conflict) {
       return NextResponse.json({

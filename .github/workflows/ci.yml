@@ -33,10 +33,5 @@ jobs:
       - name: Regression tests
         run: node --experimental-strip-types --test tests/*.test.mjs
 
-      # Type checking is reported but not yet enforced: the codebase has a
-      # known backlog of type errors (next.config.mjs still sets
-      # typescript.ignoreBuildErrors). Remove continue-on-error once the
-      # backlog is cleared.
       - name: Type check
         run: pnpm typecheck
-        continue-on-error: true

@@ -23,6 +23,7 @@ export async function middleware(request: NextRequest) {
   const needsAdmin =
     (pathname.startsWith("/api/admin/") &&
       pathname !== "/api/admin/auth") ||
+    pathname === "/api/tournament/config" ||
     ((pathname === "/api/fixtures" || pathname === "/api/league/status") && isWrite) ||
     ((pathname === "/api/tournament/publish" || pathname === "/api/tournament/config") && isWrite)
 

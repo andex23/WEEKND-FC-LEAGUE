@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   }
   const data = parsed.data
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Registration must be open.
   const { data: settings } = await supabase

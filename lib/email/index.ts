@@ -10,8 +10,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     return false
   }
   try {
-    await transporter.sendMail({ from: emailFrom(), to, subject, html })
-    return true
+    const result = await transporter.sendMail({ from: emailFrom(), to, subject, html })
+    return result.accepted.length > 0 && result.rejected.length === 0
   } catch (error) {
     console.error(`[email] failed to send "${subject}":`, error instanceof Error ? error.message : error)
     return false
@@ -31,8 +31,9 @@ export async function sendBroadcast(recipients: string[], subject: string, html:
   }
   if (valid.length === 0) return 0
   try {
-    await transporter.sendMail({ from: emailFrom(), to: emailFrom(), bcc: valid, subject, html })
-    return valid.length
+    const result = await transporter.sendMail({ from: emailFrom(), to: emailFrom(), bcc: valid, subject, html })
+    const accepted = new Set(result.accepted.map((address: unknown) => String(address).toLowerCase()))
+    return valid.filter((address) => accepted.has(address.toLowerCase())).length
   } catch (error) {
     console.error(`[email] broadcast "${subject}" failed:`, error instanceof Error ? error.message : error)
     return 0

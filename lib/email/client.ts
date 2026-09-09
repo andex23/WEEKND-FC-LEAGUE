@@ -22,6 +22,10 @@ export function getTransporter(): Transporter | null {
     // Pooled so bulk sends reuse a few connections instead of opening dozens.
     pool: true,
     maxConnections: 3,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    dnsTimeout: 10000,
   })
   return cached
 }
