@@ -1651,3 +1651,26 @@ summary {
   background: var(--fc-lime);
   color: var(--fc-ink);
 }
+
+/* Original Weekend FC action colours: gold into emerald. */
+:root { --fc-action-gradient: linear-gradient(90deg, #f5c54a, #10b981); }
+.fc-button,
+.club-hero-intro .fc-button,
+.fc-nav-join,
+[data-slot="button"][data-variant="default"],
+.fc-register form button[type="button"].flex-1,
+.fc-login-panel button[type="submit"],
+.fc-recovery-panel button[type="submit"] {
+  background: var(--fc-action-gradient) !important;
+  color: #111214;
+  border-color: transparent;
+  transition: filter .2s ease;
+}
+.fc-button:hover,
+.fc-nav-join:hover,
+[data-slot="button"][data-variant="default"]:hover,
+.fc-register form button[type="button"].flex-1:hover,
+.fc-login-panel button[type="submit"]:hover,
+.fc-recovery-panel button[type="submit"]:hover {
+  filter: brightness(1.08);
+}
