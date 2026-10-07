@@ -1,7 +1,7 @@
 import { FIFA_CLUBS } from "@/lib/constants"
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { requireApprovedPlayer } from "@/lib/security/player-request"
 import {
   readTournamentEntries,
   respondToTournamentEntry,
@@ -23,19 +23,10 @@ function shapePlayerEntry(entry: any, tournament: any) {
   }
 }
 
-async function signedInPlayerId() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id || null
-}
-
 export async function GET() {
-  const playerId = await signedInPlayerId()
-  if (!playerId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const playerId = access.user.id
 
   const admin = createAdminClient()
   const { data: tournaments, error } = await admin
@@ -57,10 +48,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const playerId = await signedInPlayerId()
-  if (!playerId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const playerId = access.user.id
 
   const body = await request.json().catch(() => ({}))
   const { action, tournamentId } = body

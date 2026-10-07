@@ -4,7 +4,19 @@ The canonical schema lives in `supabase/migrations/`. The old, conflicting
 ad-hoc scripts have been moved to `scripts/_DEPRECATED/` for history only — do
 not run them.
 
-## Migration files (run in order)
+## Schema source files and verified setup order
+
+For a fresh Supabase project, regenerate and review `apply-all.sql` with
+`node scripts/build-schema.mjs`, then run that bundle in the SQL editor.
+It includes the current verification/security changes and deliberately omits
+the optional demo seed. Never run the full fresh-project bundle against an
+existing production database.
+
+`scripts/schema-files.mjs` is the explicit dependency order. The historical
+filenames contain two `0009` prefixes, and player permissions require the
+`avatar_url` column introduced by `0010`. Do not run this legacy folder through
+`supabase db push` or sort by filename without first reconciling migration
+history on a staging copy. Existing numbered files have not been renamed.
 
 | File | Purpose |
 | --- | --- |
@@ -15,6 +27,12 @@ not run them.
 | `0005_seed.sql` | optional development seed |
 | `0006_speed_test.sql` | connection-speed columns + `speed-tests` storage bucket |
 | `0007_match_reminders.sql` | `fixtures.reminder_sent_at` for the reminder cron |
+| `0008_tournament_entries.sql` | Tournament invitation/response schema |
+| `0009_league_settings_sections.sql` | Public branding and private integration settings |
+| `0010_player_avatars.sql` | Avatar column/bucket; must precede player permissions |
+| `0009_player_permissions.sql` | Historical player column grants |
+| `0011_access_and_rate_limits.sql` | Verified/approved access, private data grants, durable rate limits |
+| `0012_registration_verification.sql` | Verified-email approval guard, mail queue and access-ready predicate |
 
 All migrations are idempotent (`CREATE TABLE IF NOT EXISTS`,
 `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE`) — they are safe to re-run and
@@ -22,14 +40,21 @@ safe to apply on top of an existing database.
 
 ## How to apply
 
-Open the Supabase project's SQL editor and run each file in order (0001 → 0007),
-or with the Supabase CLI:
+For a fresh project, generate the complete dependency-ordered bundle:
 
 ```bash
-supabase db push
+node scripts/build-schema.mjs
 ```
 
 ## Applying to an EXISTING database
+
+First inspect current schema, grants and policies. After verifying the earlier
+prerequisites, review and explicitly authorize security migrations `0011` and
+`0012`; apply them before the new app code. Do not create users, overwrite
+approval/verification state, replay demo seed, or send historical alerts.
+Keep old approval/registration writes paused during the coordinated rollout,
+because the old application approves by confirming email on an owner's behalf.
+See `docs/security/registration-verification.md` for configuration and smoke tests.
 
 If the project already has tables from the old scripts, the column shapes may
 differ. The migrations add any missing columns but do **not** drop or rename

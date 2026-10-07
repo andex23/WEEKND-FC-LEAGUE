@@ -32,6 +32,7 @@ import { SettingsPage } from "@/components/admin/settings-page"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
 import { toast } from "sonner"
+import { registrationApprovalAction } from "@/lib/admin/registration-state"
 
 // Route-backed nav items push a URL; in-page sections are tracked in local
 // state and mirrored to the URL hash so they can be deep-linked.
@@ -256,6 +257,7 @@ export default function AdminDashboard() {
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
         toast.error(result?.error || "Failed to approve player")
+        await fetchAllData()
         return
       }
       toast.success(result.emailSent ? "Player approved and confirmation email sent." : "Player approved.")
@@ -285,7 +287,7 @@ export default function AdminDashboard() {
   }
 
   const bulkApproveAll = async () => {
-    for (const p of pendingRegistrations) {
+    for (const p of pendingRegistrations.filter((p) => registrationApprovalAction(p) === "approve")) {
       // eslint-disable-next-line no-await-in-loop
       await approvePlayer(p.id)
     }
@@ -396,8 +398,8 @@ export default function AdminDashboard() {
 
   const bulkAction = async (action: "approve" | "reject") => {
     for (const id of selectedIds) {
-      if (action === "approve") await approvePlayer(id)
-      else await rejectPlayer(id)
+      if (action === "approve" && registrationApprovalAction(players.find((p) => p.id === id) || {}) !== "none") await approvePlayer(id)
+      else if (action === "reject") await rejectPlayer(id)
     }
     setSelectedIds(new Set())
     fetchAllData()
@@ -683,8 +685,8 @@ export default function AdminDashboard() {
                     title="Approval queue"
                     kicker={`${pendingRegistrations.length} waiting`}
                     action={
-                      <Button size="sm" onClick={bulkApproveAll}>
-                        <CheckCircle2 className="h-4 w-4" /> Approve all
+                      <Button size="sm" onClick={bulkApproveAll} disabled={!pendingRegistrations.some((p) => registrationApprovalAction(p) === "approve")}>
+                        <CheckCircle2 className="h-4 w-4" /> Approve verified
                       </Button>
                     }
                   >
@@ -696,10 +698,10 @@ export default function AdminDashboard() {
                               <div className="truncate text-sm font-semibold">{p.name}</div>
                               <div className="mt-1 truncate text-xs text-[#8A9A8D]">{p.email || "No email on file"}</div>
                             </div>
-                            <StatusPill tone={p.email ? "amber" : "rose"}>{p.email ? "Pending" : "No email"}</StatusPill>
+                            <StatusPill tone={p.email_verified ? "green" : "amber"}>{p.email_verified ? "Email verified" : p.email_verified === false ? "Awaiting email" : "Check unavailable"}</StatusPill>
                           </div>
                           <div className="mt-3 flex gap-2">
-                            <Button size="sm" className="h-8 flex-1" onClick={() => approvePlayer(p.id)}>
+                            <Button size="sm" className="h-8 flex-1" onClick={() => approvePlayer(p.id)} disabled={registrationApprovalAction(p) === "none"}>
                               Approve
                             </Button>
                             <Button size="sm" variant="outline" className="h-8 flex-1" onClick={() => rejectPlayer(p.id)}>
@@ -844,7 +846,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#8A9A8D]">Roster intake</div>
                     <h2 className="mt-1 text-2xl font-extrabold">Registrations</h2>
-                    <p className="mt-1 text-sm text-[#A7B2A2]">Approve players only when their confirmation email can be sent.</p>
+                    <p className="mt-1 text-sm text-[#A7B2A2]">Players must verify their email before approval. Failed approval emails can be retried below.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" disabled={selectedIds.size === 0} onClick={() => bulkAction("approve")}>
@@ -906,7 +908,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-3 py-2">{p.name}</td>
                           <td className="px-3 py-2">{p.username || p.gamertag || p.gamer_tag || "—"}</td>
-                          <td className="px-3 py-2">{p.email || p.email_address || p.user?.email || "—"}</td>
+                          <td className="px-3 py-2">{p.email || p.email_address || p.user?.email || "—"}<div className="mt-1 text-xs text-[#8A9A8D]">{p.email_verified ? "Email verified" : p.email_verified === false ? "Awaiting verification" : "Verification unavailable"}</div></td>
                           <td className="px-3 py-2">{p.console || "—"}</td>
                           <td className="px-3 py-2">{p.preferred_team || p.preferred_club || "—"}</td>
                           <td className="px-3 py-2">{p.location || p.city || p.country || "—"}</td>
@@ -914,10 +916,11 @@ export default function AdminDashboard() {
                             <StatusPill tone={(p.status || "pending").toLowerCase() === "approved" ? "green" : (p.status || "pending").toLowerCase() === "rejected" ? "rose" : "amber"}>
                               {p.status || "pending"}
                             </StatusPill>
+                            {p.approval_email_state && p.approval_email_state !== "sent" && <div className="mt-1 text-xs text-amber-300">Email: {p.approval_email_state}</div>}
                           </td>
                           <td className="px-3 py-2 text-right">
                             <div className="inline-flex gap-2">
-                              <Button size="sm" onClick={() => approvePlayer(p.id)} disabled={(p.status || "").toLowerCase() === "approved"}>Approve</Button>
+                              <Button size="sm" onClick={() => approvePlayer(p.id)} disabled={registrationApprovalAction(p) === "none"}>{registrationApprovalAction(p) === "retry" ? "Retry email" : "Approve"}</Button>
                               <Button size="sm" variant="outline" onClick={() => rejectPlayer(p.id)} disabled={(p.status || "").toLowerCase() === "rejected"}>Reject</Button>
                             </div>
                           </td>

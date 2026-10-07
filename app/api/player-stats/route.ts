@@ -1,3 +1,4 @@
+import { readPlayerAccess } from "@/lib/security/player-access"
 import { mergeStatsRows } from "@/lib/stats-overrides"
 import { NextRequest, NextResponse } from "next/server"
 import { GET as standingsGET } from "@/app/api/standings/route"
@@ -120,9 +121,8 @@ export async function GET(request: Request) {
 
     // Per-user stats for the signed-in player's dashboard.
     let stats = { ...emptyStats }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const access = await readPlayerAccess(supabase)
+    const user = access.ok ? access.user : null
     if (user) {
       const mine = tally.get(user.id)
       if (mine) stats = { ...stats, ...mine }

@@ -1,3 +1,4 @@
+import { withRegistrationState } from "@/lib/admin/registration-state"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -9,13 +10,14 @@ import { verifyAdminSession } from "@/lib/admin/session"
 export async function GET() {
   try {
     const isAdmin = await verifyAdminSession((await cookies()).get("wfc_admin")?.value)
-    const client = isAdmin ? createAdminClient() : await createClient()
+    if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const client = createAdminClient()
     const { data, error } = await client
       .from("players")
-      .select(isAdmin ? "*" : "id,name,preferred_club,assigned_club,console,avatar_url")
+      .select("*")
       .order("created_at", { ascending: true })
     if (error) throw error
-    return NextResponse.json({ players: data || [] })
+    return NextResponse.json({ players: await withRegistrationState(client, data || []) })
   } catch (error) {
     console.error("Error loading players:", error)
     return NextResponse.json({ error: "Unable to load players. Please try again." }, { status: 503 })
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
       }
       if (data.status === "approved") {
         const result = await updatePlayerStatusWithApprovalEmail(admin, { playerId: created.id, status: "approved", loginUrl })
-        if (!result.ok) return NextResponse.json({ error: result.error, player: created, message: "The account was created as pending. Retry approval after correcting email delivery." }, { status: result.statusCode })
+        if (!result.ok) return NextResponse.json({ error: result.error, player: created, message: "The account was created as pending. The player must verify their email at /auth/check-email before approval; use password reset to choose a password." }, { status: result.statusCode })
         return NextResponse.json({ success: true, player: result.player, emailSent: result.emailSent })
       }
       return NextResponse.json({ success: true, player: created })
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
         if (fetchError) throw fetchError
         
         const isBeingDeactivated = currentPlayer?.status === "approved" && src.status === "pending"
-        const isBeingApproved = src.status === "approved" && currentPlayer?.status !== "approved"
+        const isBeingApproved = src.status === "approved"
 
         if (isBeingApproved) {
           const result = await updatePlayerStatusWithApprovalEmail(admin, {
@@ -208,6 +210,8 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, player: updated })
       } else {
+        // Approval needs one stable Auth identity and the approval email helper.
+        if (patch.status === "approved") return NextResponse.json({ error: "A valid player ID is required for approval." }, { status: 400 })
         // Fallback: update by name + (username or psn_name) when id isn't a UUID
         const fallbackName = src.name || data.name
         const fallbackUsername = src.username || src.gamer_tag || data.username

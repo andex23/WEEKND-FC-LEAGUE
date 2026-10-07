@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
+import { cleanReferrer, shouldTrackPage } from "@/lib/analytics-policy"
 
 const TRACKER_URL = "https://yerwptchfksahaiiezki.supabase.co/functions/v1/site-track"
 const SITE_KEY = "94f9aa04-d15f-499a-825e-0bf8cab939d0"
@@ -19,7 +20,7 @@ export function DruAnalytics() {
   const identity = useRef<{ visitorId: string; sessionId: string } | null>(null)
 
   useEffect(() => {
-    if (!pathname || !HOSTS.has(window.location.hostname) || lastPath.current === pathname) return
+    if (!pathname || !shouldTrackPage(window.location.hostname, pathname) || lastPath.current === pathname) return
 
     if (!identity.current) {
       identity.current = { visitorId: crypto.randomUUID(), sessionId: crypto.randomUUID() }
@@ -33,7 +34,7 @@ export function DruAnalytics() {
 
     const referrer = lastPath.current
       ? `${window.location.origin}${lastPath.current}`
-      : document.referrer
+      : cleanReferrer(document.referrer)
     lastPath.current = pathname
 
     void fetch(TRACKER_URL, {

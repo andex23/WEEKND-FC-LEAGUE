@@ -36,7 +36,7 @@ function SubmitButton() {
   )
 }
 
-export default function LoginForm() {
+export default function LoginForm({ initialError }: { initialError?: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const postLoginPath = safeNextPath(searchParams.get("next") || undefined)
@@ -61,7 +61,7 @@ export default function LoginForm() {
       </div>
 
       <form action={formAction} className="mt-6 space-y-4">
-        {state?.error ? <ErrorBanner title="Couldn't sign in" message={state.error} /> : null}
+        {state?.error || initialError ? <ErrorBanner title="Account access" message={state?.error || initialError || ""} /> : null}
 
         <div className="space-y-1.5">
           <label htmlFor="email" className={labelClass}>
@@ -113,6 +113,9 @@ export default function LoginForm() {
         </div>
 
         <SubmitButton />
+        <Link href="/auth/check-email" className="block text-center text-xs text-emerald-400 hover:underline">
+          Resend verification email
+        </Link>
 
         <p className="text-center text-xs text-[#7A7A7A]">
           Don&apos;t have an account?{" "}

@@ -197,3 +197,27 @@ export function referralEmail(opts: {
     }),
   }
 }
+
+export function registrationVerificationEmail(name: string, verificationUrl: string): EmailContent {
+  return {
+    subject: "Verify your email for Weekend FC",
+    html: layout({
+      heading: "Verify your email",
+      intro: `Hi ${escapeHtml(name)}, confirm your email address to submit your Weekend FC registration for admin review. You'll receive a separate email when your registration is approved.`,
+      cta: { label: "Verify email address", url: verificationUrl },
+      footerNote: "If you didn't register for Weekend FC, ignore this email. Verification does not grant league access.",
+    }),
+  }
+}
+
+export function verifiedRegistrationAdminEmail(name: string, platform: string, adminUrl: string): EmailContent {
+  return {
+    subject: "Weekend FC registration ready for review",
+    html: layout({
+      heading: "Registration ready",
+      intro: `${escapeHtml(name)} has verified their email and is waiting for review.`,
+      bodyHtml: `<p style="font-size:15px;line-height:1.8;color:#5e6167;">Platform: ${escapeHtml(platform)}</p>`,
+      cta: { label: "Review registration", url: adminUrl },
+    }),
+  }
+}

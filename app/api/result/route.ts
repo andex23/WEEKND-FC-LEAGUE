@@ -2,16 +2,13 @@ import { validScore } from "@/lib/matches/validation"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireApprovedPlayer } from "@/lib/security/player-request"
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-    }
+    const access = await requireApprovedPlayer()
+    if (!access.ok) return access.response
+    const { user } = access
 
     const body = await request.json().catch(() => ({}))
     const { fixtureId, homeScore, awayScore, evidenceUrl, notes, screenshot } = body
@@ -32,7 +29,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Keep notes under 2,000 characters." }, { status: 400 })
     }
 
-    const { data: fixture, error: fetchError } = await supabase
+    // Private report columns are never granted to the public/session Data API.
+    // A participant check below still precedes every service-role write.
+    const { data: fixture, error: fetchError } = await createAdminClient()
       .from("fixtures")
       .select("id, status, home_player_id, away_player_id, reported_home_score, reported_away_score")
       .eq("id", fixtureId)

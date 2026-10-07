@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useRouter, usePathname } from "next/navigation"
 import { AdminOverlayNav } from "@/components/admin/overlay-nav"
 import { toast } from "sonner"
+import { registrationApprovalAction } from "@/lib/admin/registration-state"
 import { AlertTriangle, CalendarDays, CheckCircle2, Download, Search, ShieldCheck, Trash2, Trophy, type LucideIcon, Users } from "lucide-react"
 
 // All persistence is via Supabase. Remove local storage to avoid duplicates.
@@ -57,6 +58,7 @@ export default function AdminPlayersPage() {
     const result = await response.json().catch(() => ({}))
 
     if (!response.ok || !result.success) {
+      await load()
       throw new Error(result?.error || "Failed to update player status")
     }
 
@@ -327,7 +329,7 @@ export default function AdminPlayersPage() {
                     <tr key={p.id} className="border-t border-[#1E1E1E]">
                       <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2">{p.username || p.psn_id || "—"}</td>
-                      <td className="px-3 py-2">{p.email || "—"}</td>
+                      <td className="px-3 py-2">{p.email || "—"}<div className="mt-1 text-xs text-[#8A9A8D]">{p.email_verified ? "Email verified" : p.email_verified === false ? "Awaiting verification" : "Verification unavailable"}</div></td>
                       <td className="px-3 py-2">{p.preferred_club || "—"}</td>
                       <td className="px-3 py-2">{p.console}</td>
                       <td className="px-3 py-2">{p.location || "—"}</td>
@@ -350,17 +352,20 @@ export default function AdminPlayersPage() {
                           <span className="text-[#6C6C6C]">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2"><RosterStatusPill status={p.status} /></td>
+                      <td className="px-3 py-2"><RosterStatusPill status={p.status} />{p.approval_email_state && p.approval_email_state !== "sent" && <div className="mt-1 text-xs text-amber-300">Email: {p.approval_email_state}</div>}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex flex-wrap gap-1 sm:gap-2">
                           <Button size="sm" variant="outline" onClick={() => setEdit(p)} className="text-xs sm:text-sm">Edit</Button>
-                          <Button size="sm" variant="outline" onClick={async () => { 
+                          <Button size="sm" variant="outline" disabled={p.status !== "approved" && registrationApprovalAction(p) === "none"} onClick={async () => {
                             try {
                               await updatePlayerStatus(p, String(p.status) === "approved" ? "pending" : "approved")
                             } catch (error) {
                               toast.error(error instanceof Error ? error.message : "Failed to update player status")
                             }
                           }} className="text-xs sm:text-sm">{String(p.status) === "approved" ? "Move Pending" : "Approve"}</Button>
+                          {registrationApprovalAction(p) === "retry" && <Button size="sm" variant="outline" onClick={async () => {
+                            try { await updatePlayerStatus(p, "approved") } catch (error) { toast.error(error instanceof Error ? error.message : "Could not retry email") }
+                          }}>Retry email</Button>}
                           <Button size="sm" variant="outline" disabled={String(p.status || "").toLowerCase() === "rejected"} className="text-amber-300 border-amber-900 hover:bg-amber-900/20 text-xs sm:text-sm" onClick={async () => {
                             try {
                               await updatePlayerStatus(p, "rejected")

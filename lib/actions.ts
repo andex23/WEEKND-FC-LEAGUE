@@ -2,6 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { readPlayerAccess } from "@/lib/security/player-access"
+import { headers } from "next/headers"
+import { enforceRequestRateLimit } from "@/lib/security/rate-limit"
 
 export async function signIn(prevState: any, formData: FormData) {
   if (!formData) {
@@ -14,6 +17,9 @@ export async function signIn(prevState: any, formData: FormData) {
   if (!email || !password) {
     return { error: "Please enter your email and password." }
   }
+
+  const limit = await enforceRequestRateLimit("player-login", await headers(), email.toString())
+  if (!limit.allowed) return { error: limit.error }
 
   const supabase = await createClient()
 
@@ -30,7 +36,7 @@ export async function signIn(prevState: any, formData: FormData) {
 
       if (code === "email_not_confirmed" || message.includes("not confirmed")) {
         return {
-          error: "Your account is awaiting admin approval. You'll get an email once you're approved.",
+          error: "Verify your email first, then an admin can approve your registration.",
         }
       }
       if (code === "invalid_credentials" || message.includes("invalid login")) {
@@ -44,25 +50,10 @@ export async function signIn(prevState: any, formData: FormData) {
 
     // Email is confirmed (Supabase blocks unconfirmed sign-ins above). Now
     // enforce the admin-approval gate before letting the player through.
-    const userId = signInData.user?.id
-    if (userId) {
-      const { data: player } = await supabase
-        .from("players")
-        .select("status, role")
-        .eq("id", userId)
-        .maybeSingle()
-
-      if (player && player.role !== "ADMIN" && player.status !== "approved") {
-        await supabase.auth.signOut()
-        if (player.status === "rejected") {
-          return {
-            error: "Your registration wasn't approved. Reach out to an admin if you think this is a mistake.",
-          }
-        }
-        return {
-          error: "Your account is awaiting admin approval. You'll be able to sign in once an admin clears you.",
-        }
-      }
+    const access = await readPlayerAccess(supabase)
+    if (!access.ok) {
+      await supabase.auth.signOut({ scope: "local" })
+      return { error: access.error }
     }
 
     return { success: true }

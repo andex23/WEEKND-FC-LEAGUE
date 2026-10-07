@@ -1,6 +1,8 @@
 "use client"
 
 import { PageHeading } from "@/components/league/ui"
+import { useEffect, useState } from "react"
+import { discordInvite } from "@/lib/community-links"
 import type { LucideIcon } from "lucide-react"
 import {
   Activity,
@@ -55,6 +57,13 @@ function Section({
 const linkClass = "font-medium text-emerald-400 underline-offset-2 hover:underline"
 
 export default function RulesPage() {
+  const [discordUrl, setDiscordUrl] = useState<string | null>(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch("/api/site-settings", { signal: controller.signal }).then((response) => response.json())
+      .then((settings) => setDiscordUrl(discordInvite(settings?.branding?.discordInviteUrl))).catch(() => {})
+    return () => controller.abort()
+  }, [])
   return (
     <div className="fc-site fc-rules">
       <div className="fc-wrap">
@@ -73,9 +82,9 @@ export default function RulesPage() {
             <a href="https://t.me/+17bCG-bp5XI0NmFl" target="_blank" rel="noopener noreferrer">
               Telegram channel ↗
             </a>
-            <a href="https://discord.gg/YZumc42p" target="_blank" rel="noopener noreferrer">
+            {discordUrl ? <a href={discordUrl} target="_blank" rel="noopener noreferrer">
               Discord community ↗
-            </a>
+            </a> : <span>Discord invite is being updated.</span>}
           </aside>
           <div>
             {/* SECTIONS */}
@@ -95,16 +104,7 @@ export default function RulesPage() {
               <Section number={2} icon={Clock} title="Scheduling">
                 <ul className="space-y-1.5">
                   <li>
-                    • Fixtures are posted on the site. Players coordinate exact kick-off in{" "}
-                    <a
-                      className={linkClass}
-                      href="https://discord.gg/YZumc42p"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Discord
-                    </a>
-                    .
+                    • Fixtures are posted on the site. Players coordinate exact kick-off through the community channels listed here.
                   </li>
                   <li>
                     • Be on time. Grace period: 10 minutes. After that, opponent may claim a forfeit
@@ -143,8 +143,7 @@ export default function RulesPage() {
                     • After each match, results must be reported through one of these channels:
                   </li>
                   <li className="ml-4">
-                    - <strong className="text-white">Website:</strong> Submit via the admin
-                    dashboard
+                    - <strong className="text-white">Website:</strong> Use Report Result from your player dashboard
                   </li>
                   <li className="ml-4">
                     - <strong className="text-white">Discord:</strong> Post in #report-scores

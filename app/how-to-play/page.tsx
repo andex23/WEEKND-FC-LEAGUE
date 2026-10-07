@@ -22,7 +22,7 @@ const steps = [
   {
     id: "approval",
     title: "Get approved. Claim your place.",
-    text: "An admin reviews your registration. Once approved, you receive an email and can sign in. Tournament invitations appear in your dashboard: accept one and choose your club to join that tournament.",
+    text: "Verify your email using the link we send you. An admin then reviews your registration. Once approved, you receive a separate email and can sign in. Tournament invitations appear in your dashboard: accept one and choose your club to join that tournament.",
     note: "An approved account is not automatically entered into every tournament. Check your dashboard for invitations; if none are available, wait for the organizer to open the next league.",
     href: "/dashboard",
     action: "Open your dashboard",

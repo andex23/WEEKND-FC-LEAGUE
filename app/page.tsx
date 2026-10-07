@@ -54,8 +54,8 @@ export default function HomePage() {
               <div>
                 <h2>A new season is taking shape.</h2>
                 <p>
-                  Register now. Your tournament invitation will appear in your dashboard when the
-                  next league is ready.
+                  Register your interest for US$5 entry. The start date is still to be confirmed;
+                  payment will wait until the season date and format are confirmed.
                 </p>
               </div>
               <Link href="/rules" className="club-secondary">
