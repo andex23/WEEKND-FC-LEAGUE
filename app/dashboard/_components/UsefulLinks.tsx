@@ -15,7 +15,7 @@ export default function UsefulLinks({
 }: {
   rulesUrl?: string
   telegramInvite?: string
-  reportHref?: string
+  reportHref?: string | null
 }) {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
@@ -45,7 +45,7 @@ export default function UsefulLinks({
     { href: siteLinks.rulesUrl, label: "League Rules", icon: BookText, external: siteLinks.rulesUrl.startsWith("http") },
     { href: "/refer", label: "Refer a friend", icon: UserPlus, external: false },
     { href: siteLinks.telegramUrl, label: "Telegram group chat", icon: Send, external: true },
-    { href: reportHref || "/report", label: "Report Result", icon: ClipboardList, external: false },
+    ...(reportHref === null ? [] : [{ href: reportHref || "/report", label: "Report Result", icon: ClipboardList, external: false }]),
   ].filter((link) => link.href)
 
   const logout = async () => {

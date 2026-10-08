@@ -1674,3 +1674,99 @@ summary {
 .fc-recovery-panel button[type="submit"]:hover {
   filter: brightness(1.08);
 }
+
+/* Player hub: keep pre-season useful, and reveal match content only with real data. */
+.fc-player-hub .fc-hub-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 0 28px;
+}
+.fc-player-hub .fc-hub-heading h1 {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -.045em;
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+.fc-hub-heading p, .fc-hub-muted, .fc-hub-meta { color: #b1b3ba; font-size: 13px; line-height: 1.7; }
+.fc-player-hub section.fc-hub-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 28px 30px;
+  border: 1px solid #46513b;
+  border-left: 3px solid var(--fc-lime);
+  background: linear-gradient(110deg, #242b21, #191c1b 70%);
+  margin-bottom: 24px;
+}
+.fc-hub-status-copy { max-width: 660px; }
+.fc-hub-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--fc-lime); font-size: 12px; font-weight: 600; }
+.fc-hub-status h2 { margin: 12px 0 8px; font-size: 23px; line-height: 1.3; letter-spacing: -.035em; }
+.fc-hub-status p { color: #bec3bb; font-size: 13px; line-height: 1.8; }
+.fc-hub-status .fc-button { flex-shrink: 0; }
+.fc-hub-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.fc-player-hub .fc-hub-card { padding: 28px; border: 1px solid var(--fc-line); min-width: 0; scroll-margin-top: 100px; }
+.fc-hub-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #aeb1b6; }
+.fc-hub-card > h2 { font-size: 24px; line-height: 1.3; letter-spacing: -.035em; margin: 22px 0 10px; overflow-wrap: anywhere; }
+.fc-hub-player-details { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 24px; margin-top: 22px; }
+.fc-hub-player-details > div:last-child { grid-column: 1 / -1; }
+.fc-hub-card dt { color: #b1b3ba; font-size: 12px; margin-bottom: 5px; }
+.fc-hub-card dd { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.fc-hub-photo { margin: 24px 0; padding-top: 22px; border-top: 1px solid var(--fc-line); }
+.fc-hub-photo > p { font-size: 11px; color: #aeb1b6; line-height: 1.6; margin-top: 12px; }
+.fc-hub-photo button { min-height: 24px; }
+.fc-hub-photo button + span { color: #aeb1b6; }
+.fc-hub-checklist, .fc-hub-updates { border-top: 1px solid var(--fc-line); padding-top: 22px; }
+.fc-hub-checklist h3, .fc-hub-updates h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.fc-hub-checklist ul { display: grid; gap: 13px; }
+.fc-hub-checklist li { display: flex; gap: 11px; align-items: flex-start; color: #b1b3ba; }
+.fc-hub-checklist li > svg { flex-shrink: 0; margin-top: 2px; }
+.fc-hub-checklist li.is-complete > svg { color: var(--fc-lime); }
+.fc-hub-checklist strong { display: block; color: #e0e2dd; font-size: 12px; font-weight: 500; }
+.fc-hub-checklist small { display: block; margin-top: 3px; font-size: 12px; line-height: 1.6; }
+.fc-hub-checklist > p { color: #b1b3ba; font-size: 11px; line-height: 1.7; margin-top: 20px; }
+.fc-hub-season-details { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 24px 0; }
+.fc-hub-season-details > div:last-child { grid-column: 1 / -1; }
+.fc-hub-rules { min-height: 44px; justify-content: flex-start; margin-bottom: 18px; }
+.fc-hub-updates { scroll-margin-top: 100px; }
+.fc-hub-updates > p, .fc-hub-updates li p { color: #b1b3ba; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fc-hub-updates ul { display: grid; gap: 20px; }
+.fc-hub-updates time { color: #b1b3ba; font-size: 11px; }
+.fc-hub-updates h4 { font-size: 14px; margin: 5px 0; }
+.fc-hub-invites { margin-bottom: 24px; scroll-margin-top: 100px; }
+.fc-player-hub section.fc-hub-match-centre { margin-top: 38px; background: transparent; scroll-margin-top: 100px; }
+.fc-hub-match-centre > .fc-hub-section-heading { margin-bottom: 20px; }
+.fc-hub-match-centre h2 { font-size: 23px; margin-top: 8px; color: var(--fc-paper); }
+.fc-hub-match-centre .fc-dashboard-layout { gap: 24px; }
+.fc-hub-form { display: flex; gap: 5px; }
+.fc-hub-form span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; font-size: 12px; background: #37332a; color: #f6d67f; }
+.fc-hub-form span[data-result="W"] { background: #23382c; color: #a9e6bc; }
+.fc-hub-form span[data-result="L"] { background: #3a282c; color: #f0a4a6; }
+.fc-hub-standing { display: flex; gap: 36px; padding: 22px; border: 1px solid var(--fc-line); border-radius: 10px; }
+.fc-hub-standing span { font-size: 12px; color: #b1b3ba; }
+.fc-hub-standing strong { display: block; margin-top: 8px; color: var(--fc-paper); font-size: 25px; font-weight: 600; }
+.fc-hub-actions { margin-top: 24px; }
+.fc-hub-actions section > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.fc-hub-actions section > div > * { margin-top: 0; min-height: 44px; }
+.fc-hub-loading { padding-top: 40px; display: grid; gap: 24px; }
+.fc-hub-error { padding-top: 64px; padding-bottom: 64px; }
+.fc-hub-error h1 { font-size: 26px; margin-bottom: 12px; }
+.fc-hub-error p { color: #b1b3ba; margin-bottom: 24px; }
+@media (max-width: 900px) {
+  .fc-player-hub section.fc-hub-status { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .fc-hub-actions section > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .fc-player-hub .fc-hub-heading { align-items: flex-start; flex-direction: column; gap: 12px; padding-top: 28px; }
+  .fc-player-hub section.fc-hub-status { padding: 22px; }
+  .fc-hub-status h2 { font-size: 22px; }
+  .fc-hub-status .fc-button { width: 100%; }
+  .fc-hub-grid { grid-template-columns: 1fr; gap: 18px; }
+  .fc-player-hub .fc-hub-card { padding: 22px; }
+  .fc-hub-card > h2 { font-size: 22px; }
+  .fc-hub-meta { font-size: 11px; white-space: nowrap; }
+  .fc-hub-actions section > div { grid-template-columns: 1fr; }
+}
