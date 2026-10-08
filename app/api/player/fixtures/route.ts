@@ -1,6 +1,6 @@
+import { requireApprovedPlayer } from "@/lib/security/player-request"
 import { getActiveTournament } from "@/lib/tournaments/active"
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 
 type FixtureRow = {
   id: string
@@ -18,14 +18,9 @@ type FixtureRow = {
 }
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const { user, supabase } = access
 
   const active = await getActiveTournament(supabase)
   if (!active) return NextResponse.json({ fixtures: [] })

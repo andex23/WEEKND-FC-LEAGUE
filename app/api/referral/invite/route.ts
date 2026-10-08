@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email"
 import { referralEmail } from "@/lib/email/templates"
+import { requireApprovedPlayer } from "@/lib/security/player-request"
+import { enforceRequestRateLimit } from "@/lib/security/rate-limit"
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -20,13 +22,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 })
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "You must be signed in to send invites." }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const { user, supabase } = access
+  const limit = await enforceRequestRateLimit("referral", request.headers, user.id)
+  if (!limit.allowed) return NextResponse.json({ error: limit.error }, { status: limit.status, headers: { "Retry-After": String(limit.retryAfter) } })
 
   const { data: player } = await supabase
     .from("players")

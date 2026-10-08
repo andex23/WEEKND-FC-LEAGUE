@@ -9,7 +9,7 @@ const stages = [
   {
     title: "Register",
     heading: "Your club. Your name on the team sheet.",
-    text: "Create your player, choose your platform and preferred club, and check your connection. Once approved, accept your tournament invitation to claim your place.",
+    text: "Register your interest, choose your platform and preferred club, and check your connection. Verify your email, then wait for admin approval. Tournament invitations appear in your dashboard once approved.",
     detail: "PS5, Xbox Series X/S and PC registration",
     link: "/register",
     action: "Join the league",

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sendEmail } from "@/lib/email"
 import { passwordResetEmail } from "@/lib/email/templates"
 import { absoluteUrl } from "@/lib/site-url"
+import { enforceRequestRateLimit } from "@/lib/security/rate-limit"
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -17,6 +18,8 @@ export async function POST(request: Request) {
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 })
   }
+  const limit = await enforceRequestRateLimit("password-reset", request.headers, email)
+  if (!limit.allowed) return NextResponse.json({ error: limit.error }, { status: limit.status, headers: { "Retry-After": String(limit.retryAfter) } })
 
   const admin = createAdminClient()
   const resetPageUrl = new URL(absoluteUrl("/auth/reset-password", request.url))
@@ -36,8 +39,7 @@ export async function POST(request: Request) {
     return ok()
   }
 
-  resetPageUrl.searchParams.set("token_hash", data.properties.hashed_token)
-  resetPageUrl.searchParams.set("type", "recovery")
+  resetPageUrl.hash = new URLSearchParams({ token_hash: data.properties.hashed_token, type: "recovery" }).toString()
 
   const { data: player } = await admin
     .from("players")

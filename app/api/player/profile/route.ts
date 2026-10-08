@@ -1,17 +1,12 @@
+import { requireApprovedPlayer } from "@/lib/security/player-request"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import type { Standing } from "@/lib/supabase/types"
 
 export async function GET() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const { user, supabase } = access
 
   const { data: player, error } = await createAdminClient()
     .from("players")
@@ -63,14 +58,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const { user, supabase } = access
 
   let body: { avatar_url?: string | null }
   try {

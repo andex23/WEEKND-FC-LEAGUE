@@ -39,13 +39,14 @@ export function HomeHero() {
         <div className="club-hero-intro">
           <h2>Same game. Real rivalries.</h2>
           <p>
-            Pick your club. Meet your next opponent.
+            Join the next Weekend FC league. US$5 entry.
             <br />
-            Give your weekends something to play for.
+            Register your interest and get notified when the season is confirmed.
           </p>
+          <p>Start date to be confirmed. Payment will wait until the season date and format are confirmed.</p>
           <div>
             <Link href="/register" className="fc-button">
-              Create your player
+              Register your interest
             </Link>
             <Link href="/how-to-play" className="club-secondary">
               How we play

@@ -1,3 +1,4 @@
+import { withRegistrationState } from "@/lib/admin/registration-state"
 import { verifyAdminSession } from "@/lib/admin/session"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
@@ -9,7 +10,8 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { data, error } = await createAdminClient()
+  const admin = createAdminClient()
+  const { data, error } = await admin
     .from("players")
     .select("id,name,username,email,console,location,preferred_club,status,created_at")
     .order("created_at", { ascending: false })
@@ -19,7 +21,7 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch registrations" }, { status: 500 })
   }
 
-  const registrations = (data ?? []).map((p) => ({
+  const registrations = (await withRegistrationState(admin, data ?? [])).map((p) => ({
     id: p.id,
     name: p.name,
     username: p.username,
@@ -28,6 +30,8 @@ export async function GET() {
     location: p.location,
     preferred_team: p.preferred_club,
     status: p.status,
+    email_verified: p.email_verified,
+    approval_email_state: p.approval_email_state,
     created_at: p.created_at,
   }))
 

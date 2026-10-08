@@ -1,5 +1,6 @@
 import { createAdminSession, ADMIN_SESSION_SECONDS } from "@/lib/admin/session"
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRequestRateLimit } from "@/lib/security/rate-limit"
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password } = await req.json()
+    const limit = await enforceRequestRateLimit("admin-login", req.headers, typeof email === "string" ? email : undefined)
+    if (!limit.allowed) return NextResponse.json({ message: limit.error }, { status: limit.status, headers: { "Retry-After": String(limit.retryAfter) } })
     const emailMatch =
       typeof email === "string" && email.trim().toLowerCase() === adminEmail.toLowerCase()
     const passwordMatch = typeof password === "string" && password === adminPassword

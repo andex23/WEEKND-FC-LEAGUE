@@ -29,9 +29,12 @@ export default function ResetPasswordPage() {
     async function prepareRecoverySession() {
       const supabase = createClient()
       const params = new URLSearchParams(window.location.search)
-      const code = params.get("code")
-      const tokenHash = params.get("token_hash")
-      const type = params.get("type")
+      const fragment = new URLSearchParams(window.location.hash.slice(1))
+      const code = fragment.get("code") || params.get("code")
+      const tokenHash = fragment.get("token_hash") || params.get("token_hash")
+      const type = fragment.get("type") || params.get("type")
+      if (code || tokenHash) window.history.replaceState(null, "", window.location.pathname)
+      let recovered = false
 
       if (tokenHash && type === "recovery") {
         const { error } = await supabase.auth.verifyOtp({
@@ -41,6 +44,7 @@ export default function ResetPasswordPage() {
         if (error && !cancelled) {
           setError("This reset link is invalid or expired. Request a new password reset link.")
         } else if (!error) {
+          recovered = true
           window.history.replaceState(null, "", window.location.pathname)
         }
       } else if (code) {
@@ -48,8 +52,18 @@ export default function ResetPasswordPage() {
         if (error && !cancelled) {
           setError("This reset link is invalid or expired. Request a new password reset link.")
         } else if (!error) {
+          recovered = true
           window.history.replaceState(null, "", window.location.pathname)
         }
+      }
+
+      if (recovered) {
+        // Recovery confirms ownership of previously unverified registration too.
+        // This endpoint only queues the deduplicated organizer notice.
+        const notificationPending = await fetch("/api/auth/recovery-complete", { method: "POST" })
+          .then(async (response) => !response.ok || Boolean((await response.json()).notificationPending))
+          .catch(() => true)
+        if (notificationPending && !cancelled) toast.warning("Your email is verified, but the organizer notification is delayed. Use resend verification to retry.")
       }
 
       const {
@@ -96,9 +110,12 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
       // Fire off the "password changed" security alert; never block on it.
-      await fetch("/api/account/password-changed", { method: "POST" }).catch(() => {})
+      const alertSent = await fetch("/api/account/password-changed", { method: "POST" })
+        .then((response) => response.ok).catch(() => false)
+      await supabase.auth.signOut({ scope: "local" })
       toast.success("Password updated. You can sign in now.")
-      router.push("/auth/login")
+      if (!alertSent) toast.warning("Your password changed, but we could not send the security notification.")
+      router.replace("/auth/login")
     } catch (err) {
       setError(
         err instanceof Error

@@ -1,15 +1,10 @@
+import { requireApprovedPlayer } from "@/lib/security/player-request"
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ messages: [] })
-  }
+  const access = await requireApprovedPlayer()
+  if (!access.ok) return access.response
+  const { user, supabase } = access
 
   const { data, error } = await supabase
     .from("notifications")

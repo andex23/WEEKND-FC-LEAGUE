@@ -423,8 +423,11 @@ export function RegistrationForm() {
       const result = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(result?.error || "Registration failed. Please try again.")
       setDone(true)
-      toast.success("Registration received — an admin will email you once approved.")
-      setTimeout(() => router.push("/auth/login"), 1900)
+      if (result.verificationEmailSent) toast.success("Check your email to verify your registration.")
+      else toast.warning(result.message || "Your account was created. Please resend your verification email.")
+      form.resetField("password")
+      form.resetField("confirmPassword")
+      setTimeout(() => router.push("/auth/check-email"), 1900)
     } catch (error) {
       setMinting(false)
       setDisplayRating(null)
@@ -459,7 +462,7 @@ export function RegistrationForm() {
               {STEPS[current].title}
             </h2>
             <p className="mt-1 text-sm text-[#8A8A8A]">
-              {done ? "Registration received. Taking you to sign in…" : STEPS[current].blurb}
+              {done ? "Registration received. Verify your email before admin review." : STEPS[current].blurb}
             </p>
           </div>
 

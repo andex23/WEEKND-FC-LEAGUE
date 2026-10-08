@@ -7,7 +7,7 @@ export default function RegisterPage() {
         <PageHeading
           eyebrow="New player registration"
           title="Your place in the club."
-          description="Create your player and get ready for the next season."
+          description="Register your interest in the next Weekend FC league. Entry is US$5. The start date is to be confirmed, and payment will wait until the season date and format are confirmed."
         />
         <RegistrationForm />
       </div>

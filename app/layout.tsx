@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { pageMetadata, SITE_URL } from "@/lib/seo"
-import Script from "next/script"
 import "./globals.css"
 import "./league-fonts.css"
 import "./league.css"
@@ -10,6 +9,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "sonner"
 import { DruAnalytics } from "@/components/dru-analytics"
+import { GoogleAnalytics } from "@/components/google-analytics"
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -31,21 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-F1DCSXWT0Q"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-F1DCSXWT0Q');
-          `}
-        </Script>
-      </head>
       <body suppressHydrationWarning>
+        <GoogleAnalytics />
         <DruAnalytics />
         <a className="fc-skip" href="#main-content">
           Skip to content
