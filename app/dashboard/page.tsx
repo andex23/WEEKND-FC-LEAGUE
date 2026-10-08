@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import PlayerHub from "./_components/PlayerHub"
-import UsefulLinks from "./_components/UsefulLinks"
 import TournamentInvites from "./_components/TournamentInvites"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -11,7 +10,6 @@ import {
   PlayerHubAccessError,
   type PlayerHubData,
 } from "@/lib/dashboard/load-player-hub"
-import { buildPlayerHub } from "@/lib/dashboard/player-hub"
 
 export default function DashboardPage() {
   const [data, setData] = useState<PlayerHubData | null>(null)
@@ -59,10 +57,12 @@ export default function DashboardPage() {
     }
     const timer = window.setInterval(refresh, 30000)
     window.addEventListener("focus", refresh)
+    window.addEventListener("weekend-player-profile-changed", refresh)
     return () => {
       currentRequest.current?.abort()
       window.clearInterval(timer)
       window.removeEventListener("focus", refresh)
+      window.removeEventListener("weekend-player-profile-changed", refresh)
     }
   }, [load])
 
@@ -105,17 +105,16 @@ export default function DashboardPage() {
       </div>
     )
 
-  const hub = buildPlayerHub(data)
   return (
     <PlayerHub
       {...data}
       invitations={<TournamentInvites entries={data.entries} onUpdate={load} />}
-      quickActions={<UsefulLinks reportHref={hub.canReport ? "/report" : null} />}
-      onPhotoChange={(url) =>
+      onPhotoChange={(url) => {
+        window.dispatchEvent(new Event("weekend-player-profile-changed"))
         setData((previous) =>
           previous ? { ...previous, player: { ...previous.player, avatar_url: url } } : previous,
         )
-      }
+      }}
     />
   )
 }

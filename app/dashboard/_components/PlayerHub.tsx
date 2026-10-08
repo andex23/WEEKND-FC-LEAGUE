@@ -112,6 +112,7 @@ export default function PlayerHub(props: PlayerHubProps) {
                 </dl>
                 <div className="fc-hub-photo">
                   <AvatarUpload
+                    key={`${player.id}:${player.avatar_url || "no-photo"}`}
                     userId={player.id}
                     initialUrl={player.avatar_url}
                     onChange={props.onPhotoChange}

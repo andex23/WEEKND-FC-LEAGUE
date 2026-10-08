@@ -6,6 +6,7 @@ export type HubPlayer = {
   psn_id?: string | null
   console?: string | null
   preferredClub?: string | null
+  available?: boolean | null
   avatar_url?: string | null
 }
 

@@ -5,6 +5,8 @@ import { Menu, X } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { PlayerNavigation } from "@/components/player-navigation"
+import { isPlayerRoute } from "@/lib/dashboard/player-shell"
 import { createClient } from "@/lib/supabase/client"
 
 const LINKS = [
@@ -21,17 +23,18 @@ export function Navbar() {
   const [logoutError, setLogoutError] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const playerArea = isPlayerRoute(pathname)
   const adminArea = pathname === "/admin" || pathname.startsWith("/admin/")
 
   useEffect(() => {
     setOpen(false)
-    if (adminArea) return
+    if (adminArea || playerArea) return
     const client = createClient()
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => setSignedIn(Boolean(session)))
     return () => subscription.unsubscribe()
-  }, [adminArea, pathname])
+  }, [adminArea, playerArea, pathname])
 
   const logoutAdmin = async () => {
     setLoggingOut(true)
@@ -47,6 +50,8 @@ export function Navbar() {
       setLoggingOut(false)
     }
   }
+
+  if (playerArea) return <PlayerNavigation />
 
   if (adminArea)
     return (

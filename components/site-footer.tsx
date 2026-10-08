@@ -1,9 +1,10 @@
 "use client"
+import { isPlayerRoute } from "@/lib/dashboard/player-shell"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 export function SiteFooter() {
   const path = usePathname()
-  if (path.startsWith("/admin")) return null
+  if (path.startsWith("/admin") || isPlayerRoute(path)) return null
   return (
     <footer className="fc-footer">
       <div className="fc-wrap">
